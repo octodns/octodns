@@ -79,7 +79,10 @@ class MailZoneValidator(ZoneValidator):
         self.mode = mode
         self.min_mx = min_mx
         self._single_mx_res = []
-        for r in (*self.DEFAULT_SINGLE_MX_REGEXES, *(single_mx_regexes or [])):
+        # use set to get a unique list of regexes
+        for r in set(
+            (*self.DEFAULT_SINGLE_MX_REGEXES, *(single_mx_regexes or []))
+        ):
             try:
                 self._single_mx_res.append(re_compile(r))
             except re_error as e:
