@@ -27,12 +27,28 @@ class TestMailZoneValidator(TestCase):
     def test_mail_validator_init(self):
         v = MailZoneValidator('test')
         self.assertEqual('auto', v.mode)
+        self.assertEqual(2, v.min_mx)
+        # default regexes are compiled and stored
+        self.assertEqual(
+            len(MailZoneValidator.DEFAULT_SINGLE_MX_REGEXES),
+            len(v._single_mx_res),
+        )
 
         v = MailZoneValidator('test', mode='mail')
         self.assertEqual('mail', v.mode)
 
         v = MailZoneValidator('test', mode='no-mail')
         self.assertEqual('no-mail', v.mode)
+
+        v = MailZoneValidator('test', min_mx=1)
+        self.assertEqual(1, v.min_mx)
+
+        # user regexes are appended to the defaults
+        v = MailZoneValidator('test', single_mx_regexes=[r'\.example\.com\.$'])
+        self.assertEqual(
+            len(MailZoneValidator.DEFAULT_SINGLE_MX_REGEXES) + 1,
+            len(v._single_mx_res),
+        )
 
         with self.assertRaises(ValueError):
             MailZoneValidator('test', mode='bad')
@@ -931,6 +947,122 @@ class TestMailZoneValidator(TestCase):
             )
         )
         self.assertEqual([], v.validate(zone))
+
+    def _make_valid_mail_zone(self, mx_values):
+        '''Helper: build a zone that passes all mail checks except potentially
+        redundancy, using the given mx_values list.'''
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(zone, '', {'type': 'MX', 'values': mx_values})
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {'type': 'TXT', 'values': ['v=spf1 include:example.com -all']},
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
+            )
+        )
+        return zone
+
+    def test_single_mx_provider_sendgrid_exempt(self):
+        # A single-value apex MX pointing at SendGrid should not trigger the
+        # redundancy check.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.sendgrid.net.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        self.assertEqual([], v.validate(zone))
+
+    def test_single_mx_provider_aws_ses_exempt(self):
+        # Amazon SES uses region-specific inbound-smtp hostnames; all should be
+        # exempt.
+        for region_host in (
+            'inbound-smtp.us-east-1.amazonaws.com.',
+            'inbound-smtp.us-west-2.amazonaws.com.',
+            'inbound-smtp.eu-west-1.amazonaws.com.',
+        ):
+            zone = self._make_valid_mail_zone(
+                [{'preference': 10, 'exchange': region_host}]
+            )
+            v = MailZoneValidator('test', mode='mail')
+            self.assertEqual(
+                [], v.validate(zone), f'{region_host} should be exempt'
+            )
+
+        # A single amazonaws.com host that is NOT an SES inbound endpoint
+        # must still be flagged.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'smtp.us-east-1.amazonaws.com.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 2 values', str(reasons[0]))
+
+    def test_single_mx_provider_postmark_exempt(self):
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'inbound.postmarkapp.com.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        self.assertEqual([], v.validate(zone))
+
+    def test_min_mx_one_disables_redundancy_check(self):
+        # min_mx=1 means a single non-exempt MX is fine.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mail1.unit.tests.'}]
+        )
+        v = MailZoneValidator('test', mode='mail', min_mx=1)
+        self.assertEqual([], v.validate(zone))
+
+    def test_min_mx_three_requires_three_values(self):
+        # min_mx=3: a two-value MX is now insufficient.
+        zone = self._make_valid_mail_zone(
+            [
+                {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+            ]
+        )
+        v = MailZoneValidator('test', mode='mail', min_mx=3)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 3 values', str(reasons[0]))
+
+    def test_single_mx_regexes_custom_extends_defaults(self):
+        # A user-supplied regex exempts a provider not in the built-in list,
+        # while the built-in defaults still apply.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.customprovider.example.com.'}]
+        )
+        # Without the custom regex, it is flagged.
+        v = MailZoneValidator('test', mode='mail')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 2 values', str(reasons[0]))
+
+        # With the custom regex, it is exempt.
+        v = MailZoneValidator(
+            'test',
+            mode='mail',
+            single_mx_regexes=[r'\.customprovider\.example\.com\.$'],
+        )
+        self.assertEqual([], v.validate(zone))
+
+        # Built-in SendGrid exemption still works alongside custom regexes.
+        zone2 = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.sendgrid.net.'}]
+        )
+        self.assertEqual([], v.validate(zone2))
+
+    def test_single_mx_regexes_invalid_pattern_raises(self):
+        with self.assertRaisesRegex(ValueError, r'\('):
+            MailZoneValidator('test', single_mx_regexes=['('])
 
     def test_builtin_registration(self):
         ids = [v.id for v in Zone.validators.available_validators()]
