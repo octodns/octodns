@@ -293,6 +293,14 @@ class Zone(object):
                     self.decoded_name, reasons_to_warn, context=self.context
                 )
             )
+        elif reasons_to_warn and suppress_lenient_warnings:
+            self.log.debug(
+                'suppressed lenient warnings for %s: %s',
+                self.decoded_name,
+                ValidationError.build_message(
+                    self.decoded_name, reasons_to_warn, context=self.context
+                ),
+            )
 
         if reasons_to_raise:
             raise ValidationError(

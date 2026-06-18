@@ -777,6 +777,35 @@ class TestZone(TestCase):
         with self.assertRaises(ValidationError):
             zone2.validate(suppress_lenient_warnings=True)
 
+    def test_validate_suppress_emits_debug(self):
+        zone = Zone('unit.tests.', [])
+        a = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'A',
+                'value': '9.9.9.9',
+                'octodns': {'lenient': True},
+            },
+        )
+        cname = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'CNAME',
+                'value': 'foo.bar.com.',
+                'octodns': {'lenient': True},
+            },
+        )
+        zone.add_record(a)
+        zone.add_record(cname)
+
+        with self.assertLogs('Zone', level='DEBUG') as logs:
+            zone.validate(suppress_lenient_warnings=True)
+        self.assertTrue(any('suppressed' in msg.lower() for msg in logs.output))
+
     def test_validator_registration_methods(self):
         # Test class methods that delegate to Zone.validators
         # These are currently missing coverage in octodns/zone/__init__.py
