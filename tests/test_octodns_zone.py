@@ -729,6 +729,56 @@ class TestZone(TestCase):
         cname.octodns['lenient'] = True
         zone.validate()
 
+    def test_validate_suppress_lenient_warnings(self):
+        zone = Zone('unit.tests.', [])
+        a = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'A',
+                'value': '9.9.9.9',
+                'octodns': {'lenient': True},
+            },
+        )
+        cname = Record.new(
+            zone,
+            'www',
+            {
+                'ttl': 60,
+                'type': 'CNAME',
+                'value': 'foo.bar.com.',
+                'octodns': {'lenient': True},
+            },
+        )
+        zone.add_record(a)
+        zone.add_record(cname)
+
+        # Without suppress, warns (both records are lenient so no exception
+        # raised, but a warning is logged)
+        with self.assertLogs('Zone', level='WARNING') as logs:
+            zone.validate()
+        self.assertTrue(
+            any('CNAME' in msg or 'A' in msg for msg in logs.output)
+        )
+
+        # With suppress_lenient_warnings=True, no warning is emitted
+        with self.assertNoLogs('Zone', level='WARNING'):
+            zone.validate(suppress_lenient_warnings=True)
+
+        # Non-lenient issues still raise even when suppress_lenient_warnings=True
+        zone2 = Zone('unit.tests.', [])
+        a_strict = Record.new(
+            zone2, 'www', {'ttl': 60, 'type': 'A', 'value': '9.9.9.9'}
+        )
+        cname_strict = Record.new(
+            zone2, 'www', {'ttl': 60, 'type': 'CNAME', 'value': 'foo.bar.com.'}
+        )
+        zone2.add_record(a_strict)
+        zone2.add_record(cname_strict)
+        with self.assertRaises(ValidationError):
+            zone2.validate(suppress_lenient_warnings=True)
+
     def test_validator_registration_methods(self):
         # Test class methods that delegate to Zone.validators
         # These are currently missing coverage in octodns/zone/__init__.py

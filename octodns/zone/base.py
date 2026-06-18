@@ -274,7 +274,7 @@ class Zone(object):
     def available_zone_validators(cls):
         return cls.validators.available_validators()
 
-    def validate(self, lenient=False):
+    def validate(self, lenient=False, suppress_lenient_warnings=False):
         reasons = self.validators.process_zone(self)
         if not reasons:
             return
@@ -287,7 +287,7 @@ class Zone(object):
             else:
                 reasons_to_raise.append(reason)
 
-        if reasons_to_warn:
+        if reasons_to_warn and not suppress_lenient_warnings:
             self.log.warning(
                 ValidationError.build_message(
                     self.decoded_name, reasons_to_warn, context=self.context
