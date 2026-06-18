@@ -758,9 +758,7 @@ class TestZone(TestCase):
         # raised, but a warning is logged)
         with self.assertLogs('Zone', level='WARNING') as logs:
             zone.validate()
-        self.assertTrue(
-            any('CNAME' in msg or 'A' in msg for msg in logs.output)
-        )
+        self.assertTrue(any('unit.tests.' in msg for msg in logs.output))
 
         # With suppress_lenient_warnings=True, no warning is emitted
         with self.assertNoLogs('Zone', level='WARNING'):
