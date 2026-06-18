@@ -8,11 +8,7 @@ zones:
   empty.:
     sources:
     - in
-    targets:
-    - dump
     lenient: true
   unit.tests.:
     sources:
     - in
-    targets:
-    - dump
