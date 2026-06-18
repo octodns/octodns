@@ -2,11 +2,12 @@
 #
 #
 
+from logging import getLogger
 from os.path import dirname, join
 from unittest import TestCase
 from unittest.mock import patch
 
-from octodns.cmds.validate import main
+from octodns.cmds.validate import FlaggingHandler, main
 
 config_dir = join(dirname(__file__), 'config')
 
@@ -16,6 +17,13 @@ def get_config_filename(which):
 
 
 class TestValidateMain(TestCase):
+    def tearDown(self):
+        for logger_name in ('Zone', 'Record'):
+            log = getLogger(logger_name)
+            log.handlers = [
+                h for h in log.handlers if not isinstance(h, FlaggingHandler)
+            ]
+
     def test_no_flags_clean_config_exits_0(self):
         with patch(
             'sys.argv',
