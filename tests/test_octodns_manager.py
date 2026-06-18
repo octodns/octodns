@@ -709,21 +709,24 @@ class TestManager(TestCase):
         # so a zone with lenient:true in config would cause subsequent zones
         # to inherit lenient=True.
         # After the fix, each zone uses a local zone_lenient variable instead.
+        #
+        # validate-lenient-then-strict.yaml has two zones:
+        #   empty.      — lenient: true
+        #   unit.tests. — no lenient config
+        # With the bug, processing empty. first would set lenient=True for the
+        # rest of the loop, so unit.tests. would only warn instead of raising.
         with zone_validators_snapshot():
             from octodns.zone.validator import ValidationReason
 
-            # A non-lenient reason — should raise, not warn
+            # A non-lenient reason — should raise on the strict zone
             with patch.object(
                 Zone.validators,
                 'process_zone',
                 return_value=[ValidationReason('zone is broken', [])],
             ):
-                # simple-validate.yaml has unit.tests. with no lenient config.
-                # Before the fix, if any prior zone was lenient, this would only warn.
-                # After the fix, it must raise.
                 with self.assertRaises(ValidationError):
                     Manager(
-                        get_config_filename('simple-validate.yaml')
+                        get_config_filename('validate-lenient-then-strict.yaml')
                     ).validate_configs()
 
     def test_source_only_as_a_target(self):

@@ -1,0 +1,18 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    supports_root_ns: False
+    strict_supports: False
+zones:
+  empty.:
+    sources:
+    - in
+    targets:
+    - dump
+    lenient: true
+  unit.tests.:
+    sources:
+    - in
+    targets:
+    - dump
