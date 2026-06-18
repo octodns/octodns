@@ -34,6 +34,12 @@ def main():
         default=False,
         help='Validate records in lenient mode, printing warnings so that all validation issues are shown',
     )
+    parser.add_argument(
+        '--honor-lenient',
+        action='store_true',
+        default=False,
+        help='Suppress warnings for zones and records configured with lenient: true, exiting 0 if no non-lenient issues remain',
+    )
 
     args = parser.parse_args(WARNING)
 
@@ -42,7 +48,9 @@ def main():
     getLogger('Zone').addHandler(flagging)
 
     manager = Manager(args.config_file)
-    manager.validate_configs(lenient=args.all)
+    manager.validate_configs(
+        lenient=args.all, suppress_lenient_warnings=args.honor_lenient
+    )
 
     if flagging.flag:
         exit(1)
