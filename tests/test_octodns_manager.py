@@ -677,6 +677,55 @@ class TestManager(TestCase):
                     any('zone is broken' in msg for msg in logs.output)
                 )
 
+    def test_validate_configs_suppress_lenient_warnings(self):
+        with zone_validators_snapshot():
+            from octodns.zone.validator import ValidationReason
+
+            with patch.object(
+                Zone.validators,
+                'process_zone',
+                return_value=[ValidationReason('zone is broken', [])],
+            ):
+                # lenient=True, no suppress: warning is logged
+                with self.assertLogs('Zone', level='WARNING') as logs:
+                    Manager(
+                        get_config_filename('simple-validate.yaml')
+                    ).validate_configs(lenient=True)
+                self.assertTrue(
+                    any('zone is broken' in msg for msg in logs.output)
+                )
+
+                # lenient=True, suppress_lenient_warnings=True: no warning, no exception
+                with self.assertNoLogs('Zone', level='WARNING'):
+                    Manager(
+                        get_config_filename('simple-validate.yaml')
+                    ).validate_configs(
+                        lenient=True, suppress_lenient_warnings=True
+                    )
+
+    def test_validate_configs_lenient_not_inherited_across_zones(self):
+        # Regression test for the loop bug: validate_configs() was reassigning
+        # the `lenient` function parameter from zone config on each iteration,
+        # so a zone with lenient:true in config would cause subsequent zones
+        # to inherit lenient=True.
+        # After the fix, each zone uses a local zone_lenient variable instead.
+        with zone_validators_snapshot():
+            from octodns.zone.validator import ValidationReason
+
+            # A non-lenient reason — should raise, not warn
+            with patch.object(
+                Zone.validators,
+                'process_zone',
+                return_value=[ValidationReason('zone is broken', [])],
+            ):
+                # simple-validate.yaml has unit.tests. with no lenient config.
+                # Before the fix, if any prior zone was lenient, this would only warn.
+                # After the fix, it must raise.
+                with self.assertRaises(ValidationError):
+                    Manager(
+                        get_config_filename('simple-validate.yaml')
+                    ).validate_configs()
+
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
             Manager(get_config_filename('provider-problems.yaml')).sync(
