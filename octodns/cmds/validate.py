@@ -43,6 +43,9 @@ def main():
 
     args = parser.parse_args(WARNING)
 
+    if args.all and args.honor_lenient:
+        parser.error('--all and --honor-lenient are mutually exclusive')
+
     flagging = FlaggingHandler()
     getLogger('Record').addHandler(flagging)
     getLogger('Zone').addHandler(flagging)
