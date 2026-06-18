@@ -1296,7 +1296,9 @@ class Manager(object):
             target.apply(plan)
 
     def validate_configs(self, lenient=False, suppress_lenient_warnings=False):
-        # TODO: this code can probably be shared with stuff in sync
+        # TODO: this code can probably be shared with stuff in sync.
+        # Note: validate_configs carries suppress_lenient_warnings; the sync
+        # path's zone.validate() does not — reconcile this if/when merging.
 
         zones = self.config['zones']
         zones = self._preprocess_zones(zones)

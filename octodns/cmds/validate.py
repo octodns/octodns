@@ -46,6 +46,10 @@ def main():
     if args.all and args.honor_lenient:
         parser.error('--all and --honor-lenient are mutually exclusive')
 
+    # FlaggingHandler sets flag=True on any WARNING-level log record reaching
+    # the 'Record' or 'Zone' loggers. --honor-lenient works by suppressing
+    # lenient warnings before they reach here, so FlaggingHandler never fires
+    # for lenient issues, producing a natural exit 0.
     flagging = FlaggingHandler()
     getLogger('Record').addHandler(flagging)
     getLogger('Zone').addHandler(flagging)

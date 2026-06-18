@@ -275,6 +275,19 @@ class Zone(object):
         return cls.validators.available_validators()
 
     def validate(self, lenient=False, suppress_lenient_warnings=False):
+        '''
+        Validate zone records using all registered zone validators.
+
+        :param lenient: When True, all validation reasons are treated as
+            warnings (logged) rather than errors (raised). Equivalent to
+            passing ``lenient: true`` at the zone config level.
+        :param suppress_lenient_warnings: When True, validation reasons that
+            would normally be logged as warnings (because ``lenient`` is True
+            or the reason's records are individually lenient-tagged) are
+            silently suppressed instead. Non-lenient reasons still raise
+            ``ValidationError`` regardless of this flag. Set by
+            ``--honor-lenient`` in the octodns-validate CLI.
+        '''
         reasons = self.validators.process_zone(self)
         if not reasons:
             return
