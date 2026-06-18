@@ -730,10 +730,18 @@ class TestManager(TestCase):
                 'process_zone',
                 return_value=[ValidationReason('zone is broken', [])],
             ):
-                with self.assertRaises(ValidationError):
-                    Manager(
-                        get_config_filename('validate-lenient-then-strict.yaml')
-                    ).validate_configs()
+                # empty. should warn (lenient), unit.tests. should raise (strict)
+                with self.assertLogs('Zone', level='WARNING') as logs:
+                    with self.assertRaises(ValidationError):
+                        Manager(
+                            get_config_filename(
+                                'validate-lenient-then-strict.yaml'
+                            )
+                        ).validate_configs()
+                self.assertTrue(
+                    any('empty.' in msg for msg in logs.output),
+                    'expected a warning for the lenient empty. zone',
+                )
 
     def test_source_only_as_a_target(self):
         with self.assertRaises(ManagerException) as ctx:
