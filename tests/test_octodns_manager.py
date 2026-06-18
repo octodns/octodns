@@ -703,6 +703,12 @@ class TestManager(TestCase):
                         lenient=True, suppress_lenient_warnings=True
                     )
 
+                # zone config has lenient:true, no lenient= arg: suppress_lenient_warnings=True silences it
+                with self.assertNoLogs('Zone', level='WARNING'):
+                    Manager(
+                        get_config_filename('simple-lenient-zone.yaml')
+                    ).validate_configs(suppress_lenient_warnings=True)
+
     def test_validate_configs_lenient_not_inherited_across_zones(self):
         # Regression test for the loop bug: validate_configs() was reassigning
         # the `lenient` function parameter from zone config on each iteration,
