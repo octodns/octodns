@@ -31,13 +31,11 @@ def main():
     parser.add_argument(
         '--all',
         action='store_true',
-        default=False,
         help='Validate records in lenient mode, printing warnings so that all validation issues are shown',
     )
     parser.add_argument(
         '--honor-lenient',
         action='store_true',
-        default=False,
         help='Suppress warnings for zones and records configured with lenient: true, exiting 0 if no non-lenient issues remain',
     )
 

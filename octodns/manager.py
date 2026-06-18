@@ -1318,7 +1318,9 @@ class Manager(object):
                 if 'alias' in self.config['zones'][source_zone]:
                     self.log.exception('Invalid alias zone')
                     raise ManagerException(
-                        f'Invalid alias zone {decoded_zone_name}: source zone {source_zone} is an alias zone'
+                        f'Invalid alias zone {decoded_zone_name}: '
+                        f'source zone {source_zone} is an '
+                        'alias zone'
                     )
 
                 # this is just here to satisfy coverage, see
