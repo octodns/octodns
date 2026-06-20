@@ -88,32 +88,37 @@ class OwnershipProcessor(BaseProcessor):
             # If we don't have any change there's nothing to do
             return plan
 
-        # First find all the ownership info
+        # First find all the ownership info; we need to look at both the
+        # desired and existing states, many things will show up in both,
+        # but that's fine. While walking existing, also collect any foreign
+        # ownership markers so we can check them once `owned` is fully
+        # populated below (it depends on desired too).
         owned = defaultdict(dict)
-        # We need to look for ownership in both the desired and existing
-        # states, many things will show up in both, but that's fine.
-        for record in list(plan.existing.records) + list(plan.desired.records):
+        foreign = []
+        for record in plan.existing.records:
+            if self._is_ownership(record):
+                name, _type = self._decode_ownership_name(record)
+                owned[name][_type] = True
+            elif not self.allow_takeover and self._is_ownership_name(record):
+                foreign.append(record)
+        for record in plan.desired.records:
             if self._is_ownership(record):
                 name, _type = self._decode_ownership_name(record)
                 owned[name][_type] = True
 
-        if not self.allow_takeover:
-            # If an existing ownership record doesn't belong to us, but we're
-            # about to take ownership of the record it's marking, someone/
-            # something else believes they own it. Refuse to step on it
-            # rather than silently overwriting their marker.
-            for record in plan.existing.records:
-                if self._is_ownership_name(record) and not self._is_ownership(
-                    record
-                ):
-                    name, _type = self._decode_ownership_name(record)
-                    if _type in owned[name]:
-                        raise OwnershipException(
-                            f'{self.id}: refusing to take over '
-                            f'{record.fqdn} {_type}, owned by '
-                            f'{record.values}, not {self._txt_values}; set '
-                            'allow_takeover=true to override'
-                        )
+        # If an existing ownership record doesn't belong to us, but we're
+        # about to take ownership of the record it's marking, someone/
+        # something else believes they own it. Refuse to step on it rather
+        # than silently overwriting their marker.
+        for record in foreign:
+            name, _type = self._decode_ownership_name(record)
+            if _type in owned[name]:
+                raise OwnershipException(
+                    f'{self.id}: refusing to take over {record.fqdn} '
+                    f'{_type}, owned by {record.values}, not '
+                    f'{self._txt_values}; set allow_takeover=true to '
+                    'override'
+                )
 
         # Cases:
         # - Configured in source
