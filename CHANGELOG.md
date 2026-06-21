@@ -1,3 +1,10 @@
+## 1.20.0 - 2026-06-21
+
+Minor:
+* Allow a config validator to override a built-in validator by reusing its id, making it easy to tweak built-in validator parameters (e.g. forcing the mail zone validator into no-mail mode) - [#1434](https://github.com/octodns/octodns/pull/1434)
+* OwnershipProcessor: refuse to take over records whose existing ownership marker has a foreign value; add allow_takeover (default false) to restore prior behavior. - [#1432](https://github.com/octodns/octodns/pull/1432)
+* MailZoneValidator: add min_mx parameter (default 2) and single_mx_regexes for exempting known single-MX providers (SendGrid, Amazon SES, Postmark) from the redundancy check - [#1430](https://github.com/octodns/octodns/pull/1430)
+
 ## 1.19.0 - 2026-06-07
 
 Minor:
