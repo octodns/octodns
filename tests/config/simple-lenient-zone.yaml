@@ -1,0 +1,15 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    supports_root_ns: False
+    strict_supports: False
+  plannable:
+    class: helpers.PlannableProvider
+zones:
+  empty.:
+    sources:
+    - in
+    targets:
+    - plannable
+    lenient: true

@@ -53,15 +53,6 @@ class TestRecordPtr(TestCase):
             ['PTR value "_." is not a valid FQDN'], ctx.exception.reasons
         )
 
-        # no trailing .
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone, '', {'type': 'PTR', 'ttl': 600, 'value': 'foo.bar'}
-            )
-        self.assertEqual(
-            ['PTR value "foo.bar" missing trailing .'], ctx.exception.reasons
-        )
-
     def test_ptr_rdata_text(self):
         # anything goes, we're a noop
         for s in (
@@ -110,16 +101,50 @@ class TestRecordPtr(TestCase):
             {
                 'type': 'PTR',
                 'ttl': 600,
-                # Value is missing ending dot.
+                # Value is missing trailing dot — no error without best-practice
                 'value': '{zone_name}example.com',
             },
             lenient=False,
         )
         zone.add_record(ptr, replace=True)
+        templ.process_source_and_target_zones(zone, None, None)
 
-        with self.assertRaises(ValidationError) as ctx:
-            templ.process_source_and_target_zones(zone, None, None)
-        self.assertEqual(
-            ['PTR value "0.0.10.in-addr.arpa.example.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
+    def test_best_practice_validator(self):
+        zone = Zone('0.0.10.in-addr.arpa.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('targets-value-best-practice', types=['PTR'])
+        try:
+            # missing trailing dot is caught
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone, '1', {'type': 'PTR', 'ttl': 600, 'value': 'foo.bar'}
+                )
+            self.assertEqual(
+                ['PTR value "foo.bar" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # trailing dot caught after template substitution
+            templ = Templating('test')
+            ptr = Record.new(
+                zone,
+                '2',
+                {'type': 'PTR', 'ttl': 600, 'value': '{zone_name}example.com'},
+                lenient=False,
+            )
+            zone.add_record(ptr, replace=True)
+            with self.assertRaises(ValidationError) as ctx:
+                templ.process_source_and_target_zones(zone, None, None)
+            self.assertEqual(
+                [
+                    'PTR value "0.0.10.in-addr.arpa.example.com" missing trailing .'
+                ],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone, '1', {'type': 'PTR', 'ttl': 600, 'value': 'foo.bar.'}
+            )
+        finally:
+            Record.disable_validator(
+                'targets-value-best-practice', types=['PTR']
+            )

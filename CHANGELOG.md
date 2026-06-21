@@ -1,6 +1,60 @@
+## 1.19.0 - 2026-06-07
+
+Minor:
+* Deprecate default of YamlProvider escaped_semicolons=True - [#1419](https://github.com/octodns/octodns/pull/1419)
+* Support tilde (~) expansion in !include directives - [#1420](https://github.com/octodns/octodns/pull/1420)
+
+Patch:
+* Fix MailZoneValidator auto-detection: DMARC p=reject is a best-practice enforcement policy, not a no-mail signal — zones with real MX records and p=reject DMARC were incorrectly flagged. Auto-detection now uses MX as the primary signal (Null MX → no-mail, real MX → mail) with SPF as fallback; DMARC policy is never used for mode detection. Closes #1422. - [#1425](https://github.com/octodns/octodns/pull/1425)
+* Fix #1427: restore sub-zone record check in Zone.add_record so leniently-added ownership records are not rejected at validate time - [#1428](https://github.com/octodns/octodns/pull/1428)
+
+## 1.18.0 - 2026-05-24
+
+Minor:
+
+* Add ZoneValidator framework for cross-record zone-level validation - [#1396](https://github.com/octodns/octodns/pull/1396)
+  * New checks disabled by default, see docs for opt-in, will be default on in 2.x
+  * Migrate SubzoneRecordException checks to SubzoneRecordValidator - [#1398](https://github.com/octodns/octodns/pull/1398)
+  * MailZoneValidator: MX records, DMARC and SPF TXT values for both mail and no-mail cases per sub-domain - [#1403](https://github.com/octodns/octodns/pull/1403), [#1417](https://github.com/octodns/octodns/pull/1417)
+  * Add zone validators that ensure in-zone targets are resolvable - [#1407](https://github.com/octodns/octodns/pull/1407)
+  * Add NoCnameLoopZoneValidator to detect circular CNAME/ALIAS chains - [#1401](https://github.com/octodns/octodns/pull/1401)
+  * Migrate CNAME coexistence check to CnameCoexistenceValidator - [#1398](https://github.com/octodns/octodns/pull/1398)
+  * Add DNAME coexistence zone validator - [#1415](https://github.com/octodns/octodns/pull/1415)
+  * Add ns-target-not-cname, mx-target-not-cname, and srv-target-not-cname zone validators - [#1409](https://github.com/octodns/octodns/pull/1409)
+  * Add an apex CAA zone validation - [#1405](https://github.com/octodns/octodns/pull/1405)
+  * Implement GlueForInZoneNsZoneValidator and MultiValueApexNsZoneValidator - [#1399](https://github.com/octodns/octodns/pull/1399)
+* Implement additional DNS validators (SPF, CNAME, ALIAS, IPs) - [#1413](https://github.com/octodns/octodns/pull/1413)
+
+Patch:
+
+* Fix RFC-based validators to run only in strict set and sync documentation - [#1414](https://github.com/octodns/octodns/pull/1414)
+* Handle null values in TXT/SPF records gracefully, raising ValidationError instead of TypeError/AttributeError - [#1402](https://github.com/octodns/octodns/pull/1402)
+## 1.17.0 - 2026-05-06 - Now with more validation
+
+Minor:
+
+* Add JSON Schema for the main config file and publish it alongside the renamed zone schema (octodns-zone.schema.json); octodns.schema.json remains as a legacy alias. - [#1393](https://github.com/octodns/octodns/pull/1393)
+* Validators Next - See documentation for a more cohesive picture of the new/improved functionality
+  * Introduce RecordValidator/ValueValidator base classes, laying groundwork for extensible record and value validations. Overriding `validate` on a `Record` subclass or defining a `validate` classmethod on a value class is DEPRECATED; declare validators via the `VALIDATORS` class attribute instead. Will be removed in 2.0. - [#1378](https://github.com/octodns/octodns/pull/1378)
+  * Dynamic validator registration and config-driven management - [#1380](https://github.com/octodns/octodns/pull/1380)
+  * Add best-practice validators for SSHFP, DS, TLSA, and CAA record types - [#1391](https://github.com/octodns/octodns/pull/1391)
+  * Add new strict validators set and include existing rfc-compliant validators in it - [#1390](https://github.com/octodns/octodns/pull/1390)
+  * Add named validator sets (legacy, rfc, etc.) and manager.enabled config key to opt into curated bundles - [#1387](https://github.com/octodns/octodns/pull/1387)
+  * Validate SSHFP fingerprint length matches fingerprint_type - [#1372](https://github.com/octodns/octodns/pull/1372)
+  * Add opt-in strict SRV validators per RFC 2782 and RFC 6335 (`SrvNameRfcValidator` / `srv-name-rfc`, `SrvValueRfcValidator` / `srv-value-rfc`). Establishes the `RfcValidator` / `BpValidator` naming convention to distinguish RFC-mandated checks from best-practice ones. - [#1379](https://github.com/octodns/octodns/pull/1379)
+* Add `ignore_subzone_adds` zone option to silently drop records overlapping a configured sub-zone - [#1381](https://github.com/octodns/octodns/pull/1381)
+* Normalize hex data fields (TLSA certificate_association_data, SSHFP fingerprint, DS digest) to lowercase for case-insensitive comparison - [#1389](https://github.com/octodns/octodns/pull/1389)
+* Add REFERENCES tuple to Zone and each Record type pointing to the RFCs (and for ALIAS an IETF draft) that define them - [#1377](https://github.com/octodns/octodns/pull/1377)
+* JSON schema file generation - [#1373](https://github.com/octodns/octodns/pull/1373)
+
+Patch:
+
+* Register UriRecord and UriValue - [#1374](https://github.com/octodns/octodns/pull/1374)
+
 ## 1.16.0 - 2026-03-22
 
 Minor:
+
 * Add support for default values to env ars, env/VAR_NAME/DEFAULT - [#1364](https://github.com/octodns/octodns/pull/1364)
 * Record level lenience now applies to sub-zone ownership exceptions - [#1363](https://github.com/octodns/octodns/pull/1363)
 * make NAPTR flags field case insensitive - [#1360](https://github.com/octodns/octodns/pull/1360)
@@ -15,15 +69,18 @@ Minor:
 ## 1.15.0 - 2025-11-23
 
 Minor:
+
 * Use dedicated Checksum logger so that checksum is visible in --quiet mode - [#1333](https://github.com/octodns/octodns/pull/1333)
 * Add merge syntax support to !include tag, `<<: !include file.yaml` - [#1315](https://github.com/octodns/octodns/pull/1315)
 
 Patch:
+
 * Use WARNING instead of deprecated WARN, fix log level alignment - [#1333](https://github.com/octodns/octodns/pull/1333)
 
 ## 1.14.0 - 2025-10-24
 
 Minor:
+
 * Full rewrite of octodns-report: support for IPv6 resolvers, async names resolution and JSON output - [#1321](https://github.com/octodns/octodns/pull/1321)
 * Add processor for clamping TTLs - [#1318](https://github.com/octodns/octodns/pull/1318)
 * Add processor support to octodns-dump - [#1309](https://github.com/octodns/octodns/pull/1309)
@@ -35,6 +92,7 @@ Minor:
 ## 1.13.0 - 2025-08-06 - And then there was changelet
 
 Minor:
+
 * Quote NAPTR 'flags', 'service' and 'regexp' values as required by RFC2915 - [#1284](https://github.com/octodns/octodns/pull/1284)
 * Add new provider parameter root_ns_warnings to disable root NS related warnings - [#1282](https://github.com/octodns/octodns/pull/1282)
 * Fix issues with using Templating processor on alias zones - [#1279](https://github.com/octodns/octodns/pull/1279)
@@ -45,12 +103,14 @@ Minor:
 * Add kwags to filter processors __init__ - [#1274](https://github.com/octodns/octodns/pull/1274)
 
 Patch:
+
 * Fix encoding and decoding of mixed idna fqdns - [#1285](https://github.com/octodns/octodns/pull/1285)
 * Improve error messaging for unknown templating parameters - [#1280](https://github.com/octodns/octodns/pull/1280)
 
 ## 1.12.0 - 2025-06-25 - Automated changelogs
 
 Minor:
+
 * Templating processor added [#1259](https://github.com/octodns/octodns/pull/1259)
 * Update geo-data, Türkiye [#1263](https://github.com/octodns/octodns/pull/1263)
 * New provider: Bunny DNS [#1262](https://github.com/octodns/octodns/pull/1262)
@@ -196,9 +256,9 @@ Minor:
 * Record.from_rrs supports `source` parameter
 * Record.parse_rdata_text unquotes any quoted (string) values
 * Fix crash bug when using the YamlProvider with a directory that contains a
-  mix of split and non-split zone yamls. See https://github.com/octodns/octodns/issues/1066
+  mix of split and non-split zone yamls. See <https://github.com/octodns/octodns/issues/1066>
 * Fix discovery of zones from different sources when there are multiple dynamic
-  zones. See https://github.com/octodns/octodns/issues/1068
+  zones. See <https://github.com/octodns/octodns/issues/1068>
 
 ## v1.1.1 - 2023-09-16 - Doh! Fix that one little thing
 
@@ -226,7 +286,7 @@ Minor:
 * SpfRecord is formally deprecated with an warning and will become a
   ValidationError in 2.x
 * SpfDnsLookupProcessor is formally deprcated in favor of the version relocated
-  into https://github.com/octodns/octodns-spf and will be removed in 2.x
+  into <https://github.com/octodns/octodns-spf> and will be removed in 2.x
 * MetaProcessor added to enable some useful/cool options for debugging/tracking
   DNS changes. Specifically timestamps/uuid so you can track whether changes
   that have been pushed to providers have propogated/transferred correctly.
@@ -276,28 +336,28 @@ long (years) overdue.
 ### Noteworthy changes
 
 * 1.x Deprecation removals
-   * Provider, Source, and Processor shims removed, they've been warnings for >
+  * Provider, Source, and Processor shims removed, they've been warnings for >
      1yr.  Everything should be using and referring to provider-specific
      modules now.
-   * Provider.strict_supports defaults to true, can be returned to the old
+  * Provider.strict_supports defaults to true, can be returned to the old
      behavior by setting strict_supports=False in your provider params.
 * octodns.record has been broken up into multiple files/modules. Most of the
   primary things that were available at that module path still will be, but if
   you are importing things like idna_encode/decode that actually live elsewhere
   from octodns.record you'll need to update and pull them from their actual
-  home. Classes beginning with _ are not exported from octodns.record any
+  home. Classes beginning with_ are not exported from octodns.record any
   longer as they were considered private/protected.
 * Beta support for auto-arpa has been added
 * Support for subnet targeting in dynamic records
 * Enhanced validations on dynamic rules to encourage best practices
-   * The last rule must be a catch-all w/o any targeted geos or subnets
-   * Geos must not be repeated in multiple rules
-   * Geos in rules and subsequent rules must be ordered most to least specific,
+  * The last rule must be a catch-all w/o any targeted geos or subnets
+  * Geos must not be repeated in multiple rules
+  * Geos in rules and subsequent rules must be ordered most to least specific,
      e.g. NA-US-TN must come before NA-US, which must occur before NA
-   * Similarly, subnets must not be repeated in multiple rules, and various
+  * Similarly, subnets must not be repeated in multiple rules, and various
      subnet rules must be ordered such that most specific subnets appear before
      less specific ones; e.g. 10.1.1.0/24 must appear before 10.1.0.0/16.
-   * Subnet targeting is considered to be more specific than geo targeting, so
+  * Subnet targeting is considered to be more specific than geo targeting, so
      subnet-only rules must appear before any subnet+geo rules, followed by
      geo-only rules (and catch-all rule w/o any geos/subnets in the end)
 
@@ -312,7 +372,7 @@ long (years) overdue.
 ## v0.9.21 - 2022-10-16 - Last of the oughts
 
 * Shim AxfrSource and ZoneFileSource post extraction into
-  https://github.com/octodns/octodns-bind
+  <https://github.com/octodns/octodns-bind>
 
 ## v0.9.20 - 2022-10-05 - International friendly
 
@@ -355,9 +415,9 @@ long (years) overdue.
   at info
 * --logging-config command line option added to allow complete logging config
   customization, see
-  https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
+  <https://docs.python.org/3/library/logging.config.html#logging-config-dictschema>
   for file format and
-  https://github.com/octodns/octodns/pull/945#issuecomment-1262839550 for an
+  <https://github.com/octodns/octodns/pull/945#issuecomment-1262839550> for an
   example config
 
 ## v0.9.19 - 2022-08-14 - Subzone handling
@@ -406,15 +466,15 @@ long (years) overdue.
 ### Noteworthy changes
 
 * Foundational support for root NS record management.
-   * YamlProvider has it enabled and in general everyone should add root NS
+  * YamlProvider has it enabled and in general everyone should add root NS
      records that match what is in their provider(s) as of this release if they
      aren't already there.
-   * Other providers will add root NS support over time following this release
+  * Other providers will add root NS support over time following this release
      once they have had the chance to investigate the functionality and
      implement management if possible with whatever accomidations are required.
-   * Watch your providers README.md and CHANGELOG.md for support and more
+  * Watch your providers README.md and CHANGELOG.md for support and more
      information.
-   * Root NS record changes will always require `--force` indicating that they
+  * Root NS record changes will always require `--force` indicating that they
      are impactful changes that need a careful :eyes:
 
 ### Stuff
@@ -429,32 +489,32 @@ long (years) overdue.
 ### Noteworthy changes
 
 * Providers extracted from octoDNS core into individual repos
-  https://github.com/octodns/octodns/issues/622 &
-  https://github.com/octodns/octodns/pull/822 for more information.
-   * [AzureProvider](https://github.com/octodns/octodns-azure/)
-   * [AkamaiProvider](https://github.com/octodns/octodns-edgedns/)
-   * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
-   * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
-   * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
-   * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
-   * [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/)
-   * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
-   * [EasyDnsProvider](https://github.com/octodns/octodns-easydns/)
-   * [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/)
-   * [GandiProvider](https://github.com/octodns/octodns-gandi/)
-   * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
-   * [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/)
-   * [HetznerProvider](https://github.com/octodns/octodns-hetzner/)
-   * [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/)
-   * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
-   * [OvhProvider](https://github.com/octodns/octodns-ovh/)
-   * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
-   * [RackspaceProvider](https://github.com/octodns/octodns-rackspace/)
-   * [Route53Provider](https://github.com/octodns/octodns-route53/) also
+  <https://github.com/octodns/octodns/issues/622> &
+  <https://github.com/octodns/octodns/pull/822> for more information.
+  * [AzureProvider](https://github.com/octodns/octodns-azure/)
+  * [AkamaiProvider](https://github.com/octodns/octodns-edgedns/)
+  * [CloudflareProvider](https://github.com/octodns/octodns-cloudflare/)
+  * [ConstellixProvider](https://github.com/octodns/octodns-constellix/)
+  * [DigitalOceanProvider](https://github.com/octodns/octodns-digitalocean/)
+  * [DnsimpleProvider](https://github.com/octodns/octodns-dnsimple/)
+  * [DnsMadeEasyProvider](https://github.com/octodns/octodns-dnsmadeeasy/)
+  * [DynProvider](https://github.com/octodns/octodns-dynprovider/)
+  * [EasyDnsProvider](https://github.com/octodns/octodns-easydns/)
+  * [EtcHostsProvider](https://github.com/octodns/octodns-etchosts/)
+  * [GandiProvider](https://github.com/octodns/octodns-gandi/)
+  * [GcoreProvider](https://github.com/octodns/octodns-gcore/)
+  * [GoogleCloudProvider](https://github.com/octodns/octodns-googlecloud/)
+  * [HetznerProvider](https://github.com/octodns/octodns-hetzner/)
+  * [MythicBeastsProvider](https://github.com/octodns/octodns-mythicbeasts/)
+  * [Ns1Provider](https://github.com/octodns/octodns-ns1/)
+  * [OvhProvider](https://github.com/octodns/octodns-ovh/)
+  * [PowerDnsProvider](https://github.com/octodns/octodns-powerdns/)
+  * [RackspaceProvider](https://github.com/octodns/octodns-rackspace/)
+  * [Route53Provider](https://github.com/octodns/octodns-route53/) also
      AwsAcmMangingProcessor
-   * [SelectelProvider](https://github.com/octodns/octodns-selectel/)
-   * [TransipProvider](https://github.com/octodns/octodns-transip/)
-   * [UltraDnsProvider](https://github.com/octodns/octodns-ultradns/)
+  * [SelectelProvider](https://github.com/octodns/octodns-selectel/)
+  * [TransipProvider](https://github.com/octodns/octodns-transip/)
+  * [UltraDnsProvider](https://github.com/octodns/octodns-ultradns/)
 * As part of the extraction work octoDNS's requirements (setup.py and .txt
   files) have been updated and minimized and a helper script,
   script/update-requirements has been added to help manage the txt files going
@@ -467,7 +527,7 @@ long (years) overdue.
   created or updated using this version will show an update.
 * An edge-case bug related to geo rules involving continents in NS1 provider
   has been fixed in this version. However, it will not show/fix the records that
-  match this edge-case. See https://github.com/octodns/octodns/pull/809 for
+  match this edge-case. See <https://github.com/octodns/octodns/pull/809> for
   more information. If octoDNS is downgraded from this version, any dynamic
   records created or updated using this version and matching the said edge-case
   will not be read/parsed correctly by the older version and will show a diff.
@@ -501,11 +561,11 @@ long (years) overdue.
   list. It should be safe to enable this functionality, but existing records
   will not be converted. Note: Once this option is enabled downgrades to
   previous versions of octoDNS are discouraged and may result in undefined
-  behavior and broken records. See https://github.com/octodns/octodns/pull/749
+  behavior and broken records. See <https://github.com/octodns/octodns/pull/749>
   for related discussion.
 * TransipProvider removed as it currently relies on `suds` which is broken in
   new python versions and hasn't seen a release since 2010. May return with
-  https://github.com/octodns/octodns/pull/762
+  <https://github.com/octodns/octodns/pull/762>
 
 ### Stuff
 
@@ -538,7 +598,7 @@ long (years) overdue.
   directory for examples. The change has been designed to have no impact on the
   process unless the `processors` key is present in zone configs.
 * Fixes NS1 provider's geotarget limitation of using `NA` continent. Now, when
-  `NA` is used in geos it considers **all** the countries of `North America`
+  `NA` is used in geos it considers __all__ the countries of `North America`
   instead of just `us-east`, `us-west` and `us-central` regions
 * `SX' &amp; 'UM` country support added to NS1Provider, not yet in the North
    America list for backwards compatibility reasons. They will be added in the
@@ -623,28 +683,28 @@ long (years) overdue.
 ## v0.9.9 - 2019-11-04 - Python 3.7 Support
 
 * Extensive pass through the whole codebase to support Python 3
-   * Tons of updates to replace `def __cmp__` with `__eq__` and friends to
+  * Tons of updates to replace `def __cmp__` with `__eq__` and friends to
      preserve custom equality and ordering behaviors that are essential to
      octoDNS's processes.
-   * Quite a few objects required the addition of `__eq__` and friends so that
+  * Quite a few objects required the addition of `__eq__` and friends so that
      they're sortable in Python 3 now that those things are more strict. A few
      places this required jumping through hoops of sorts. Thankfully our tests
      are pretty thorough and caught a lot of issues and hopefully the whole
      plan, review, apply process will backstop that.
-   * Explicit ordering of changes by (name, type) to address inconsistent
+  * Explicit ordering of changes by (name, type) to address inconsistent
      ordering for a number of providers that just convert changes into API
      calls as they come. Python 2 sets ordered consistently, Python 3 they do
-     not. https://github.com/octodns/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26
-   * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
+     not. <https://github.com/octodns/octodns/pull/384/commits/7958233fccf9ea22d95e2fd06c48d7d0a4529e26>
+  * Route53 `_mod_keyer` ordering wasn't 100% complete and thus unreliable and
      random in Python 3. This has been addressed and may result in value
      reordering on next plan, no actual changes in behavior should occur.
-   * `incf.countryutils` (in pypi) was last released in 2009 is not python 3
+  * `incf.countryutils` (in pypi) was last released in 2009 is not python 3
      compatible (it's country data is also pretty stale.) `pycountry_convert`
      appears to have the functionality required to replace its usage so it has
      been removed as a dependency/requirement.
-   * Bunch of additional unit tests and supporting config to exercise new code
+  * Bunch of additional unit tests and supporting config to exercise new code
      and verify things that were run into during the Python 3 work
-   * lots of `six`ing of things
+  * lots of `six`ing of things
 * Validate Record name & fqdn length
 
 ## v0.9.8 - 2019-09-30 - One with no changes b/c PyPi description problems
@@ -771,7 +831,7 @@ all health checks are passing before the first sync with `--doit`. See
 
 Adds an OVH provider.
 
-## v0.8.6 - 2017-09-06 - CAA record type,
+## v0.8.6 - 2017-09-06 - CAA record type
 
 Misc fixes and improvements.
 
@@ -799,7 +859,7 @@ from our OSS users. There's too much to list out since the previous release was
 cut, but I'll try to cover the highlights/important bits and promise to do
 better in the future :fingers_crossed:
 
-### Major:
+### Major
 
 * Complete rework of record validation with lenient mode support added to
   octodns-dump so that data with validation problems can be dumped to config

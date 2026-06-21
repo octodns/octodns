@@ -3,7 +3,9 @@ validators:
     class: helpers.TestRecordValidator
 manager:
   validators:
-    '*':
-      - nonexistent-validator
+    record:
+      validators:
+        '*':
+          - nonexistent-validator
 providers: {}
 zones: {}

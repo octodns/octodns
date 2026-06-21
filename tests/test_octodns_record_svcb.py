@@ -9,8 +9,13 @@ from helpers import SimpleProvider
 from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
+from octodns.record.https import HttpsValue
 from octodns.record.rr import RrParseError
-from octodns.record.svcb import SvcbRecord, SvcbValue
+from octodns.record.svcb import (
+    SvcbRecord,
+    SvcbValue,
+    SvcbValueBestPracticeValidator,
+)
 from octodns.zone import Zone
 
 
@@ -350,20 +355,15 @@ class TestRecordSvcb(TestCase):
             )
         self.assertEqual(['missing targetname'], ctx.exception.reasons)
 
-        # invalid target
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone,
-                'foo',
-                {
-                    'type': 'SVCB',
-                    'ttl': 600,
-                    'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz'},
-                },
-            )
-        self.assertEqual(
-            ['SVCB targetname "foo.bar.baz" missing trailing .'],
-            ctx.exception.reasons,
+        # missing trailing . is a best-practice check, not legacy
+        Record.new(
+            self.zone,
+            'foo',
+            {
+                'type': 'SVCB',
+                'ttl': 600,
+                'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz'},
+            },
         )
 
         # falsey target
@@ -676,6 +676,110 @@ class TestRecordSvcb(TestCase):
         )
 
 
+class TestSvcbBestPractice(TestCase):
+
+    def test_best_practice_validator(self):
+        validate = SvcbValueBestPracticeValidator(
+            'svcb-value-best-practice'
+        ).validate
+
+        # targetname with trailing dot passes
+        self.assertEqual(
+            [],
+            validate(
+                SvcbValue,
+                [{'svcpriority': 1, 'targetname': 'foo.example.com.'}],
+                'SVCB',
+            ),
+        )
+        # root label "." passes
+        self.assertEqual(
+            [],
+            validate(
+                SvcbValue, [{'svcpriority': 1, 'targetname': '.'}], 'SVCB'
+            ),
+        )
+        # targetname missing trailing dot
+        self.assertEqual(
+            ['SVCB targetname "foo.example.com" missing trailing .'],
+            validate(
+                SvcbValue,
+                [{'svcpriority': 1, 'targetname': 'foo.example.com'}],
+                'SVCB',
+            ),
+        )
+        # HTTPS uses same validator class with different _type
+        self.assertEqual(
+            ['HTTPS targetname "foo.example.com" missing trailing .'],
+            validate(
+                HttpsValue,
+                [{'svcpriority': 1, 'targetname': 'foo.example.com'}],
+                'HTTPS',
+            ),
+        )
+
+        # opt-in via Record.enable_validator for SVCB
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('svcb-value-best-practice', types=['SVCB'])
+        try:
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    'foo',
+                    {
+                        'type': 'SVCB',
+                        'ttl': 600,
+                        'value': {
+                            'svcpriority': 1,
+                            'targetname': 'foo.bar.baz',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['SVCB targetname "foo.bar.baz" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # trailing dot passes
+            Record.new(
+                zone,
+                'foo',
+                {
+                    'type': 'SVCB',
+                    'ttl': 600,
+                    'value': {'svcpriority': 1, 'targetname': 'foo.bar.baz.'},
+                },
+            )
+        finally:
+            Record.disable_validator('svcb-value-best-practice', types=['SVCB'])
+
+        # opt-in via Record.enable_validator for HTTPS
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('https-value-best-practice', types=['HTTPS'])
+        try:
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    'foo',
+                    {
+                        'type': 'HTTPS',
+                        'ttl': 600,
+                        'value': {
+                            'svcpriority': 1,
+                            'targetname': 'foo.bar.baz',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['HTTPS targetname "foo.bar.baz" missing trailing .'],
+                ctx.exception.reasons,
+            )
+        finally:
+            Record.disable_validator(
+                'https-value-best-practice', types=['HTTPS']
+            )
+
+
 class TestSrvValue(TestCase):
 
     def test_template(self):
@@ -729,7 +833,8 @@ class TestSrvValue(TestCase):
                 'ttl': 600,
                 'value': {
                     'svcpriority': 1,
-                    # "targetname" is missing an trailing dot
+                    # "targetname" is missing a trailing dot — legacy only
+                    # checks format, not trailing dot (best-practice check)
                     'targetname': '{zone_name}example.com',
                     'svcparams': {
                         'alpn': ['h3', 'h2'],
@@ -744,9 +849,4 @@ class TestSrvValue(TestCase):
 
         zone.add_record(svcb, replace=True)
 
-        with self.assertRaises(ValidationError) as ctx:
-            templ.process_source_and_target_zones(zone, None, None)
-        self.assertEqual(
-            ['SVCB targetname "unit.tests.example.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
+        templ.process_source_and_target_zones(zone, None, None)

@@ -1,0 +1,6 @@
+validators:
+  my-test-zone-validator:
+    class: helpers.TestZoneValidator
+    unexpected_kwarg_not_in_init: true
+providers: {}
+zones: {}

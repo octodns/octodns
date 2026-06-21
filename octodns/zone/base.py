@@ -6,9 +6,11 @@ import re
 from collections import defaultdict
 from logging import getLogger
 
-from .deprecation import deprecated
-from .idna import idna_decode, idna_encode
-from .record import Create, Delete
+from ..deprecation import deprecated
+from ..idna import idna_decode, idna_encode
+from ..record import Create, Delete
+from .exception import ValidationError
+from .validator import ZoneValidatorRegistry
 
 
 class SubzoneRecordException(Exception):
@@ -67,27 +69,6 @@ class DuplicateRecordException(Exception):
         super().__init__(msg)
 
 
-class InvalidNodeException(Exception):
-    '''
-    Exception raised when CNAME records coexist with other records at a node.
-
-    Per DNS standards, CNAME records cannot coexist with other record types
-    at the same node. This exception is raised when such an invalid
-    configuration is detected.
-
-    :param record: The record that caused the exception.
-    :type record: octodns.record.base.Record
-    '''
-
-    def __init__(self, msg, record):
-        self.record = record
-
-        if record.context:
-            msg += f', {record.context}'
-
-        super().__init__(msg)
-
-
 class InvalidNameError(Exception):
     '''
     Exception raised when a zone name is invalid.
@@ -131,6 +112,7 @@ class Zone(object):
       zone = Zone('example.com.', [])
       record = Record.new(zone, 'www', {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'})
       zone.add_record(record)
+      zone.validate()
 
       # Create a shallow copy
       copy = zone.copy()
@@ -143,6 +125,7 @@ class Zone(object):
     '''
 
     log = getLogger('Zone')
+    validators = ZoneValidatorRegistry()
 
     REFERENCES = (
         'https://datatracker.ietf.org/doc/html/rfc1034',
@@ -157,6 +140,8 @@ class Zone(object):
         sub_zones,
         update_pcent_threshold=None,
         delete_pcent_threshold=None,
+        ignore_subzone_adds=False,
+        context=None,
     ):
         '''
         Initialize a DNS zone.
@@ -174,6 +159,17 @@ class Zone(object):
         :param delete_pcent_threshold: Override for maximum delete percentage
                                        threshold. If None, uses provider default.
         :type delete_pcent_threshold: float or None
+        :param ignore_subzone_adds: If True, silently drop records that belong
+                                    under a configured sub-zone instead of
+                                    raising. Useful when a source returns
+                                    records that overlap a configured
+                                    sub-zone. Records explicitly marked
+                                    ``lenient=True`` keep their existing
+                                    warn-and-add behavior.
+        :type ignore_subzone_adds: bool
+        :param context: The context in which the zone was defined (e.g. the
+                        filename and line number it was found at).
+        :type context: str or None
 
         :raises InvalidNameError: If the zone name is invalid (missing trailing
                                   dot, contains double dots, or has whitespace).
@@ -214,6 +210,8 @@ class Zone(object):
 
         self.update_pcent_threshold = update_pcent_threshold
         self.delete_pcent_threshold = delete_pcent_threshold
+        self.ignore_subzone_adds = ignore_subzone_adds
+        self.context = context
 
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
@@ -251,6 +249,90 @@ class Zone(object):
         if self._origin:
             return self._origin.root_ns
         return self._root_ns
+
+    @classmethod
+    def register_zone_validator(cls, validator):
+        cls.validators.register(validator)
+
+    @classmethod
+    def enable_zone_validators(cls, sets):
+        cls.validators.enable_sets(sets)
+
+    @classmethod
+    def enable_zone_validator(cls, id):
+        cls.validators.enable(id)
+
+    @classmethod
+    def disable_zone_validator(cls, validator_id):
+        return cls.validators.disable(validator_id)
+
+    @classmethod
+    def registered_zone_validators(cls):
+        return cls.validators.registered()
+
+    @classmethod
+    def available_zone_validators(cls):
+        return cls.validators.available_validators()
+
+    def validate(self, lenient=False):
+        reasons = self.validators.process_zone(self)
+        if not reasons:
+            return
+
+        reasons_to_raise = []
+        reasons_to_warn = []
+        for reason in reasons:
+            if lenient or reason.lenient:
+                reasons_to_warn.append(reason)
+            else:
+                reasons_to_raise.append(reason)
+
+        if reasons_to_warn:
+            self.log.warning(
+                ValidationError.build_message(
+                    self.decoded_name, reasons_to_warn, context=self.context
+                )
+            )
+
+        if reasons_to_raise:
+            raise ValidationError(
+                self.decoded_name, reasons_to_raise, context=self.context
+            )
+
+    def get(self, name, type=None):
+        '''
+        Return records at the given name, optionally filtered by type.
+
+        :param name: Record name relative to the zone (``''`` for the apex).
+        :type name: str
+        :param type: DNS record type to filter on (e.g. ``'MX'``), or ``None``
+                     to return all types at that name.
+        :type type: str or None
+        :return: Set of matching records; empty set when none are found.
+        :rtype: set[octodns.record.base.Record]
+        '''
+        if self._origin:
+            return self._origin.get(name, type=type)
+        records = self._records.get(name, ())
+        if type is None:
+            return set(records)
+        return {r for r in records if r._type == type}
+
+    def get_type(self, name, type):
+        '''
+        Return record of the specified type at the given name.
+
+        :param name: Record name relative to the zone (``''`` for the apex).
+        :type name: str
+        :param type: DNS record type (e.g. ``'MX'``)
+        :type type: str
+        :return: Matching records; None when no matching record is found.
+        :rtype: octodns.record.base.Record or None
+        '''
+        try:
+            return next(iter(self.get(name, type=type)))
+        except StopIteration:
+            return None
 
     def hostname_from_fqdn(self, fqdn):
         '''
@@ -349,8 +431,6 @@ class Zone(object):
                                         at the boundary).
         :raises DuplicateRecordException: If a record with the same name and type
                                           already exists and ``replace=False``.
-        :raises InvalidNodeException: If adding the record would create an
-                                      invalid CNAME coexistence situation.
 
         .. important::
            - Automatically hydrates shallow copies on first modification
@@ -367,11 +447,14 @@ class Zone(object):
 
         if name in self.sub_zones:
             # It's an exact match for a sub-zone
-            if not (record._type == 'NS' or record._type == 'DS'):
+            if record._type not in ('NS', 'DS'):
                 # and not a NS or DS record, this should be in the sub
                 msg = f'Record {record.fqdn} is a managed sub-zone and not of type NS or DS'
                 if lenient or new_lenient:
                     self.log.warning(msg)
+                elif self.ignore_subzone_adds:
+                    self.log.debug(f'{msg}, ignore.')
+                    return
                 else:
                     raise SubzoneRecordException(msg, record)
         else:
@@ -383,15 +466,18 @@ class Zone(object):
                     msg = f'Record {record.fqdn} is under a managed subzone'
                     if lenient or new_lenient:
                         self.log.warning(msg)
+                    elif self.ignore_subzone_adds:
+                        self.log.debug(f'{msg}, ignore.')
+                        return
                     else:
                         raise SubzoneRecordException(msg, record)
+                    break
 
         if replace:
             # will remove it if it exists
             self._records[name].discard(record)
 
         node = self._records[name]
-        existing_lenient = all(r.lenient for r in node)
         if record in node:
             # We already have a record at this node of this type
             existing = [c for c in node if c == record][0]
@@ -400,20 +486,6 @@ class Zone(object):
                 existing,
                 record,
             )
-        elif (record._type == 'CNAME' and len(node) > 0) or (
-            'CNAME' in [r._type for r in node]
-        ):
-            # We're adding a CNAME to existing records or adding to an existing CNAME
-            msg = f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records'
-            if (
-                # add was not called with lenience
-                not lenient
-                # existing and new records aren't lenient
-                and not (existing_lenient and new_lenient)
-            ):
-                raise InvalidNodeException(msg, record)
-            else:
-                self.log.warning(msg)
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
@@ -681,6 +753,8 @@ class Zone(object):
             self.sub_zones,
             self.update_pcent_threshold,
             self.delete_pcent_threshold,
+            ignore_subzone_adds=self.ignore_subzone_adds,
+            context=self.context,
         )
         copy._origin = self
         return copy

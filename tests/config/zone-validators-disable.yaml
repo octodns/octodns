@@ -1,0 +1,7 @@
+manager:
+  validators:
+    zone:
+      disable_validators:
+        - mail
+providers: {}
+zones: {}

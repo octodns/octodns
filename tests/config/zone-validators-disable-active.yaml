@@ -1,0 +1,10 @@
+manager:
+  validators:
+    enabled:
+      - legacy
+      - best-practice
+    zone:
+      disable_validators:
+        - mail
+providers: {}
+zones: {}

@@ -8,7 +8,12 @@ from helpers import SimpleProvider
 
 from octodns.record import Record
 from octodns.record.exception import ValidationError
-from octodns.record.naptr import NaptrRecord, NaptrValue
+from octodns.record.naptr import (
+    NaptrRecord,
+    NaptrValue,
+    NaptrValueBestPracticeValidator,
+    NaptrValueRfcValidator,
+)
 from octodns.record.rr import RrParseError
 from octodns.zone import Zone
 
@@ -490,6 +495,323 @@ class TestRecordNaptr(TestCase):
             self.assertEqual(
                 [f'unrecognized flags "{invalid_flag}"'], ctx.exception.reasons
             )
+
+    def test_best_practice_validator(self):
+        validate = NaptrValueBestPracticeValidator(
+            'naptr-value-best-practice'
+        ).validate
+
+        # replacement with trailing dot passes
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'A',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': 'target.example.com.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # null replacement "." passes
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'S',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # replacement missing trailing dot
+        self.assertEqual(
+            ['NAPTR replacement "example.com" missing trailing .'],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'A',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': 'example.com',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # missing replacement — no error (format validator handles presence)
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [{'order': 10, 'preference': 20, 'flags': 'S'}],
+                'NAPTR',
+            ),
+        )
+
+        # opt-in via Record.enable_validator
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('naptr-value-best-practice', types=['NAPTR'])
+        try:
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'NAPTR',
+                        'ttl': 600,
+                        'value': {
+                            'order': 10,
+                            'preference': 20,
+                            'flags': 'A',
+                            'service': 'svc',
+                            'regexp': '',
+                            'replacement': 'example.com',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['NAPTR replacement "example.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # trailing dot passes
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'NAPTR',
+                    'ttl': 600,
+                    'value': {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'S',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': 'target.example.com.',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator(
+                'naptr-value-best-practice', types=['NAPTR']
+            )
+
+    def test_rfc_value_validator_not_in_defaults(self):
+        registered = Record.registered_validators()
+        naptr_value_ids = set(
+            v.id for v in registered['value'].get('NAPTR', [])
+        )
+        self.assertNotIn('naptr-value-rfc', naptr_value_ids)
+
+    def test_value_rfc_validator(self):
+        validate = NaptrValueRfcValidator('naptr-value-rfc').validate
+
+        # valid: all fields, replacement is "."
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'S',
+                        'service': 'SIP+D2U',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # valid: replacement is a FQDN
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 0,
+                        'preference': 65535,
+                        'flags': 'A',
+                        'service': 'http',
+                        'regexp': '.*',
+                        'replacement': 'target.example.com.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # valid: lowercase flags accepted
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'u',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+        # valid: empty flags accepted
+        self.assertEqual(
+            [],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': '',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+
+        # order out of range
+        self.assertEqual(
+            ['invalid order "70000"; must be 0-65535'],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 70000,
+                        'preference': 20,
+                        'flags': 'S',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+
+        # preference non-integer
+        self.assertEqual(
+            ['invalid preference "nope"'],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 'nope',
+                        'flags': 'S',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+
+        # invalid flags
+        self.assertEqual(
+            ['unrecognized flags "X"'],
+            validate(
+                NaptrValue,
+                [
+                    {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'X',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': '.',
+                    }
+                ],
+                'NAPTR',
+            ),
+        )
+
+        # missing all fields
+        self.assertEqual(
+            [
+                'missing order',
+                'missing preference',
+                'missing flags',
+                'missing service',
+                'missing regexp',
+                'missing replacement',
+            ],
+            validate(NaptrValue, [{}], 'NAPTR'),
+        )
+
+    def test_rfc_value_validator_opt_in(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('naptr-value-rfc', types=['NAPTR'])
+        try:
+            # order out of range
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    '',
+                    {
+                        'type': 'NAPTR',
+                        'ttl': 600,
+                        'value': {
+                            'order': 70000,
+                            'preference': 20,
+                            'flags': 'S',
+                            'service': 'svc',
+                            'regexp': '',
+                            'replacement': '.',
+                        },
+                    },
+                )
+            self.assertEqual(
+                ['invalid order "70000"; must be 0-65535'],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone,
+                '',
+                {
+                    'type': 'NAPTR',
+                    'ttl': 600,
+                    'value': {
+                        'order': 10,
+                        'preference': 20,
+                        'flags': 'S',
+                        'service': 'svc',
+                        'regexp': '',
+                        'replacement': 'target.example.com.',
+                    },
+                },
+            )
+        finally:
+            Record.disable_validator('naptr-value-rfc', types=['NAPTR'])
 
 
 class TestNaptrValue(TestCase):

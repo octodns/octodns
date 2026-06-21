@@ -1,6 +1,8 @@
 manager:
-  disable_validators:
-    '*':
-      - _values-type
+  validators:
+    record:
+      disable_validators:
+        '*':
+          - _values-type
 providers: {}
 zones: {}

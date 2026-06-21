@@ -1,0 +1,5 @@
+validators:
+  my-validator:
+    class: helpers.NotAZoneValidator
+providers: {}
+zones: {}

@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+import argparse
+import json
+import os
+import sys
+
+
+def format_ranges(lines):
+    if not lines:
+        return ""
+    ranges = []
+    start = lines[0]
+    prev = start
+    for line in lines[1:]:
+        if line == prev + 1:
+            prev = line
+        else:
+            if start == prev:
+                ranges.append(f"{start}")
+            else:
+                ranges.append(f"{start}-{prev}")
+            start = line
+            prev = start
+    if start == prev:
+        ranges.append(f"{start}")
+    else:
+        ranges.append(f"{start}-{prev}")
+    return ", ".join(ranges)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Check coverage.json for files with < 100% coverage"
+    )
+    parser.add_argument(
+        "coverage_file",
+        nargs="?",
+        default="coverage.json",
+        help="Path to coverage.json file (default: coverage.json)",
+    )
+    args = parser.parse_args()
+
+    if not os.path.exists(args.coverage_file):
+        print(f"Error: {args.coverage_file} does not exist.", file=sys.stderr)
+        print(
+            "Please run `./script/coverage` first to generate it.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        with open(args.coverage_file, "r") as f:
+            data = json.load(f)
+    except Exception as e:
+        print(
+            f"Error: Failed to parse {args.coverage_file}: {e}", file=sys.stderr
+        )
+        sys.exit(1)
+
+    files_data = data.get("files", {})
+    under_covered = []
+
+    for filepath, info in sorted(files_data.items()):
+        summary = info.get("summary", {})
+        percent = summary.get("percent_covered", 0.0)
+        if percent < 100.0:
+            under_covered.append((filepath, percent, info))
+
+    if not under_covered:
+        print("All files have 100% coverage!")
+        sys.exit(0)
+
+    for filepath, percent, info in under_covered:
+        print(f"{filepath}: {percent:.2f}% covered")
+
+        missing_lines = info.get("missing_lines", [])
+        if missing_lines:
+            print(f"  Missing lines: {format_ranges(missing_lines)}")
+
+        missing_branches = info.get("missing_branches", [])
+        if missing_branches:
+            formatted_branches = []
+            for b in missing_branches:
+                if len(b) == 2:
+                    formatted_branches.append(f"{b[0]}->{b[1]}")
+                else:
+                    formatted_branches.append("->".join(map(str, b)))
+            print(f"  Missing branches: {', '.join(formatted_branches)}")
+
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

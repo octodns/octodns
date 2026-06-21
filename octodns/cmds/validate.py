@@ -39,6 +39,7 @@ def main():
 
     flagging = FlaggingHandler()
     getLogger('Record').addHandler(flagging)
+    getLogger('Zone').addHandler(flagging)
 
     manager = Manager(args.config_file)
     manager.validate_configs(lenient=args.all)

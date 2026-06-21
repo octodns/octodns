@@ -1,0 +1,6 @@
+validators:
+  my-test-validator:
+    class: helpers.TestRecordValidator
+    types: MX
+providers: {}
+zones: {}

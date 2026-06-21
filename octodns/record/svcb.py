@@ -12,7 +12,7 @@ from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
-from .target import validate_target_fqdn
+from .target import _check_target_format, _check_target_trailing_dot
 from .validator import ValueValidator
 
 SUPPORTED_PARAMS = {}
@@ -164,7 +164,7 @@ class SvcbValueValidator(ValueValidator):
                 except ValueError:
                     reasons.append(f'invalid priority "{value["svcpriority"]}"')
 
-            reasons += validate_target_fqdn(
+            reasons += _check_target_format(
                 value.get('targetname'), _type, 'targetname'
             )
 
@@ -328,8 +328,34 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         return f"'{self.rdata_text}'"
 
 
+class SvcbValueBestPracticeValidator(ValueValidator):
+    '''
+    Checks that the SVCB/HTTPS ``targetname`` field ends with a trailing
+    ``.`` (fully-qualified name).
+
+    Enabled as part of the ``best-practice`` validator set::
+
+      manager:
+        enabled:
+          - best-practice
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            reasons += _check_target_trailing_dot(
+                value.get('targetname'), _type, 'targetname'
+            )
+        return reasons
+
+
 class SvcbValue(_SvcbValueBase):
-    VALIDATORS = [SvcbValueValidator('svcb-value')]
+    VALIDATORS = [
+        SvcbValueValidator('svcb-value-rfc', sets={'legacy', 'strict'}),
+        SvcbValueBestPracticeValidator(
+            'svcb-value-best-practice', sets={'best-practice'}
+        ),
+    ]
 
 
 class SvcbRecord(ValuesMixin, Record):

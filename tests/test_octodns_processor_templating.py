@@ -60,7 +60,7 @@ Record.register_type(Multiple, 'M')
 
 
 def _find(zone, name):
-    return next(r for r in zone.records if r.name == name)
+    return next(iter(zone.get(name)))
 
 
 class TemplatingTest(TestCase):

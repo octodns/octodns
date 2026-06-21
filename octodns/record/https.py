@@ -4,11 +4,20 @@
 #
 
 from .base import Record, ValuesMixin
-from .svcb import SvcbValueValidator, _SvcbValueBase
+from .svcb import (
+    SvcbValueBestPracticeValidator,
+    SvcbValueValidator,
+    _SvcbValueBase,
+)
 
 
 class HttpsValue(_SvcbValueBase):
-    VALIDATORS = [SvcbValueValidator('https-value')]
+    VALIDATORS = [
+        SvcbValueValidator('https-value-rfc', sets={'legacy', 'strict'}),
+        SvcbValueBestPracticeValidator(
+            'https-value-best-practice', sets={'best-practice'}
+        ),
+    ]
 
 
 class HttpsRecord(ValuesMixin, Record):

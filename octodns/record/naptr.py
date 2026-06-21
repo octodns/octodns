@@ -5,6 +5,7 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
+from .target import _check_target_trailing_dot
 from .validator import ValueValidator
 
 
@@ -45,10 +46,92 @@ class NaptrValueValidator(ValueValidator):
         return reasons
 
 
+class NaptrValueRfcValidator(ValueValidator):
+    '''
+    Strict NAPTR rdata validator per RFC 3403 §4.1.
+
+    - ``order`` and ``preference`` must be integers in [0, 65535] (uint16).
+    - ``flags`` must be one of ``S``, ``A``, ``U``, ``P`` (case-insensitive)
+      or empty.
+    - ``replacement`` must be a fully-qualified domain name (ending with
+      ``"."``) or ``"."`` for the null replacement.
+
+    Enabled as part of the ``strict`` validator set::
+
+      manager:
+        enabled:
+          - strict
+    '''
+
+    _valid_flags = frozenset('SAUP')
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            for field in ('order', 'preference'):
+                if field not in value:
+                    reasons.append(f'missing {field}')
+                else:
+                    try:
+                        int_val = int(value[field])
+                        if not 0 <= int_val <= 65535:
+                            reasons.append(
+                                f'invalid {field} "{int_val}"; must be 0-65535'
+                            )
+                    except (ValueError, TypeError):
+                        reasons.append(f'invalid {field} "{value[field]}"')
+
+            if 'flags' not in value:
+                reasons.append('missing flags')
+            else:
+                flags = value['flags']
+                if flags and flags.upper() not in self._valid_flags:
+                    reasons.append(f'unrecognized flags "{flags}"')
+
+            for k in ('service', 'regexp'):
+                if k not in value:
+                    reasons.append(f'missing {k}')
+
+            if 'replacement' not in value:
+                reasons.append('missing replacement')
+
+        return reasons
+
+
+class NaptrValueBestPracticeValidator(ValueValidator):
+    '''
+    Checks that the NAPTR ``replacement`` field ends with a trailing
+    ``.`` (fully-qualified name) when non-empty and not the null
+    replacement ``"."``.
+
+    Enabled as part of the ``best-practice`` validator set::
+
+      manager:
+        enabled:
+          - best-practice
+    '''
+
+    def validate(self, value_cls, data, _type):
+        reasons = []
+        for value in data:
+            replacement = value.get('replacement')
+            if replacement:
+                reasons += _check_target_trailing_dot(
+                    replacement, _type, 'replacement'
+                )
+        return reasons
+
+
 class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
-    VALIDATORS = [NaptrValueValidator('naptr-value')]
+    VALIDATORS = [
+        NaptrValueValidator('naptr-value', sets={'legacy'}),
+        NaptrValueRfcValidator('naptr-value-rfc', sets={'strict'}),
+        NaptrValueBestPracticeValidator(
+            'naptr-value-best-practice', sets={'best-practice'}
+        ),
+    ]
 
     @classmethod
     def _schema(cls):

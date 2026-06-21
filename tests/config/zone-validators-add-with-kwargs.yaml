@@ -1,0 +1,11 @@
+validators:
+  my-test-zone-validator:
+    class: helpers.TestZoneValidator
+    require_mx: true
+manager:
+  validators:
+    zone:
+      validators:
+        - my-test-zone-validator
+providers: {}
+zones: {}

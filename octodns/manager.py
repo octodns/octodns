@@ -28,6 +28,8 @@ from .record.validator import RecordValidator, ValueValidator
 from .secret.environ import EnvironSecrets
 from .yaml import safe_load
 from .zone import Zone
+from .zone.exception import ZoneException
+from .zone.validator import ZoneValidator
 
 
 class _AggregateTarget(object):
@@ -152,8 +154,8 @@ class Manager(object):
         self.processors = self._config_processors(processors_config)
 
         validators_config = self.config.get('validators') or {}
-        named_validators = self._config_validators(validators_config)
-        self._configure_validators(manager_config, named_validators)
+        self._config_validators(validators_config)
+        self._configure_validators(manager_config)
 
         if self.auto_arpa:
             self.log.info(
@@ -330,10 +332,10 @@ class Manager(object):
         return processors
 
     def _config_validators(self, validators_config):
-        # Parses the top-level `validators:` config section into a name-keyed
-        # dict of instantiated RecordValidator/ValueValidator instances. These
-        # are not yet registered; _configure_validators does the registration.
-        validators = {}
+        # Parses the top-level `validators:` config section, instantiates each
+        # validator, and registers it into the available registry via
+        # Record.register_validator. _configure_validators then decides which
+        # to activate based on manager.enabled and manager.validators.
         for validator_name, validator_config in validators_config.items():
             context = getattr(validator_config, 'context', '')
             try:
@@ -346,6 +348,9 @@ class Manager(object):
             _class, module, version = self._get_named_class(
                 'validator', _class, context
             )
+            types = validator_config.pop('types', None)
+            if isinstance(types, str):
+                types = [types]
             kwargs = self._build_kwargs(validator_config)
             try:
                 instance = _class(validator_name, **kwargs)
@@ -354,55 +359,150 @@ class Manager(object):
                 raise ManagerException(
                     f'Incorrect validator config for {validator_name}, {context}'
                 )
-            if not isinstance(instance, (RecordValidator, ValueValidator)):
+            if isinstance(instance, (RecordValidator, ValueValidator)):
+                try:
+                    Record.register_validator(instance, types=types)
+                except RecordException as e:
+                    raise ManagerException(str(e)) from e
+            elif isinstance(instance, ZoneValidator):
+                try:
+                    Zone.register_zone_validator(instance)
+                except ZoneException as e:
+                    raise ManagerException(str(e)) from e
+            else:
                 raise ManagerException(
-                    f'Validator {validator_name} ({_class.__name__}) must extend RecordValidator or ValueValidator'
+                    f'Validator {validator_name} ({_class.__name__}) must extend RecordValidator, ValueValidator, or ZoneValidator'
                 )
-            validators[validator_name] = instance
             self.log.info(
                 '__init__: validator=%s (%s %s)',
                 validator_name,
                 module,
                 version,
             )
-        return validators
 
-    def _configure_validators(self, manager_config, named_validators):
-        # Reads `manager.validators` and `manager.disable_validators` from the
-        # manager config section and drives Record.register_validator /
-        # Record.unregister_validator accordingly. Validators named here must
-        # have been instantiated by _config_validators first.
-        add_config = manager_config.get('validators') or {}
+    def _configure_validators(self, manager_config):
+        validators_config = manager_config.get('validators') or {}
+
+        enabled = validators_config.get('enabled', ('legacy',))
+        if isinstance(enabled, str):
+            raise ManagerException(
+                'manager.validators.enabled must be a list of set names, not a string; '
+                f'use [{enabled!r}] to enable a single set'
+            )
+        self.log.info('_configure_validators: enabling sets %s', list(enabled))
+        Record.enable_validators(enabled)
+        Zone.enable_zone_validators(enabled)
+
+        # manager.validators.record.validators is canonical;
+        # manager.validators.validators is the deprecated fallback.
+        record_config = validators_config.get('record') or {}
+        has_new = 'validators' in record_config
+        has_old = 'validators' in validators_config
+        if has_new and has_old:
+            raise ManagerException(
+                'manager.validators.record.validators and '
+                'manager.validators.validators cannot both be set; '
+                'remove manager.validators.validators (deprecated)'
+            )
+        if has_old:
+            deprecated(
+                'manager.validators.validators is deprecated, use '
+                'manager.validators.record.validators instead. Will be removed in 2.0',
+                stacklevel=4,
+            )
+        add_config = record_config.get(
+            'validators', validators_config.get('validators') or {}
+        )
+        add_key = (
+            'validators.record.validators'
+            if has_new
+            else 'validators.validators'
+        )
         for record_type, names in add_config.items():
             types = None if record_type == '*' else [record_type]
             for name in names:
                 try:
-                    validator = named_validators[name]
-                except KeyError:
+                    Record.enable_validator(name, types=types)
+                except RecordException:
                     raise ManagerException(
-                        f'Unknown validator "{name}" in manager.validators["{record_type}"]'
+                        f'Unknown validator "{name}" in manager.{add_key}["{record_type}"]'
                     )
-                try:
-                    Record.register_validator(validator, types=types)
-                except RecordException as e:
-                    raise ManagerException(str(e)) from e
+                self.log.info(
+                    '_configure_validators: enabled validator "%s" for "%s"',
+                    name,
+                    record_type,
+                )
 
-        disable_config = manager_config.get('disable_validators') or {}
+        # manager.validators.record.disable_validators is canonical;
+        # manager.validators.disable_validators is the deprecated fallback.
+        has_new_dis = 'disable_validators' in record_config
+        has_old_dis = 'disable_validators' in validators_config
+        if has_new_dis and has_old_dis:
+            raise ManagerException(
+                'manager.validators.record.disable_validators and '
+                'manager.validators.disable_validators cannot both be set; '
+                'remove manager.validators.disable_validators (deprecated)'
+            )
+        if has_old_dis:
+            deprecated(
+                'manager.validators.disable_validators is deprecated, use '
+                'manager.validators.record.disable_validators instead. Will be removed in 2.0',
+                stacklevel=4,
+            )
+        disable_config = record_config.get(
+            'disable_validators',
+            validators_config.get('disable_validators') or {},
+        )
         for record_type, ids in disable_config.items():
             types = None if record_type == '*' else [record_type]
             for validator_id in ids:
-                if validator_id.startswith('_'):
-                    raise ManagerException(
-                        f'Cannot disable bridge validator "{validator_id}"'
+                try:
+                    removed = Record.disable_validator(
+                        validator_id, types=types
                     )
-                removed = Record.unregister_validator(validator_id, types=types)
+                except RecordException as e:
+                    raise ManagerException(str(e)) from e
                 if removed == 0:
                     self.log.warning(
-                        'disable_validators: no validator with id "%s" '
+                        '_configure_validators: no validator with id "%s" '
                         'registered for "%s"',
                         validator_id,
                         record_type,
                     )
+                else:
+                    self.log.info(
+                        '_configure_validators: disabled validator "%s" for "%s"',
+                        validator_id,
+                        record_type,
+                    )
+
+        zone_config = validators_config.get('zone') or {}
+        for name in zone_config.get('validators') or []:
+            try:
+                Zone.enable_zone_validator(name)
+            except ZoneException:
+                raise ManagerException(
+                    f'Unknown zone validator "{name}" in manager.validators.zone.validators'
+                )
+            self.log.info(
+                '_configure_validators: enabled zone validator "%s"', name
+            )
+
+        for validator_id in zone_config.get('disable_validators') or []:
+            try:
+                removed = Zone.disable_zone_validator(validator_id)
+            except ZoneException as e:
+                raise ManagerException(str(e)) from e
+            if not removed:
+                self.log.warning(
+                    '_configure_validators: no zone validator with id "%s" active',
+                    validator_id,
+                )
+            else:
+                self.log.info(
+                    '_configure_validators: disabled zone validator "%s"',
+                    validator_id,
+                )
 
     def _config_plan_outputs(self, plan_outputs_config):
         plan_outputs = {}
@@ -624,6 +724,8 @@ class Manager(object):
                     processor.__class__.__name__,
                 )
                 zone = processor.process_source_zone(zone, sources=sources)
+
+        zone.validate(lenient=lenient)
 
         self.log.debug('sync:   planning, zone=%s', zone.decoded_name)
         plans = []
@@ -1081,10 +1183,12 @@ class Manager(object):
         za = self.get_zone(zone)
         for source in a:
             source.populate(za)
+        za.validate()
 
         zb = self.get_zone(zone)
         for source in b:
             source.populate(zb)
+        zb.validate()
 
         return zb.changes(za, _AggregateTarget(a + b))
 
@@ -1203,6 +1307,8 @@ class Manager(object):
                     )
                     zone = processor.process_source_zone(zone, sources=sources)
 
+            zone.validate(lenient=lenient)
+
             plan = target.plan(zone)
             if plan is None:
                 plan = Plan(zone, zone, [], False)
@@ -1266,6 +1372,8 @@ class Manager(object):
                 if isinstance(source, YamlProvider):
                     source.populate(zone, lenient=lenient)
 
+            zone.validate(lenient=lenient)
+
             # check that processors are in order if any are specified
             processors = config.get('processors') or []
             try:
@@ -1289,11 +1397,15 @@ class Manager(object):
             sub_zones = self.configured_sub_zones(zone_name)
             update_pcent_threshold = zone.get("update_pcent_threshold", None)
             delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
+            ignore_subzone_adds = zone.get("ignore_subzone_adds", False)
+            context = getattr(zone, 'context', None)
             return Zone(
                 idna_encode(zone_name),
                 sub_zones,
                 update_pcent_threshold,
                 delete_pcent_threshold,
+                ignore_subzone_adds=ignore_subzone_adds,
+                context=context,
             )
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')

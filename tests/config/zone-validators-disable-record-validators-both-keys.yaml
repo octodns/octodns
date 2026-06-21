@@ -1,0 +1,11 @@
+manager:
+  validators:
+    disable_validators:
+      '*':
+        - healthcheck
+    record:
+      disable_validators:
+        '*':
+          - ttl-rfc
+providers: {}
+zones: {}

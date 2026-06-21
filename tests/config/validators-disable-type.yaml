@@ -1,6 +1,8 @@
 manager:
-  disable_validators:
-    MX:
-      - mx-value
+  validators:
+    record:
+      disable_validators:
+        MX:
+          - mx-value
 providers: {}
 zones: {}

@@ -62,6 +62,10 @@ where zones share config, but not records.::
   manager:
     include_meta: True
     max_workers: 2
+    validators:
+      enabled:
+        - strict
+        - best-practice
 
   providers:
     config:
@@ -135,8 +139,17 @@ with a ``.``, label length restrictions, and invalid geo codes on ``dynamic``
 records. When in lenient mode octoDNS will log validation problems at
 ``WARNING`` and try and continue with the configuration or source data as it
 exists. See Lenience_ for more information on the concept and how it can be
-configured. For more targeted control — selectively disabling specific checks
-or adding custom validation rules — see `Validators`_ below.
+configured.
+
+Use ``lenient`` when you want *all* validation errors for a specific record or
+zone converted to warnings — for example when importing legacy data that isn't
+fully compliant and you want to manage it as-is while you clean it up
+incrementally.
+
+Use ``disable_validators`` (see `Disabling built-in validators`_ below) when
+you want to permanently skip a *specific check* across all records of a given
+type — for example if a validator conflicts with your provider's requirements or
+your organisation's conventions.
 
 .. _Lenience: records.rst#lenience
 
@@ -145,45 +158,109 @@ Validators
 
 octoDNS ships with a suite of built-in validators that check records for
 correctness (valid TTLs, well-formed values, healthcheck protocol names, etc.)
-before any changes are applied. The validator system supports three operations:
-adding custom validators, disabling built-in validators, and attaching
-validators programmatically from third-party code.
+before any changes are applied. The validator system supports: enabling
+validator sets, adding custom validators, disabling individual validators,
+and registering validators programmatically from third-party code.
+
+Validator sets and ``manager.validators.enabled``
+.................................................
+
+Validators belong to named *sets*. ``manager.validators.enabled`` controls
+which sets are active for a run (default: ``['legacy']``)::
+
+  manager:
+    validators:
+      enabled:
+        - legacy
+
+Omitting ``manager.validators.enabled`` is equivalent to
+``enabled: [legacy]`` and preserves the original octoDNS behaviour. The
+``legacy`` set will remain the default until 2.x when ``strict`` and
+``best-practice`` become the defaults.
+
+The recommended configuration is to opt in now::
+
+  manager:
+    validators:
+      enabled:
+        - strict
+        - best-practice
+
+The ``strict`` set contains stricter validators that supersede their
+``legacy`` counterparts — use one or the other, not both, to avoid redundant
+checks.
+
+The ``best-practice`` set contains validators that enforce DNS best-practice
+recommendations (rather than RFC requirements) and is independent of
+``strict``/``legacy``. The recommended configuration is to enable both
+``strict`` and ``best-practice`` together.
+
+A validator can belong to multiple sets; it becomes active when any of its
+sets is listed in ``manager.validators.enabled``.
+
+Setting ``enabled: []`` activates only validators whose ``sets`` is ``None``
+(see `Attaching validators programmatically`_ below).
 
 Built-in validator ids
 ......................
 
-Each built-in validator has a stable short id:
+Validators with ids ending in ``-rfc`` enforce requirements derived directly
+from an RFC. Ids prefixed with ``_`` (e.g. ``_values-type``) are internal
+bridge validators with ``sets=None`` — always active and cannot be disabled.
+
+Validators active in both ``legacy`` and ``strict``:
+
++------------------------+------------------------------------------+
+| id                     | description                              |
++========================+==========================================+
+| ``name-rfc``           | Record name format (RFC 1035/2181)       |
++------------------------+------------------------------------------+
+| ``ttl-rfc``            | TTL range (positive integer)             |
++------------------------+------------------------------------------+
+| ``healthcheck``        | octoDNS healthcheck config fields        |
++------------------------+------------------------------------------+
+| ``cname-root-rfc``     | CNAME must not be at zone root           |
++------------------------+------------------------------------------+
+| ``alias-root``         | ALIAS must not be at zone root           |
++------------------------+------------------------------------------+
+| ``ip-value-rfc``       | A / AAAA value format                    |
++------------------------+------------------------------------------+
+| ``target-value-rfc``   | CNAME/ALIAS/DNAME/PTR target format      |
++------------------------+------------------------------------------+
+| ``targets-value-rfc``  | NS targets format                        |
++------------------------+------------------------------------------+
+| ``loc-value-rfc``      | LOC rdata format (RFC 1876)              |
++------------------------+------------------------------------------+
+| ``chunked-value-rfc``  | TXT/SPF chunk encoding                   |
++------------------------+------------------------------------------+
+| ``svcb-value-rfc``     | SVCB rdata format (RFC 9460)             |
++------------------------+------------------------------------------+
+| ``https-value-rfc``    | HTTPS rdata format (RFC 9460)            |
++------------------------+------------------------------------------+
+| ``openpgpkey-value-rfc``| OPENPGPKEY rdata format (RFC 7929)      |
++------------------------+------------------------------------------+
+| ``dynamic``            | Dynamic routing config (pools and rules) |
++------------------------+------------------------------------------+
+| ``urlfwd-value``       | URLFWD rdata format                      |
++------------------------+------------------------------------------+
+| ``cname-coexistence``  | CNAME and ALIAS cannot coexist with      |
+|                        | other records                            |
++------------------------+------------------------------------------+
+
+Validators active in ``legacy`` only (will be superseded in ``strict``):
 
 +----------------------+------------------------------------------+
 | id                   | description                              |
 +======================+==========================================+
-| ``name``             | Record name format                       |
-+----------------------+------------------------------------------+
-| ``ttl``              | TTL range (positive integer)             |
-+----------------------+------------------------------------------+
-| ``healthcheck``      | Octodns healthcheck config fields        |
-+----------------------+------------------------------------------+
-| ``cname-root``       | CNAME must not be at zone root           |
-+----------------------+------------------------------------------+
-| ``alias-root``       | ALIAS must not be at zone root           |
+| ``geo``              | Geo routing config                       |
 +----------------------+------------------------------------------+
 | ``srv-name``         | SRV name format                          |
 +----------------------+------------------------------------------+
 | ``uri-name``         | URI name format                          |
 +----------------------+------------------------------------------+
-| ``geo``              | Geo routing config                       |
-+----------------------+------------------------------------------+
-| ``dynamic``          | Dynamic routing config                   |
-+----------------------+------------------------------------------+
-| ``ip-value``         | A / AAAA value format                    |
-+----------------------+------------------------------------------+
 | ``caa-value``        | CAA rdata format                         |
 +----------------------+------------------------------------------+
 | ``mx-value``         | MX rdata format                          |
-+----------------------+------------------------------------------+
-| ``target-value``     | CNAME/ALIAS/DNAME/PTR target format      |
-+----------------------+------------------------------------------+
-| ``targets-value``    | NS targets format                        |
 +----------------------+------------------------------------------+
 | ``sshfp-value``      | SSHFP algorithm/fingerprint format       |
 +----------------------+------------------------------------------+
@@ -193,63 +270,187 @@ Each built-in validator has a stable short id:
 +----------------------+------------------------------------------+
 | ``naptr-value``      | NAPTR rdata format                       |
 +----------------------+------------------------------------------+
-| ``loc-value``        | LOC rdata format                         |
-+----------------------+------------------------------------------+
 | ``ds-value``         | DS rdata format                          |
 +----------------------+------------------------------------------+
 | ``tlsa-value``       | TLSA rdata format                        |
 +----------------------+------------------------------------------+
-| ``openpgpkey-value`` | OPENPGPKEY rdata format                  |
-+----------------------+------------------------------------------+
-| ``urlfwd-value``     | URLFWD rdata format                      |
-+----------------------+------------------------------------------+
-| ``svcb-value``       | SVCB rdata format                        |
-+----------------------+------------------------------------------+
-| ``https-value``      | HTTPS rdata format                       |
-+----------------------+------------------------------------------+
-| ``chunked-value``    | TXT/SPF chunk size                       |
-+----------------------+------------------------------------------+
 
-Ids prefixed with ``_`` (e.g. ``_values-type``) are internal bridge validators
-that cannot be disabled.
+Validators active in ``strict`` only (stricter replacements):
+
++----------------------------+-------------------------------------------------------+
+| id                         | description                                           |
++============================+=======================================================+
+| ``srv-name-rfc``           | SRV name strict per RFC 2782 + RFC 6335 §5.1;         |
+|                            | replaces ``srv-name``                                 |
++----------------------------+-------------------------------------------------------+
+| ``srv-value-rfc``          | SRV rdata strict per RFC 2782 (range, null target);   |
+|                            | replaces ``srv-value``                                |
++----------------------------+-------------------------------------------------------+
+| ``uri-name-rfc``           | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
+|                            | replaces ``uri-name``                                 |
++----------------------------+-------------------------------------------------------+
+| ``mx-value-rfc``           | MX preference in [0, 65535]; null MX rules per        |
+|                            | RFC 7505; replaces ``mx-value``                       |
++----------------------------+-------------------------------------------------------+
+| ``caa-value-rfc``          | CAA flags restricted to 0/128 (RFC 8659 §4.1);        |
+|                            | tag must match ``[a-zA-Z0-9]+``; replaces             |
+|                            | ``caa-value``                                         |
++----------------------------+-------------------------------------------------------+
+| ``tlsa-value-rfc``         | TLSA fields uint8 [0, 255]; certificate_association   |
+|                            | _data must be hex; SHA-256/SHA-512 length enforced    |
+|                            | (RFC 6698); replaces ``tlsa-value``                   |
++----------------------------+-------------------------------------------------------+
+| ``ds-value-rfc``           | DS key_tag uint16, algorithm/digest_type uint8;       |
+|                            | digest must be hex; SHA-1/SHA-256/SHA-384 length      |
+|                            | enforced (RFC 4034/4509/6605); replaces ``ds-value``  |
++----------------------------+-------------------------------------------------------+
+| ``naptr-value-rfc``        | NAPTR order/preference uint16; flags S/A/U/P only;    |
+|                            | replacement must be FQDN or "." (RFC 3403);           |
+|                            | replaces ``naptr-value``                              |
++----------------------------+-------------------------------------------------------+
+| ``sshfp-value-rfc``        | SSHFP algorithm/fingerprint_type uint8 [0, 255];      |
+|                            | fingerprint must be hex; SHA-1/SHA-256 length         |
+|                            | enforced (RFC 4255/6594); replaces ``sshfp-value``    |
++----------------------------+-------------------------------------------------------+
+| ``uri-value-rfc``          | URI priority/weight uint16 [0, 65535] (RFC 7553 §4);  |
+|                            | replaces ``uri-value``                                |
++----------------------------+-------------------------------------------------------+
+| ``root-cname``             | CNAME must not be at the zone apex                    |
++----------------------------+-------------------------------------------------------+
+| ``no-cname-loop``          | CNAME chains within the zone must not loop            |
++----------------------------+-------------------------------------------------------+
+| ``dname-coexistence``      | DNAME must not coexist with CNAME at any node, or     |
+|                            | with NS at a non-apex node. Also warns about occluded |
+|                            | subordinate records.                                  |
++----------------------------+-------------------------------------------------------+
+| ``mx-target-not-cname``    | MX target must not be a CNAME                         |
++----------------------------+-------------------------------------------------------+
+| ``ns-target-not-cname``    | NS target must not be a CNAME                         |
++----------------------------+-------------------------------------------------------+
+| ``srv-target-not-cname``   | SRV target must not be a CNAME                        |
++----------------------------+-------------------------------------------------------+
+| ``glue-for-in-zone-ns``    | In-zone NS targets must have A/AAAA glue records      |
++----------------------------+-------------------------------------------------------+
+| ``target-value-not-ip``    | CNAME/ALIAS/DNAME/PTR target must not be an IP        |
++----------------------------+-------------------------------------------------------+
+| ``targets-value-not-ip``   | NS targets must not be an IP                          |
++----------------------------+-------------------------------------------------------+
+| ``spf-record-type``        | SPF record type is deprecated in favor of TXT         |
++----------------------------+-------------------------------------------------------+
+
+To opt into all strict validators at once::
+
+  manager:
+    validators:
+      enabled:
+        - strict
+
+Validators active in ``best-practice`` only:
+
++---------------------------------------+-----------------------------------------------+
+| id                                    | description                                   |
++=======================================+===============================================+
+| ``target-value-best-practice``        | CNAME/ALIAS/DNAME target must end with        |
+|                                       | ``"."`` (absolute name prevents resolver      |
+|                                       | search-domain append)                         |
++---------------------------------------+-----------------------------------------------+
+| ``targets-value-best-practice``       | NS/PTR targets must each end with ``"."``     |
++---------------------------------------+-----------------------------------------------+
+| ``mx-value-best-practice``            | MX ``exchange`` must end with ``"."``         |
++---------------------------------------+-----------------------------------------------+
+| ``srv-value-best-practice``           | SRV ``target`` must end with ``"."``          |
++---------------------------------------+-----------------------------------------------+
+| ``svcb-value-best-practice``          | SVCB ``targetname`` must end with ``"."``     |
++---------------------------------------+-----------------------------------------------+
+| ``https-value-best-practice``         | HTTPS ``targetname`` must end with ``"."``    |
++---------------------------------------+-----------------------------------------------+
+| ``naptr-value-best-practice``         | NAPTR ``replacement`` must end with ``"."``   |
++---------------------------------------+-----------------------------------------------+
+| ``cname-target-not-cname``            | CNAME target should not point to a CNAME      |
++---------------------------------------+-----------------------------------------------+
+| ``mx-target-resolvable-in-zone``      | In-zone MX targets must be resolvable         |
++---------------------------------------+-----------------------------------------------+
+| ``srv-target-resolvable-in-zone``     | In-zone SRV targets must be resolvable        |
++---------------------------------------+-----------------------------------------------+
+| ``cname-target-resolvable-in-zone``   | In-zone CNAME targets must be resolvable      |
++---------------------------------------+-----------------------------------------------+
+Validators active in ``best-practice`` only that check the entire zone:
+
++----------------------------------+-----------------------------------------------+
+| id                               | description                                   |
++==================================+===============================================+
+| ``mail``                         | Comprehensive best-practice validator for mail|
+|                                  | records (MX, SPF, DMARC). It supports 'mail'  |
+|                                  | and 'no-mail' modes. In its default 'auto'    |
+|                                  | mode it is a no-op if no apex MX or apex SPF  |
+|                                  | is found. If either is present it enforces    |
+|                                  | 'mail' or 'no-mail' using MX as the primary   |
+|                                  | signal (Null MX → no-mail, real MX → mail),   |
+|                                  | falling back to SPF when no apex MX exists.   |
+|                                  | DMARC policy is never used for detection.     |
++----------------------------------+-----------------------------------------------+
+| ``caa-best-practices``           | CAA records must have at least one issue or   |
+|                                  | issuewild tag (if any CAA records exist)      |
++----------------------------------+-----------------------------------------------+
+| ``multi-value-ns``               | Zone must have at least two NS records        |
++----------------------------------+-----------------------------------------------+
+
+The recommended configuration is to enable both sets::
+
+  manager:
+    validators:
+      enabled:
+        - strict
+        - best-practice
+
+In 2.x ``strict`` and ``best-practice`` will become the default sets.
 
 Adding validators via config
 ............................
 
 Custom validators are declared in a top-level ``validators:`` section (parallel
-to ``providers:`` and ``processors:``) and then wired into specific record types
-— or all types — under ``manager:``::
+to ``providers:`` and ``processors:``)::
 
   validators:
     my-ttl-floor:
       class: mymodule.MinTtlValidator
       min_ttl: 300
-
-  manager:
-    validators:
-      '*':
-        - my-ttl-floor
+      types:
+        - MX
 
 The ``class`` key specifies the dotted import path of a
 :py:class:`~octodns.record.validator.RecordValidator` or
-:py:class:`~octodns.record.validator.ValueValidator` subclass. All other keys
-under the validator name are passed as keyword arguments to ``__init__`` after
-the mandatory ``id`` (config key) argument. Targeting ``'*'`` means the
-validator runs for every record type; targeting a record type string (e.g.
-``'MX'``) restricts it to that type.
+:py:class:`~octodns.record.validator.ValueValidator` subclass. The optional
+``types`` key restricts the validator to those record types; omitting it
+registers the validator for all types (``'*'``). All other keys are passed as
+keyword arguments to ``__init__`` after the mandatory ``id`` (config key)
+argument — including ``sets`` if set-based activation is desired.
+
+Config-declared validators follow the same activation rules as built-in
+validators: a validator with ``sets=None`` (the default) is always active; one
+with an explicit ``sets`` value is activated when any of its sets appears in
+``manager.enabled``. ``manager.validators`` can still be used to activate a
+validator for additional record types beyond those listed under ``types``.
 
 Disabling built-in validators
 .............................
 
+Use this when you want to permanently skip a *specific check* across all
+records of a given type. If you instead want to suppress all validation errors
+for a particular record or zone while keeping every check active, use
+``lenient`` (see `lenient`_ above).
+
 Individual built-in validators can be turned off under
-``manager.disable_validators``::
+``manager.validators.record.disable_validators``::
 
   manager:
-    disable_validators:
-      '*':
-        - healthcheck
-      MX:
-        - mx-value
+    validators:
+      record:
+        disable_validators:
+          '*':
+            - healthcheck
+          MX:
+            - mx-value
 
 ``'*'`` removes the validator from every record type; a type string removes it
 only for that type. Bridge validators (``_``-prefixed ids) cannot be disabled
@@ -300,8 +501,22 @@ To attach a validator to an already-registered record type, call
 
   Record.register_validator(NoPublicMxValidator('no-public-mx'), types=['MX'])
 
-``types=None`` (the default) registers for all record types. As long as the
-module is imported before octoDNS plans any changes the validator will run.
+``types=None`` (the default) registers for all record types.
+
+**Set membership and activation.** A validator's ``sets`` attribute controls
+when it becomes active. The default is ``sets=None``, which means the
+validator is always activated regardless of ``manager.enabled`` — the right
+choice for most third-party validators that should always run. To opt a
+validator into set-based filtering, pass an explicit ``sets`` at construction
+time::
+
+  Record.register_validator(
+      StrictMxValidator('strict-mx', sets={'rfc'}), types=['MX']
+  )
+
+That validator is then only active when ``manager.enabled`` includes ``'rfc'``.
+As long as the module is imported before Manager initialises, the validator
+will be in the available registry and activated appropriately.
 
 ``strict_supports``
 -------------------
@@ -362,14 +577,20 @@ Available versions
 Read the Docs serves a copy of the schema under each version's ``_static``
 directory:
 
-- `Bundled with this documentation <_static/octodns.schema.json>`_ — always
+- `Bundled with this documentation <_static/octodns-zone.schema.json>`_ — always
   matches the version of octoDNS whose docs you are viewing
-- `Latest release <https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json>`_
+- `Latest release <https://octodns.readthedocs.io/en/stable/_static/octodns-zone.schema.json>`_
   — recommended for most users; tracks the most recent release
-- `Development <https://octodns.readthedocs.io/en/latest/_static/octodns.schema.json>`_
+- `Development <https://octodns.readthedocs.io/en/latest/_static/octodns-zone.schema.json>`_
   — tracks ``main``
 - A specific release, e.g.
-  `v2.0.0 <https://octodns.readthedocs.io/en/v2.0.0/_static/octodns.schema.json>`_
+  `v2.0.0 <https://octodns.readthedocs.io/en/v2.0.0/_static/octodns-zone.schema.json>`_
+
+.. note::
+
+   The legacy filename ``octodns.schema.json`` is still published alongside
+   ``octodns-zone.schema.json`` with identical content. Existing modelines or
+   ``yaml.schemas`` configs pointing at the old name keep working.
 
 Opting in with a modeline
 .........................
@@ -379,7 +600,7 @@ other editors) honors a modeline at the top of a YAML file:
 
 .. code-block:: yaml
 
-   # yaml-language-server: $schema=https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json
+   # yaml-language-server: $schema=https://octodns.readthedocs.io/en/stable/_static/octodns-zone.schema.json
    ---
    www:
      type: A
@@ -393,7 +614,7 @@ In VS Code (or any editor that uses ``yaml-language-server``) you can instead
 associate the schema with a file pattern via ``yaml.schemas``::
 
   "yaml.schemas": {
-    "https://octodns.readthedocs.io/en/stable/_static/octodns.schema.json": [
+    "https://octodns.readthedocs.io/en/stable/_static/octodns-zone.schema.json": [
       "zones/*.yaml"
     ]
   }
@@ -405,6 +626,52 @@ The ``octodns-schema`` CLI prints or writes the same schema:
 
 .. code-block:: sh
 
-   octodns-schema --output octodns.schema.json
+   octodns-schema --output octodns-zone.schema.json
+
+JSON Schema for the main config file
+-------------------------------------
+
+octoDNS also publishes a JSON Schema describing the main ``config.yaml``
+format: providers, processors, validators, secret_handlers, and zones. Built-in
+core classes (``YamlProvider``, ``OwnershipProcessor``, etc.) get full property
+schemas; third-party plugin classes are accepted with any kwargs as long as
+``class`` is present.
+
+Available versions
+..................
+
+- `Bundled with this documentation <_static/octodns-config.schema.json>`_
+- `Latest release <https://octodns.readthedocs.io/en/stable/_static/octodns-config.schema.json>`_
+- `Development <https://octodns.readthedocs.io/en/latest/_static/octodns-config.schema.json>`_
+
+Opting in with a modeline
+.........................
+
+.. code-block:: yaml
+
+   # yaml-language-server: $schema=https://octodns.readthedocs.io/en/stable/_static/octodns-config.schema.json
+   ---
+   providers:
+     config:
+       class: octodns.provider.yaml.YamlProvider
+       directory: ./zones
+
+Editor configuration
+....................
+
+::
+
+  "yaml.schemas": {
+    "https://octodns.readthedocs.io/en/stable/_static/octodns-config.schema.json": [
+      "config.yaml"
+    ]
+  }
+
+Generating locally
+..................
+
+.. code-block:: sh
+
+   octodns-schema --kind config --output octodns-config.schema.json
 
 .. _yaml-language-server: https://github.com/redhat-developer/yaml-language-server

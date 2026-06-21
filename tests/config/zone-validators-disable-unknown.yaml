@@ -1,0 +1,7 @@
+manager:
+  validators:
+    zone:
+      disable_validators:
+        - this-id-does-not-exist
+providers: {}
+zones: {}

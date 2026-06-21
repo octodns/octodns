@@ -1,6 +1,8 @@
 manager:
-  disable_validators:
-    '*':
-      - this-id-does-not-exist
+  validators:
+    record:
+      disable_validators:
+        '*':
+          - this-id-does-not-exist
 providers: {}
 zones: {}

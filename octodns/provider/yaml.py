@@ -206,11 +206,18 @@ class YamlProvider(BaseProvider):
         split_catchall=True,
         shared_filename=False,
         disable_zonefile=False,
-        escaped_semicolons=True,
+        escaped_semicolons=None,
         ignore_missing_zones=False,
         *args,
         **kwargs,
     ):
+        if escaped_semicolons is None:
+            deprecated(
+                'YamlProvider: escaped_semicolons currently defaults to True, default value is DEPRECATED and will default to False in 2.0. Please explicitly set escaped_semicolons to True or False in your configuration to avoid behavior changes.',
+                stacklevel=2,
+            )
+            escaped_semicolons = True
+
         klass = self.__class__.__name__
         self.log = logging.getLogger(f'{klass}[{id}]')
         self.log.debug(
@@ -351,11 +358,16 @@ class YamlProvider(BaseProvider):
                             'SPF',
                             'TXT',
                         ):
-                            if 'value' in d:
+                            if 'value' in d and d['value'] is not None:
                                 d['value'] = d['value'].replace(';', '\\;')
                             if 'values' in d:
                                 d['values'] = [
-                                    v.replace(';', '\\;') for v in d['values']
+                                    (
+                                        v.replace(';', '\\;')
+                                        if v is not None
+                                        else v
+                                    )
+                                    for v in d['values']
                                 ]
                         if 'ttl' not in d:
                             d['ttl'] = self.default_ttl

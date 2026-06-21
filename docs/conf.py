@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 print(f"SYS.PATH={sys.path}")
 
 from octodns.__init__ import __version__
-from octodns.schema import build_zone_schema
+from octodns.schema import build_config_schema, build_zone_schema
 
 ### sphinx config ###
 
@@ -186,24 +186,36 @@ def _rewrite_repo_local_links(app, doctree, _docname):
 
 
 ### json schema ###
-# Generate the zone YAML JSON Schema at docs-build time so Read the Docs
-# serves a per-version copy under _static. External consumers (SchemaStore,
-# yaml-language-server modelines, editor `yaml.schemas` config) point at
-# https://octodns.readthedocs.io/en/<version>/_static/octodns.schema.json.
+# Generate JSON Schemas at docs-build time so Read the Docs serves per-version
+# copies under _static. External consumers (SchemaStore, yaml-language-server
+# modelines, editor `yaml.schemas` config) point at the versioned URLs.
 #
-# The schema is a build artifact — it is regenerated on every build from the
-# currently registered record types, so it can't drift from the code.
-_SCHEMA_FILENAME = "octodns.schema.json"
+# The schemas are build artifacts regenerated on every build, so they can't
+# drift from the code.
+_ZONE_SCHEMA_FILENAME = "octodns-zone.schema.json"
+_CONFIG_SCHEMA_FILENAME = "octodns-config.schema.json"
+# Legacy alias kept so existing modelines pointing at the old filename keep
+# working. Contains the same content as _ZONE_SCHEMA_FILENAME.
+_LEGACY_ZONE_SCHEMA_FILENAME = "octodns.schema.json"
 
 
 def _write_zone_schema(app):
     out_dir = Path(app.srcdir) / "_static"
     out_dir.mkdir(parents=True, exist_ok=True)
-    target = out_dir / _SCHEMA_FILENAME
-    target.write_text(
-        json.dumps(build_zone_schema(), indent=2, sort_keys=True) + "\n"
+
+    zone_data = json.dumps(build_zone_schema(), indent=2, sort_keys=True) + "\n"
+    config_data = (
+        json.dumps(build_config_schema(), indent=2, sort_keys=True) + "\n"
     )
-    print(f"wrote {target}")
+
+    for filename, data in (
+        (_ZONE_SCHEMA_FILENAME, zone_data),
+        (_CONFIG_SCHEMA_FILENAME, config_data),
+        (_LEGACY_ZONE_SCHEMA_FILENAME, zone_data),
+    ):
+        target = out_dir / filename
+        target.write_text(data)
+        print(f"wrote {target}")
 
 
 def setup(app):

@@ -5,7 +5,14 @@
 from unittest import TestCase
 
 from octodns.record.alias import AliasRecord
-from octodns.record.target import _TargetsValue, _TargetValue
+from octodns.record.target import (
+    TargetsValueBestPracticeValidator,
+    TargetsValueNotIpValidator,
+    TargetValueBestPracticeValidator,
+    TargetValueNotIpValidator,
+    _TargetsValue,
+    _TargetValue,
+)
 from octodns.zone import Zone
 
 
@@ -58,3 +65,119 @@ class TestTargetsValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual('this.does.42.have.templating.', got)
+
+
+class TestTargetBestPracticeValidators(TestCase):
+
+    def test_target_value_best_practice_validator(self):
+        validate = TargetValueBestPracticeValidator(
+            'target-value-best-practice'
+        ).validate
+
+        # valid: trailing dot present
+        self.assertEqual([], validate(_TargetValue, 'foo.bar.com.', 'CNAME'))
+
+        # missing/empty value — no error (format validator handles that)
+        self.assertEqual([], validate(_TargetValue, None, 'CNAME'))
+        self.assertEqual([], validate(_TargetValue, '', 'CNAME'))
+
+        # null target for permitted types — exempt
+        self.assertEqual([], validate(_TargetValue, '.', 'SRV'))
+
+        # template variable — exempt until after substitution
+        self.assertEqual(
+            [], validate(_TargetValue, '{zone_name}example.com', 'CNAME')
+        )
+
+        # missing trailing dot
+        self.assertEqual(
+            ['CNAME value "foo.bar.com" missing trailing .'],
+            validate(_TargetValue, 'foo.bar.com', 'CNAME'),
+        )
+
+    def test_targets_value_best_practice_validator(self):
+        validate = TargetsValueBestPracticeValidator(
+            'targets-value-best-practice'
+        ).validate
+
+        # valid
+        self.assertEqual(
+            [], validate(_TargetsValue, ['ns1.foo.com.', 'ns2.foo.com.'], 'NS')
+        )
+
+        # empty list — no errors
+        self.assertEqual([], validate(_TargetsValue, [], 'NS'))
+
+        # template variable — exempt
+        self.assertEqual([], validate(_TargetsValue, ['{zone_name}ns1'], 'NS'))
+
+        # missing trailing dot
+        self.assertEqual(
+            ['NS value "foo.bar" missing trailing .'],
+            validate(_TargetsValue, ['foo.bar'], 'NS'),
+        )
+
+        # multiple values, one bad
+        self.assertEqual(
+            ['NS value "ns2.foo.com" missing trailing .'],
+            validate(_TargetsValue, ['ns1.foo.com.', 'ns2.foo.com'], 'NS'),
+        )
+
+
+class TestTargetNotIpValidators(TestCase):
+
+    def test_target_value_not_ip_validator(self):
+        validate = TargetValueNotIpValidator('target-value-not-ip').validate
+
+        # valid
+        self.assertEqual([], validate(_TargetValue, 'foo.bar.com.', 'CNAME'))
+
+        # missing/empty value — no error
+        self.assertEqual([], validate(_TargetValue, None, 'CNAME'))
+        self.assertEqual([], validate(_TargetValue, '', 'CNAME'))
+
+        # null target for permitted types — exempt
+        self.assertEqual([], validate(_TargetValue, '.', 'SRV'))
+
+        # template variable — exempt until after substitution
+        self.assertEqual(
+            [], validate(_TargetValue, '{zone_name}example.com', 'CNAME')
+        )
+
+        # ipv4
+        self.assertEqual(
+            ['CNAME value "192.168.1.1" is an IP address'],
+            validate(_TargetValue, '192.168.1.1', 'CNAME'),
+        )
+
+        # ipv4 with trailing dot
+        self.assertEqual(
+            ['CNAME value "192.168.1.1." is an IP address'],
+            validate(_TargetValue, '192.168.1.1.', 'CNAME'),
+        )
+
+        # ipv6
+        self.assertEqual(
+            ['CNAME value "2001:db8::1" is an IP address'],
+            validate(_TargetValue, '2001:db8::1', 'CNAME'),
+        )
+
+    def test_targets_value_not_ip_validator(self):
+        validate = TargetsValueNotIpValidator('targets-value-not-ip').validate
+
+        # valid
+        self.assertEqual(
+            [], validate(_TargetsValue, ['ns1.foo.com.', 'ns2.foo.com.'], 'NS')
+        )
+
+        # empty list — no errors
+        self.assertEqual([], validate(_TargetsValue, [], 'NS'))
+
+        # template variable — exempt
+        self.assertEqual([], validate(_TargetsValue, ['{zone_name}ns1'], 'NS'))
+
+        # multiple values, one bad
+        self.assertEqual(
+            ['NS value "192.168.1.1" is an IP address'],
+            validate(_TargetsValue, ['ns1.foo.com.', '192.168.1.1'], 'NS'),
+        )

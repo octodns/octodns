@@ -1,18 +1,24 @@
 #!/usr/bin/env python
 '''
-octoDNS JSON Schema generator for zone YAML files
+octoDNS JSON Schema generator for zone or config YAML files
 '''
 
 import json
 import sys
 
 from octodns.cmds.args import ArgumentParser
-from octodns.schema import build_zone_schema
+from octodns.schema import build_config_schema, build_zone_schema
 
 
 def main():
     parser = ArgumentParser(description=__doc__.split('\n')[1])
 
+    parser.add_argument(
+        '--kind',
+        choices=['zone', 'config'],
+        default='zone',
+        help='Which schema to emit: zone (default) or config',
+    )
     parser.add_argument(
         '--indent',
         type=int,
@@ -27,7 +33,11 @@ def main():
 
     args = parser.parse_args()
 
-    schema = build_zone_schema()
+    if args.kind == 'config':
+        schema = build_config_schema()
+    else:
+        schema = build_zone_schema()
+
     data = json.dumps(schema, indent=args.indent, sort_keys=True)
 
     if args.output:

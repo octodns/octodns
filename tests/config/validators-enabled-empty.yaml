@@ -1,0 +1,5 @@
+manager:
+  validators:
+    enabled: []
+providers: {}
+zones: {}

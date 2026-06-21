@@ -24,6 +24,9 @@ class ChunkedValueValidator(ValueValidator):
             data = (data,)
         reasons = []
         for value in data:
+            if value is None:
+                reasons.append('missing value(s)')
+                continue
             if self._unescaped_semicolon_re.search(value):
                 reasons.append(f'unescaped ; in "{value}"')
             if self._double_escaped_semicolon_re.search(value):
@@ -35,7 +38,9 @@ class ChunkedValueValidator(ValueValidator):
         return reasons
 
 
-chunked_value_validator = ChunkedValueValidator('chunked-value')
+chunked_value_validator = ChunkedValueValidator(
+    'chunked-value-rfc', sets={'legacy', 'strict'}
+)
 
 
 class _ChunkedValuesMixin(ValuesMixin):

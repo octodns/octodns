@@ -1,0 +1,7 @@
+manager:
+  validators:
+    zone:
+      disable_validators:
+        - _internal-bridge
+providers: {}
+zones: {}

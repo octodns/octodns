@@ -166,7 +166,7 @@ class _GeoMixin(ValuesMixin):
     Must be included before `Record`.
     '''
 
-    VALIDATORS = [GeoValidator('geo')]
+    VALIDATORS = [GeoValidator('geo', sets={'legacy'})]
 
     @classmethod
     def _schema(cls, value_schema):

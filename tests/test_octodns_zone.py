@@ -13,6 +13,7 @@ from octodns.record import (
     ARecord,
     Create,
     Delete,
+    MxRecord,
     NsRecord,
     Record,
     Update,
@@ -20,10 +21,10 @@ from octodns.record import (
 from octodns.zone import (
     DuplicateRecordException,
     InvalidNameError,
-    InvalidNodeException,
     SubzoneRecordException,
     Zone,
 )
+from octodns.zone.exception import ValidationError
 
 
 class TestZone(TestCase):
@@ -468,6 +469,106 @@ class TestZone(TestCase):
         zone.add_record(record)
         self.assertEqual(1, len(zone.records))
 
+    def test_ignore_subzone_adds(self):
+        # default is False
+        zone = Zone('unit.tests.', set(['sub']))
+        self.assertFalse(zone.ignore_subzone_adds)
+
+        # non-NS/DS at exact sub-zone boundary is silently dropped
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone, 'sub', {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']}
+        )
+        zone.add_record(record)
+        self.assertEqual(set(), zone.records)
+
+        # record under a hierarchical sub-zone is silently dropped
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone,
+            'foo.bar.sub',
+            {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']},
+        )
+        zone.add_record(record)
+        self.assertEqual(set(), zone.records)
+
+        # NS at the boundary still added
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone,
+            'sub',
+            {'ttl': 3600, 'type': 'NS', 'values': ['1.2.3.4.', '2.3.4.5.']},
+        )
+        zone.add_record(record)
+        self.assertEqual(set([record]), zone.records)
+
+        # DS at the boundary still added
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone,
+            'sub',
+            {
+                'ttl': 3600,
+                'type': 'DS',
+                'values': [
+                    {
+                        'key_tag': 60485,
+                        'algorithm': 5,
+                        'digest_type': 1,
+                        'digest': '2BB183AF5F22588179A53B0A 98631FAD1A292118',
+                    }
+                ],
+            },
+        )
+        zone.add_record(record)
+        self.assertEqual(set([record]), zone.records)
+
+        # record-level lenient still wins over ignore_subzone_adds: the
+        # record is warn-and-added rather than silently dropped
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone,
+            'ns.sub',
+            {
+                'octodns': {'lenient': True},
+                'ttl': 3600,
+                'type': 'A',
+                'value': '1.2.3.4',
+            },
+        )
+        zone.add_record(record)
+        self.assertEqual(set([record]), zone.records)
+
+        # call-level lenient also still wins
+        zone = Zone(
+            'unit.tests.', set(['sub', 'barred']), ignore_subzone_adds=True
+        )
+        record = Record.new(
+            zone,
+            'foo.bar.sub',
+            {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']},
+        )
+        zone.add_record(record, lenient=True)
+        self.assertEqual(set([record]), zone.records)
+
+        # records that don't fall in a sub-zone are unaffected
+        zone = Zone('unit.tests.', set(['sub']), ignore_subzone_adds=True)
+        record = Record.new(
+            zone, 'www', {'ttl': 3600, 'type': 'A', 'values': ['1.2.3.4']}
+        )
+        zone.add_record(record)
+        self.assertEqual(set([record]), zone.records)
+
     def test_ignored_records(self):
         zone_normal = Zone('unit.tests.', [])
         zone_ignored = Zone('unit.tests.', [])
@@ -511,25 +612,25 @@ class TestZone(TestCase):
         )
         cname.context = 'has some context'
 
-        # add cname to a
+        # add cname to a, succeeds now
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException) as ctx:
-            zone.add_record(cname)
-        self.assertIn(', has some context', str(ctx.exception))
-        self.assertEqual(set([a]), zone.records)
-        zone.add_record(cname, lenient=True)
+        zone.add_record(cname)
         self.assertEqual(set([a, cname]), zone.records)
+        # but fails validation
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
+        self.assertIn('(has some context)', str(ctx.exception))
 
-        # add a to cname
+        # add a to cname, succeeds now
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(a)
-        self.assertEqual(set([cname]), zone.records)
-        zone.add_record(a, lenient=True)
-        self.assertEqual(set([a, cname]), zone.records)
+        zone.add_record(a)
+        self.assertEqual(set([cname, a]), zone.records)
+        # but fails validation
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
-        # add cname to lenient a
+        # add cname to lenient a, succeeds now
         a = Record.new(
             zone,
             'www',
@@ -542,17 +643,21 @@ class TestZone(TestCase):
         )
         zone = Zone('unit.tests.', [])
         zone.add_record(a)
-        with self.assertRaises(InvalidNodeException) as ctx:
-            zone.add_record(cname)
-        self.assertIn(', has some context', str(ctx.exception))
-        self.assertEqual(set([a]), zone.records)
+        zone.add_record(cname)
+        self.assertEqual(set([a, cname]), zone.records)
+        # but fails validation because cname is not lenient
+        with self.assertRaises(ValidationError) as ctx:
+            zone.validate()
+        self.assertIn('(has some context)', str(ctx.exception))
 
-        # add lenient a to cname
+        # add lenient a to cname, succeeds now
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(a)
-        self.assertEqual(set([cname]), zone.records)
+        zone.add_record(a)
+        self.assertEqual(set([cname, a]), zone.records)
+        # but fails validation because cname is not lenient
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
         # add lenient cname to lenient a
         cname = Record.new(
@@ -569,28 +674,41 @@ class TestZone(TestCase):
         zone.add_record(a)
         zone.add_record(cname)
         self.assertEqual(set([a, cname]), zone.records)
+        # both are lenient so validation passes (no exception raised)
+        zone.validate()
 
         # add lenient a to lenient cname
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         zone.add_record(a)
         self.assertEqual(set([a, cname]), zone.records)
+        # both are lenient so validation passes
+        zone.validate()
 
-        # adding something else w/o lenient still errors
+        # adding something else w/o lenient, still fails validation
         zone = Zone('unit.tests.', [])
         zone.add_record(cname)
         zone.add_record(a)
         txt = Record.new(
             zone, 'www', {'ttl': 60, 'type': 'TXT', 'value': 'Hello World'}
         )
-        with self.assertRaises(InvalidNodeException):
-            zone.add_record(txt)
-        self.assertEqual(set([a, cname]), zone.records)
+        zone.add_record(txt)
+        self.assertEqual(set([a, cname, txt]), zone.records)
+        with self.assertRaises(ValidationError):
+            zone.validate()
 
-        # if the 3rd record is lenient it can be added
+        # if the 3rd record is lenient it STILL fails validation because not
+        # ALL are lenient
         zone = Zone('unit.tests.', [])
+        a = Record.new(
+            zone, 'www', {'ttl': 60, 'type': 'A', 'value': '9.9.9.9'}
+        )
+        cname = Record.new(
+            zone, 'www', {'ttl': 60, 'type': 'CNAME', 'value': 'foo.bar.com.'}
+        )
         zone.add_record(cname)
         zone.add_record(a)
+        # non-lenient a and cname are already there
         txt = Record.new(
             zone,
             'www',
@@ -603,6 +721,48 @@ class TestZone(TestCase):
         )
         zone.add_record(txt)
         self.assertEqual(set([a, cname, txt]), zone.records)
+        with self.assertRaises(ValidationError):
+            zone.validate()
+
+        # if all 3 are lenient it passes
+        a.octodns['lenient'] = True
+        cname.octodns['lenient'] = True
+        zone.validate()
+
+    def test_validator_registration_methods(self):
+        # Test class methods that delegate to Zone.validators
+        # These are currently missing coverage in octodns/zone/__init__.py
+
+        # registered_zone_validators
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+
+        # available_zone_validators
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.available_zone_validators()],
+        )
+
+        # enable_zone_validator / disable_zone_validator
+        Zone.disable_zone_validator('cname-coexistence')
+        self.assertNotIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+        Zone.enable_zone_validator('cname-coexistence')
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
+
+        # enable_zone_validators (sets)
+        Zone.enable_zone_validators(['legacy'])
+        self.assertIn(
+            'cname-coexistence',
+            [v.id for v in Zone.registered_zone_validators()],
+        )
 
     def test_excluded_records(self):
         zone_normal = Zone('unit.tests.', [])
@@ -823,3 +983,60 @@ class TestZone(TestCase):
         # finally remove the root NS, no more
         zone.remove_record(root_ns)
         self.assertFalse(zone.root_ns)
+
+
+class TestZoneGet(TestCase):
+    def test_get_all_at_name(self):
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'www', {'ttl': 300, 'value': '1.2.3.4'})
+        zone.add_record(a)
+        self.assertEqual({a}, zone.get('www'))
+
+    def test_get_filtered_by_type(self):
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'host', {'ttl': 300, 'value': '1.2.3.4'})
+        zone.add_record(a)
+        self.assertEqual({a}, zone.get('host', type='A'))
+        self.assertEqual(set(), zone.get('host', type='MX'))
+
+    def test_get_multiple_types_at_same_name(self):
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'host', {'ttl': 300, 'value': '1.2.3.4'})
+        mx = MxRecord(
+            zone,
+            'host',
+            {
+                'ttl': 300,
+                'values': [{'preference': 10, 'exchange': 'mail.unit.tests.'}],
+            },
+        )
+        zone.add_record(a)
+        zone.add_record(mx)
+        self.assertEqual({a, mx}, zone.get('host'))
+        self.assertEqual({a}, zone.get('host', type='A'))
+        self.assertEqual({mx}, zone.get('host', type='MX'))
+
+    def test_get_missing_name(self):
+        zone = Zone('unit.tests.', [])
+        self.assertEqual(set(), zone.get('nonexistent'))
+        self.assertEqual(set(), zone.get('nonexistent', type='A'))
+
+    def test_get_apex(self):
+        zone = Zone('unit.tests.', [])
+        ns = NsRecord(
+            zone,
+            '',
+            {'ttl': 300, 'values': ['ns1.unit.tests.', 'ns2.unit.tests.']},
+        )
+        zone.add_record(ns, replace=True)
+        self.assertIn(ns, zone.get(''))
+        self.assertIn(ns, zone.get('', type='NS'))
+        self.assertEqual(set(), zone.get('', type='MX'))
+
+    def test_get_on_shallow_copy(self):
+        zone = Zone('unit.tests.', [])
+        a = ARecord(zone, 'www', {'ttl': 300, 'value': '5.6.7.8'})
+        zone.add_record(a)
+        copy = zone.copy()
+        self.assertIsNotNone(copy._origin)
+        self.assertEqual({a}, copy.get('www', type='A'))

@@ -131,6 +131,9 @@ their own repositories and released as independent modules.
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
+   * - `MikroTik`_
+     - `octodns_mikrotik`_
+     -
    * - `Mythic Beasts DNS`_
      - `octodns_mythicbeasts`_
      -
@@ -139,6 +142,9 @@ their own repositories and released as independent modules.
      -
    * - `NS1`_
      - `octodns_ns1`_
+     -
+   * - `OpusDNS`_
+     - `octodns_opusdns`_
      -
    * - `OVHcloud DNS`_
      - `octodns_ovh`_
@@ -191,7 +197,7 @@ their own repositories and released as independent modules.
 .. _BIND, AXFR, RFC-2136: https://www.isc.org/bind/
 .. _octodns_bind: https://github.com/octodns/octodns-bind/
 .. _Bunny DNS: https://bunny.net/dns/
-.. _octodns_bunny: https://github.com/Relkian/octodns-bunny
+.. _octodns_bunny: https://github.com/relkian/octodns-bunny
 .. _Cloudflare DNS: https://www.cloudflare.com/dns/
 .. _octodns_cloudflare: https://github.com/octodns/octodns-cloudflare/
 .. _ClouDNS: https://www.cloudns.net/
@@ -230,12 +236,16 @@ their own repositories and released as independent modules.
 .. _octodns_infomaniak: https://github.com/M0NsTeRRR/octodns-infomaniak
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
+.. _MikroTik: https://mikrotik.com/
+.. _octodns_mikrotik: https://github.com/M0NsTeRRR/octodns-mikrotik
 .. _Mythic Beasts DNS: https://www.mythic-beasts.com/support/hosting/dns
 .. _octodns_mythicbeasts: https://github.com/octodns/octodns-mythicbeasts/
 .. _NetBox-DNS Plugin: https://github.com/peteeckel/netbox-plugin-dns
 .. _olofvndrhr/octodns-netbox-dns: https://github.com/olofvndrhr/octodns-netbox-dns
 .. _NS1: https://ns1.com/products/managed-dns
 .. _octodns_ns1: https://github.com/octodns/octodns-ns1/
+.. _OpusDNS: https://www.opusdns.com/dns
+.. _octodns_opusdns: https://github.com/relkian/octodns-opusdns
 .. _OVHcloud DNS: https://www.ovhcloud.com/en/domains/dns-subdomain/
 .. _octodns_ovh: https://github.com/octodns/octodns-ovh/
 .. _Pi-hole: https://pi-hole.net/

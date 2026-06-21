@@ -3,7 +3,9 @@ validators:
     class: helpers.TestValueValidator
 manager:
   validators:
-    TXT:
-      - my-value-validator
+    record:
+      validators:
+        TXT:
+          - my-value-validator
 providers: {}
 zones: {}

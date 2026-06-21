@@ -9,7 +9,9 @@ coverage.json
 coverage.xml
 dist/
 docs/_build/
+docs/_static/octodns-config.schema.json
 docs/_static/octodns.schema.json
+docs/_static/octodns-zone.schema.json
 docs/api/cmds/
 docs/api/helpers/
 docs/api/processors/
@@ -17,6 +19,7 @@ docs/api/providers/
 docs/api/records/
 docs/api/secrets/
 docs/api/sources/
+docs/api/validators/
 .env
 env/
 examples/migrating-to-octodns/config/

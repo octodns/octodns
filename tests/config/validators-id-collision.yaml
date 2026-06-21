@@ -1,9 +1,11 @@
 validators:
-  name:
+  name-rfc:
     class: helpers.TestRecordValidator
 manager:
   validators:
-    '*':
-      - name
+    record:
+      validators:
+        '*':
+          - name-rfc
 providers: {}
 zones: {}

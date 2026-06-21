@@ -62,15 +62,6 @@ class TestRecordNs(TestCase):
             Record.new(self.zone, '', {'type': 'NS', 'ttl': 600})
         self.assertEqual(['missing value(s)'], ctx.exception.reasons)
 
-        # no trailing .
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone, '', {'type': 'NS', 'ttl': 600, 'value': 'foo.bar'}
-            )
-        self.assertEqual(
-            ['NS value "foo.bar" missing trailing .'], ctx.exception.reasons
-        )
-
         # exchange must be a valid FQDN
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
@@ -106,16 +97,47 @@ class TestRecordNs(TestCase):
             {
                 'type': 'NS',
                 'ttl': 600,
-                # Value is missing ending trailing
+                # Value is missing trailing dot — no error without best-practice
                 'value': '{zone_name}example.com',
             },
             lenient=False,
         )
         zone.add_record(ns, replace=True)
+        templ.process_source_and_target_zones(zone, None, None)
 
-        with self.assertRaises(ValidationError) as ctx:
-            templ.process_source_and_target_zones(zone, None, None)
-        self.assertEqual(
-            ['NS value "unit.tests.example.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
+    def test_best_practice_validator(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('targets-value-best-practice', types=['NS'])
+        try:
+            # missing trailing dot is caught
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone, '', {'type': 'NS', 'ttl': 600, 'value': 'foo.bar'}
+                )
+            self.assertEqual(
+                ['NS value "foo.bar" missing trailing .'], ctx.exception.reasons
+            )
+            # trailing dot caught after template substitution
+            templ = Templating('test')
+            ns = Record.new(
+                zone,
+                '',
+                {'type': 'NS', 'ttl': 600, 'value': '{zone_name}example.com'},
+                lenient=False,
+            )
+            zone.add_record(ns, replace=True)
+            with self.assertRaises(ValidationError) as ctx:
+                templ.process_source_and_target_zones(zone, None, None)
+            self.assertEqual(
+                ['NS value "unit.tests.example.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone, '', {'type': 'NS', 'ttl': 600, 'value': 'foo.bar.'}
+            )
+        finally:
+            Record.disable_validator(
+                'targets-value-best-practice', types=['NS']
+            )

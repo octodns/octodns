@@ -4,7 +4,9 @@ validators:
     min_ttl: 300
 manager:
   validators:
-    '*':
-      - my-test-validator
+    record:
+      validators:
+        '*':
+          - my-test-validator
 providers: {}
 zones: {}

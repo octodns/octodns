@@ -84,18 +84,6 @@ class TestRecordCname(TestCase):
             ['CNAME value "___." is not a valid FQDN'], ctx.exception.reasons
         )
 
-        # missing trailing .
-        with self.assertRaises(ValidationError) as ctx:
-            Record.new(
-                self.zone,
-                'www',
-                {'type': 'CNAME', 'ttl': 600, 'value': 'foo.bar.com'},
-            )
-        self.assertEqual(
-            ['CNAME value "foo.bar.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
-
         # doesn't allow urls
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
@@ -104,10 +92,7 @@ class TestRecordCname(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'https://google.com'},
             )
         self.assertEqual(
-            [
-                'CNAME value "https://google.com" is not a valid FQDN',
-                'CNAME value "https://google.com" missing trailing .',
-            ],
+            ['CNAME value "https://google.com" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -123,10 +108,7 @@ class TestRecordCname(TestCase):
                 },
             )
         self.assertEqual(
-            [
-                'CNAME value "https://google.com/a/b/c" is not a valid FQDN',
-                'CNAME value "https://google.com/a/b/c" missing trailing .',
-            ],
+            ['CNAME value "https://google.com/a/b/c" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -138,10 +120,7 @@ class TestRecordCname(TestCase):
                 {'type': 'CNAME', 'ttl': 600, 'value': 'google.com/some/path'},
             )
         self.assertEqual(
-            [
-                'CNAME value "google.com/some/path" is not a valid FQDN',
-                'CNAME value "google.com/some/path" missing trailing .',
-            ],
+            ['CNAME value "google.com/some/path" is not a valid FQDN'],
             ctx.exception.reasons,
         )
 
@@ -168,16 +147,56 @@ class TestRecordCname(TestCase):
             {
                 'type': 'CNAME',
                 'ttl': 600,
-                # Value is missing trailing dot
+                # Value is missing trailing dot — no error without best-practice
                 'value': '{zone_name}example.com',
             },
             lenient=False,
         )
         zone.add_record(cname, replace=True)
+        templ.process_source_and_target_zones(zone, None, None)
 
-        with self.assertRaises(ValidationError) as ctx:
-            templ.process_source_and_target_zones(zone, None, None)
-        self.assertEqual(
-            ['CNAME value "unit.tests.example.com" missing trailing .'],
-            ctx.exception.reasons,
-        )
+    def test_best_practice_validator(self):
+        zone = Zone('unit.tests.', [])
+        Record.enable_validators(['legacy'])
+        Record.enable_validator('target-value-best-practice', types=['CNAME'])
+        try:
+            # missing trailing dot is caught
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(
+                    zone,
+                    'www',
+                    {'type': 'CNAME', 'ttl': 600, 'value': 'foo.bar.com'},
+                )
+            self.assertEqual(
+                ['CNAME value "foo.bar.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # trailing dot caught after template substitution
+            templ = Templating('test')
+            cname = Record.new(
+                zone,
+                'www',
+                {
+                    'type': 'CNAME',
+                    'ttl': 600,
+                    'value': '{zone_name}example.com',
+                },
+                lenient=False,
+            )
+            zone.add_record(cname, replace=True)
+            with self.assertRaises(ValidationError) as ctx:
+                templ.process_source_and_target_zones(zone, None, None)
+            self.assertEqual(
+                ['CNAME value "unit.tests.example.com" missing trailing .'],
+                ctx.exception.reasons,
+            )
+            # valid passes
+            Record.new(
+                zone,
+                'www',
+                {'type': 'CNAME', 'ttl': 600, 'value': 'foo.bar.com.'},
+            )
+        finally:
+            Record.disable_validator(
+                'target-value-best-practice', types=['CNAME']
+            )

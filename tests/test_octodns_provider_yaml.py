@@ -86,9 +86,7 @@ class TestYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                [x for x in reloaded.records if x.name == 'included'][
-                    0
-                ].octodns,
+                next(iter(reloaded.get('included'))).octodns,
             )
 
             # manually copy over the root since it will have been ignored
@@ -539,12 +537,12 @@ www:
         zone = Zone('unescaped.semis.', [])
         source.populate(zone)
         self.assertEqual(2, len(zone.records))
-        one = next(r for r in zone.records if r.name == 'one')
+        one = next(iter(zone.get('one')))
         self.assertTrue(one)
         self.assertEqual(
             ["This has a semi-colon\\; that isn't escaped."], one.values
         )
-        two = next(r for r in zone.records if r.name == 'two')
+        two = next(iter(zone.get('two')))
         self.assertTrue(two)
         self.assertEqual(
             ["This has a semi-colon too\\; that isn't escaped.", '\\;'],
@@ -578,6 +576,85 @@ www:
                 "- This has a semi-colon too; that isn't escaped.", content
             )
             self.assertIn('- ;', content)
+
+    def test_txt_none_values(self):
+        config_dir = join(dirname(__file__), 'config-txt-none')
+        for escaped_semicolons in (True, False):
+            source = YamlProvider(
+                'test', config_dir, escaped_semicolons=escaped_semicolons
+            )
+
+            # scalar value: null
+            scalar = Zone('scalar.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(scalar)
+            self.assertEqual(['missing value(s)'], ctx.exception.reasons)
+
+            # values list containing nulls alongside a valid string
+            mixed = Zone('list.with.nulls.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(mixed)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
+            # values list that is entirely null
+            all_null = Zone('all.null.', [])
+            with self.assertRaises(ValidationError) as ctx:
+                source.populate(all_null)
+            self.assertEqual(
+                ['missing value(s)', 'missing value(s)'], ctx.exception.reasons
+            )
+
+    def test_escaped_semicolons_deprecation(self):
+        import warnings
+
+        # Case 1: escaped_semicolons is not provided, should raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider('test', 'tests/config')
+            self.assertTrue(provider.escaped_semicolons)
+
+        self.assertTrue(
+            any(
+                'escaped_semicolons currently defaults to True, default value is DEPRECATED'
+                in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
+
+        # Case 2: escaped_semicolons=True is explicitly provided, should NOT raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider(
+                'test', 'tests/config', escaped_semicolons=True
+            )
+            self.assertTrue(provider.escaped_semicolons)
+
+        self.assertFalse(
+            any(
+                'escaped_semicolons' in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
+
+        # Case 3: escaped_semicolons=False is explicitly provided, should NOT raise DeprecationWarning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            provider = YamlProvider(
+                'test', 'tests/config', escaped_semicolons=False
+            )
+            self.assertFalse(provider.escaped_semicolons)
+
+        self.assertFalse(
+            any(
+                'escaped_semicolons' in str(warning.message)
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning)
+            )
+        )
 
 
 class TestSplitYamlProvider(TestCase):
@@ -629,7 +706,7 @@ class TestSplitYamlProvider(TestCase):
         zone_both = Zone('unit.tests.', [])
         source.populate(zone_both)
         self.assertEqual(21, len(zone_both.records))
-        n = len([r for r in zone_both.records if r.name == 'only-zone-file'])
+        n = len(zone_both.get('only-zone-file'))
         self.assertEqual(1, n)
         source.disable_zonefile = True
 
@@ -639,14 +716,12 @@ class TestSplitYamlProvider(TestCase):
         zone_shared = Zone('unit.tests.', [])
         source.populate(zone_shared)
         self.assertEqual(21, len(zone_shared.records))
-        n = len([r for r in zone_shared.records if r.name == 'only-shared'])
+        n = len(zone_shared.get('only-shared'))
         self.assertEqual(1, n)
         dynamic_zone_shared = Zone('dynamic.tests.', [])
         source.populate(dynamic_zone_shared)
         self.assertEqual(6, len(dynamic_zone_shared.records))
-        n = len(
-            [r for r in dynamic_zone_shared.records if r.name == 'only-shared']
-        )
+        n = len(dynamic_zone_shared.get('only-shared'))
         self.assertEqual(1, n)
         source.shared_filename = None
 
@@ -694,9 +769,7 @@ class TestSplitYamlProvider(TestCase):
             target.populate(reloaded)
             self.assertDictEqual(
                 {'included': ['test']},
-                [x for x in reloaded.records if x.name == 'included'][
-                    0
-                ].octodns,
+                next(iter(reloaded.get('included'))).octodns,
             )
 
             # manually copy over the root since it will have been ignored

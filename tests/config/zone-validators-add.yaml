@@ -1,0 +1,5 @@
+validators:
+  my-test-zone-validator:
+    class: helpers.TestZoneValidator
+providers: {}
+zones: {}

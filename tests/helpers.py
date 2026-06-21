@@ -13,19 +13,46 @@ from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.record.validator import RecordValidator, ValueValidator
 from octodns.secret.base import BaseSecrets
+from octodns.zone import Zone
+from octodns.zone.validator import ValidationReason, ZoneValidator
+
+
+@contextmanager
+def zone_validators_snapshot():
+    reg = Zone.validators
+    configured_snap = reg.configured
+    active_snap = dict(reg.active)
+    avail_snap = dict(reg.available)
+    try:
+        yield
+    finally:
+        reg.configured = configured_snap
+        reg.active.clear()
+        reg.active.update(active_snap)
+        reg.available.clear()
+        reg.available.update(avail_snap)
 
 
 @contextmanager
 def validators_snapshot():
-    record_snap = {k: dict(v) for k, v in Record._RECORD_VALIDATORS.items()}
-    value_snap = {k: dict(v) for k, v in Record._VALUE_VALIDATORS.items()}
+    reg = Record.validators
+    configured_snap = reg.configured
+    active_record_snap = {k: dict(v) for k, v in reg.active_record.items()}
+    active_value_snap = {k: dict(v) for k, v in reg.active_value.items()}
+    avail_record_snap = {k: dict(v) for k, v in reg.available_record.items()}
+    avail_value_snap = {k: dict(v) for k, v in reg.available_value.items()}
     try:
         yield
     finally:
-        Record._RECORD_VALIDATORS.clear()
-        Record._RECORD_VALIDATORS.update(record_snap)
-        Record._VALUE_VALIDATORS.clear()
-        Record._VALUE_VALIDATORS.update(value_snap)
+        reg.configured = configured_snap
+        reg.active_record.clear()
+        reg.active_record.update(active_record_snap)
+        reg.active_value.clear()
+        reg.active_value.update(active_value_snap)
+        reg.available_record.clear()
+        reg.available_record.update(avail_record_snap)
+        reg.available_value.clear()
+        reg.available_value.update(avail_value_snap)
 
 
 class SimpleSource(object):
@@ -154,8 +181,8 @@ class CountingProcessor(BaseProcessor):
 
 
 class TestRecordValidator(RecordValidator):
-    def __init__(self, id, min_ttl=None):
-        super().__init__(id)
+    def __init__(self, id, min_ttl=None, **kwargs):
+        super().__init__(id, **kwargs)
         self.min_ttl = min_ttl
 
     def validate(self, record_cls, name, fqdn, data):
@@ -165,14 +192,34 @@ class TestRecordValidator(RecordValidator):
 
 
 class TestValueValidator(ValueValidator):
-    def __init__(self, id):
-        super().__init__(id)
+    def __init__(self, id, **kwargs):
+        super().__init__(id, **kwargs)
 
     def validate(self, value_cls, data, _type):
         return []
 
 
 class NotAValidator:
+    def __init__(self, id):
+        self.id = id
+
+
+class TestZoneValidator(ZoneValidator):
+    def __init__(self, id, require_mx=False, **kwargs):
+        super().__init__(id, **kwargs)
+        self.require_mx = require_mx
+
+    def validate(self, zone):
+        if self.require_mx:
+            mx_records = zone.get('', type='MX')
+            if not mx_records:
+                return [
+                    ValidationReason('zone apex is missing an MX record', [])
+                ]
+        return []
+
+
+class NotAZoneValidator:
     def __init__(self, id):
         self.id = id
 
