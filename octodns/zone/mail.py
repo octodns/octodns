@@ -3,6 +3,8 @@
 #
 
 from logging import getLogger
+from re import compile as re_compile
+from re import error as re_error
 
 from .base import Zone
 from .validator import ValidationReason, ZoneValidator
@@ -13,11 +15,15 @@ class MailZoneValidator(ZoneValidator):
     Comprehensive best-practice validator for mail records (MX, SPF, DMARC).
 
     Can operate in two modes: 'mail' and 'no-mail'. In 'auto' mode (default),
-    it detects the apex mode based on the presence of mail-related records (MX
-    anywhere in the zone, SPF at the apex, or DMARC at _dmarc). If no
-    mail-related records are found, it is a no-op for the apex. If any are
-    found, it detects the mode based on the presence of non-null MX records at
-    the apex.
+    it detects the apex mode based on the presence of an apex MX record or an
+    apex SPF record. If neither is present, it is a no-op for the apex (a lone
+    DMARC record is not treated as a mail-mode signal). Mode is determined
+    MX-first: if an apex MX record exists, Null MX (0 .) means 'no-mail',
+    any other MX means 'mail'. If there is no apex MX, strict SPF
+    'v=spf1 -all' at the apex means 'no-mail'; any other SPF means 'mail'.
+    DMARC policy (p=) is never used for mode detection because p=reject is
+    the recommended best practice for domains that DO send mail (RFC 7489)
+    and therefore cannot discriminate between mail and no-mail zones.
 
     Every non-apex sub-domain that has MX records is also validated (redundancy
     + SPF). In 'auto' mode each sub-domain's mode is detected independently:
@@ -25,13 +31,19 @@ class MailZoneValidator(ZoneValidator):
     mode, the configured mode propagates to sub-domains.
 
     'mail' mode enforces:
-    - Multiple MX records for redundancy (at apex and throughout the zone).
+
+    - At least ``min_mx`` MX records for redundancy (default 2) at the apex
+      and throughout the zone. MX records with a single value whose exchange
+      matches a known single-MX provider (see ``DEFAULT_SINGLE_MX_REGEXES``)
+      or a user-supplied ``single_mx_regexes`` pattern are exempt from this
+      check.
     - Presence of an SPF record at the apex.
     - SPF record terminates with ~all or -all.
     - Presence of a DMARC record at _dmarc.
     - Each sub-domain with MX has an SPF record terminating with ~all or -all.
 
     'no-mail' mode enforces:
+
     - Presence of a single Null MX record (0 .) at the apex.
     - SPF record at the apex is exactly 'v=spf1 -all'.
     - DMARC record at _dmarc has p=reject.
@@ -42,12 +54,47 @@ class MailZoneValidator(ZoneValidator):
     parent zone per RFC 7489 §6.6.3.
     '''
 
-    def __init__(self, id, mode='auto', sets=None):
+    # MX exchanges of providers known to (correctly) operate with a single MX
+    # record. A record with exactly one value whose exchange matches one of
+    # these patterns is exempt from the ``min_mx`` redundancy check. Patterns
+    # are matched via re.search against the exchange including its trailing dot.
+    #
+    # PRs welcome: if you run across another reputable provider that only hands
+    # out a single MX, please add it here.
+    DEFAULT_SINGLE_MX_REGEXES = (
+        r'^(feedback|inbound)-smtp\..+\.amazon(aws|ses)\.com\.$',  # Amazon AWS (region-specific)
+        r'^inbound\.postmarkapp\.com\.$',  # Postmark
+        r'^mx\.hubapi\.com\.$',  # HubSpot
+        r'^mx\.sendgrid\.net\.$',  # SendGrid
+        r'^smtp\.google\.com\.$',  # Google
+        r'^smtp\.siftrock\.com.',  # Marketo
+    )
+
+    def __init__(
+        self, id, mode='auto', min_mx=2, single_mx_regexes=None, sets=None
+    ):
         super().__init__(id, sets=sets)
         self.log = getLogger(f'MailZoneValidator[{id}]')
         if mode not in ('auto', 'mail', 'no-mail'):
             raise ValueError(f'Unknown mode "{mode}"')
         self.mode = mode
+        self.min_mx = min_mx
+        self._single_mx_res = []
+        # use set to get a unique list of regexes
+        for r in set(
+            (*self.DEFAULT_SINGLE_MX_REGEXES, *(single_mx_regexes or []))
+        ):
+            try:
+                self._single_mx_res.append(re_compile(r))
+            except re_error as e:
+                raise ValueError(
+                    f'Invalid single_mx_regexes pattern "{r}": {e}'
+                )
+
+    def _is_single_mx_provider(self, mx_record):
+        # called only when mx_record has exactly one value
+        exchange = str(mx_record.values[0].exchange)
+        return any(r.search(exchange) for r in self._single_mx_res)
 
     def _is_null_mx(self, mx_record):
         return (
@@ -302,10 +349,16 @@ class MailZoneValidator(ZoneValidator):
             if self._is_null_mx(record):
                 continue
 
-            if len(record.values) < 2:
+            if len(record.values) < self.min_mx:
+                # only a lone MX can belong to an exempt single-MX provider;
+                # skip the regex matching when it couldn't help
+                if len(record.values) == 1 and self._is_single_mx_provider(
+                    record
+                ):
+                    continue
                 reasons.append(
                     ValidationReason(
-                        f'MX record "{record.fqdn}" should have at least 2 values for redundancy, found {len(record.values)}',
+                        f'MX record "{record.fqdn}" should have at least {self.min_mx} values for redundancy, found {len(record.values)}',
                         [record],
                     )
                 )
@@ -337,11 +390,13 @@ class MailZoneValidator(ZoneValidator):
                 )
             dmarc_value = dmarc_value[0]
 
-        dmarc_tags = self._parse_dmarc_tags(dmarc_value)
-
         if mode == 'auto':
-            # update mode to main/no-mail based on detection
-            if apex_mx_record or apex_spf_value or dmarc_value:
+            # Update mode to mail/no-mail based on detection.
+            # MX is the primary signal; SPF is the fallback. DMARC policy is
+            # never used for detection: p=reject is the recommended practice
+            # for domains that DO send mail and therefore cannot distinguish
+            # mail from no-mail zones (issue #1422).
+            if apex_mx_record or apex_spf_value:
                 self.log.debug(
                     'validate: zone=%s, has mail related records/values, apex_mx_record=%s, apex_spf_value=%s, dmarc_value=%s',
                     zone.decoded_name,
@@ -349,30 +404,28 @@ class MailZoneValidator(ZoneValidator):
                     apex_spf_value,
                     dmarc_value,
                 )
-                if apex_spf_value and apex_spf_value == 'v=spf1 -all':
+                if apex_mx_record:
+                    if self._is_null_mx(apex_mx_record):
+                        self.log.debug(
+                            'validate: zone=%s, apex_mx_record (Null MX) indicates no-mail',
+                            zone.decoded_name,
+                        )
+                        mode = 'no-mail'
+                    else:
+                        self.log.debug(
+                            'validate: zone=%s, apex_mx_record indicates mail handling',
+                            zone.decoded_name,
+                        )
+                        mode = 'mail'
+                elif apex_spf_value == 'v=spf1 -all':
                     self.log.debug(
                         'validate: zone=%s, apex_spf_value indicates no-mail',
                         zone.decoded_name,
                     )
                     mode = 'no-mail'
-                elif (
-                    dmarc_tags.get('v') == 'dmarc1'
-                    and dmarc_tags.get('p') == 'reject'
-                ):
-                    self.log.debug(
-                        'validate: zone=%s, dmarc_value indicates no-mail',
-                        zone.decoded_name,
-                    )
-                    mode = 'no-mail'
-                elif apex_mx_record and self._is_null_mx(apex_mx_record):
-                    self.log.debug(
-                        'validate: zone=%s, apex_mx_record indicates no-mail',
-                        zone.decoded_name,
-                    )
-                    mode = 'no-mail'
                 else:
                     self.log.debug(
-                        'validate: zone=%s, assuming mail handling',
+                        'validate: zone=%s, apex_spf_value indicates mail handling',
                         zone.decoded_name,
                     )
                     mode = 'mail'

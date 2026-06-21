@@ -1,6 +1,11 @@
 #
 
-from .base import DuplicateRecordException, InvalidNameError, Zone
+from .base import (
+    DuplicateRecordException,
+    InvalidNameError,
+    SubzoneRecordException,
+    Zone,
+)
 from .caa import CaaZoneValidator
 from .cname import (
     CnameCoexistenceValidator,
@@ -18,7 +23,6 @@ from .srv import (
     SrvTargetNotCnameZoneValidator,
     SrvTargetResolvableInZoneZoneValidator,
 )
-from .subzone import SubzoneRecordValidator
 
 CaaZoneValidator
 CnameCoexistenceValidator
@@ -34,5 +38,5 @@ NoCnameLoopZoneValidator
 NsTargetNotCnameZoneValidator
 SrvTargetNotCnameZoneValidator
 SrvTargetResolvableInZoneZoneValidator
-SubzoneRecordValidator
+SubzoneRecordException
 Zone

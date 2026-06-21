@@ -382,10 +382,12 @@ Validators active in ``best-practice`` only that check the entire zone:
 | ``mail``                         | Comprehensive best-practice validator for mail|
 |                                  | records (MX, SPF, DMARC). It supports 'mail'  |
 |                                  | and 'no-mail' modes. In its default 'auto'    |
-|                                  | mode it is a no-op if no mail records (MX,    |
-|                                  | SPF, or DMARC) are found. If any are present  |
-|                                  | it enforces 'mail' or 'no-mail' based on the  |
-|                                  | presence of MX records at the apex.           |
+|                                  | mode it is a no-op if no apex MX or apex SPF  |
+|                                  | is found. If either is present it enforces    |
+|                                  | 'mail' or 'no-mail' using MX as the primary   |
+|                                  | signal (Null MX → no-mail, real MX → mail),   |
+|                                  | falling back to SPF when no apex MX exists.   |
+|                                  | DMARC policy is never used for detection.     |
 +----------------------------------+-----------------------------------------------+
 | ``caa-best-practices``           | CAA records must have at least one issue or   |
 |                                  | issuewild tag (if any CAA records exist)      |

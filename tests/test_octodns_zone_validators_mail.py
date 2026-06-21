@@ -27,12 +27,28 @@ class TestMailZoneValidator(TestCase):
     def test_mail_validator_init(self):
         v = MailZoneValidator('test')
         self.assertEqual('auto', v.mode)
+        self.assertEqual(2, v.min_mx)
+        # default regexes are compiled and stored
+        self.assertEqual(
+            len(MailZoneValidator.DEFAULT_SINGLE_MX_REGEXES),
+            len(v._single_mx_res),
+        )
 
         v = MailZoneValidator('test', mode='mail')
         self.assertEqual('mail', v.mode)
 
         v = MailZoneValidator('test', mode='no-mail')
         self.assertEqual('no-mail', v.mode)
+
+        v = MailZoneValidator('test', min_mx=1)
+        self.assertEqual(1, v.min_mx)
+
+        # user regexes are appended to the defaults
+        v = MailZoneValidator('test', single_mx_regexes=[r'\.example\.com\.$'])
+        self.assertEqual(
+            len(MailZoneValidator.DEFAULT_SINGLE_MX_REGEXES) + 1,
+            len(v._single_mx_res),
+        )
 
         with self.assertRaises(ValueError):
             MailZoneValidator('test', mode='bad')
@@ -283,7 +299,7 @@ class TestMailZoneValidator(TestCase):
         self.assertIn('missing strict SPF TXT record', str(reasons[0]))
         self.assertIn('missing strict DMARC TXT record', str(reasons[1]))
 
-        # Auto-detects 'no-mail' via strict SPF
+        # Auto-detects 'no-mail' via strict SPF (no apex MX)
         zone = _make_zone()
         spf = _add_record(
             zone, '', {'ttl': 300, 'type': 'TXT', 'values': ['v=spf1 -all']}
@@ -292,7 +308,27 @@ class TestMailZoneValidator(TestCase):
         reasons = v.validate(zone)
         self.assertIn('missing a Null MX record', str(reasons[0]))
 
-        # Auto-detects 'no-mail' via strict DMARC
+        # Auto-detects 'mail' via non-strict SPF fallback (no apex MX, but SPF
+        # is sender-permitting so the zone must handle outbound mail)
+        zone = _make_zone()
+        spf = _add_record(
+            zone,
+            '',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': ['v=spf1 include:_spf.example.com -all'],
+            },
+        )
+        zone.add_record(spf)
+        reasons = v.validate(zone)
+        # mail mode: missing MX and missing DMARC
+        self.assertIn('missing MX records at the apex', str(reasons[0]))
+        self.assertIn('missing a DMARC TXT record', str(reasons[1]))
+
+        # Lone DMARC (any policy) is a no-op in auto mode — DMARC p= cannot
+        # distinguish mail from no-mail zones (issue #1422), so a lone DMARC
+        # record does not trigger mode enforcement.
         zone = _make_zone()
         dmarc = _add_record(
             zone,
@@ -300,8 +336,7 @@ class TestMailZoneValidator(TestCase):
             {'ttl': 300, 'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
         )
         zone.add_record(dmarc)
-        reasons = v.validate(zone)
-        self.assertIn('missing a Null MX record', str(reasons[0]))
+        self.assertEqual([], v.validate(zone))
 
         # Non-apex MX triggers redundancy check AND sub-zone SPF validation.
         zone = _make_zone()
@@ -329,7 +364,9 @@ class TestMailZoneValidator(TestCase):
         self.assertEqual([], v.validate(zone))
 
     def test_dmarc_brittle_fixes(self):
-        # 1. Auto-detects no-mail via various DMARC formats (no spaces, extra spaces, additional tags)
+        # 1. A lone DMARC record (in various valid formats) is a no-op in auto
+        # mode — DMARC policy cannot distinguish mail from no-mail zones
+        # (issue #1422), so only MX or SPF at the apex trigger mode detection.
         formats = [
             'v=DMARC1\\;p=reject\\;rua=mailto:dmarc@unit.tests',
             'v=DMARC1\\; p=reject\\; rua=mailto:dmarc@unit.tests',
@@ -344,10 +381,8 @@ class TestMailZoneValidator(TestCase):
             )
             zone.add_record(dmarc)
             reasons = v_auto.validate(zone)
-            # Should detect no-mail mode, so it complains about missing strict SPF and missing Null MX
-            self.assertEqual(2, len(reasons))
-            self.assertIn('missing a Null MX record', str(reasons[0]))
-            self.assertIn('missing strict SPF TXT record', str(reasons[1]))
+            # Lone DMARC is a no-op
+            self.assertEqual([], reasons)
 
         # 2. Validation of policy presence in mail mode with different spaces / tags
         v_mail = MailZoneValidator('test', mode='mail')
@@ -791,6 +826,243 @@ class TestMailZoneValidator(TestCase):
         v = MailZoneValidator('test', mode='no-mail')
         # All validations pass, specifically no redundancy warning for the single MX value
         self.assertEqual([], v.validate(zone))
+
+    def test_auto_mode_mx_wins_over_spf(self):
+        # MX is the primary detection signal; a real MX + strict SPF 'v=spf1
+        # -all' (receive-only domain) must be treated as 'mail', not 'no-mail',
+        # because the MX record shows it receives mail.
+        v = MailZoneValidator('test', mode='auto')
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'mx1.unit.tests.'},
+                        {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+                    ],
+                },
+            )
+        )
+        # Strict no-send SPF alongside real MX (receive-only domain)
+        zone.add_record(
+            _add_record(zone, '', {'type': 'TXT', 'values': ['v=spf1 -all']})
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
+            )
+        )
+        # Auto should pick 'mail' (MX wins) and validate cleanly
+        self.assertEqual([], v.validate(zone))
+
+    def test_dmarc_policy_variants_with_mail(self):
+        # Regression guard: p=quarantine and p=none with a real mail-handling
+        # zone should also validate cleanly — only the detection bug changed.
+        v = MailZoneValidator('test', mode='auto')
+        for policy in ('quarantine', 'none'):
+            zone = _make_zone()
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'type': 'MX',
+                        'values': [
+                            {'preference': 10, 'exchange': 'mx1.unit.tests.'},
+                            {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+                        ],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '',
+                    {
+                        'type': 'TXT',
+                        'values': ['v=spf1 include:_spf.example.com -all'],
+                    },
+                )
+            )
+            zone.add_record(
+                _add_record(
+                    zone,
+                    '_dmarc',
+                    {'type': 'TXT', 'values': [f'v=DMARC1\\; p={policy}\\;']},
+                )
+            )
+            self.assertEqual(
+                [], v.validate(zone), f'p={policy} should validate cleanly'
+            )
+
+    def test_dmarc_reject_with_mail_handling(self):
+        # issue #1422: a real mail-handling zone (real MX + sender-permitting
+        # SPF) that publishes a DMARC p=reject policy must be detected as
+        # 'mail', not 'no-mail'. p=reject is a receiver-side alignment policy
+        # — it is the recommended best practice for domains that DO send mail
+        # and must not be treated as a no-mail signal.
+        v = MailZoneValidator('test', mode='auto')
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'MX',
+                    'values': [
+                        {'preference': 10, 'exchange': 'aspmx.l.google.com.'},
+                        {
+                            'preference': 20,
+                            'exchange': 'alt1.aspmx.l.google.com.',
+                        },
+                    ],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {
+                    'type': 'TXT',
+                    'values': ['v=spf1 include:_spf.google.com -all'],
+                },
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {
+                    'type': 'TXT',
+                    'values': [
+                        'v=DMARC1\\; p=reject\\; rua=mailto:dmarc@unit.tests'
+                    ],
+                },
+            )
+        )
+        self.assertEqual([], v.validate(zone))
+
+    def _make_valid_mail_zone(self, mx_values):
+        '''Helper: build a zone that passes all mail checks except potentially
+        redundancy, using the given mx_values list.'''
+        zone = _make_zone()
+        zone.add_record(
+            _add_record(zone, '', {'type': 'MX', 'values': mx_values})
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '',
+                {'type': 'TXT', 'values': ['v=spf1 include:example.com -all']},
+            )
+        )
+        zone.add_record(
+            _add_record(
+                zone,
+                '_dmarc',
+                {'type': 'TXT', 'values': ['v=DMARC1\\; p=reject\\;']},
+            )
+        )
+        return zone
+
+    def test_single_mx_provider_sendgrid_exempt(self):
+        # A single-value apex MX pointing at SendGrid should not trigger the
+        # redundancy check.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.sendgrid.net.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        self.assertEqual([], v.validate(zone))
+
+    def test_single_mx_provider_aws_ses_exempt(self):
+        # Amazon SES uses region-specific inbound-smtp hostnames; all should be
+        # exempt.
+        for region_host in (
+            'inbound-smtp.us-east-1.amazonaws.com.',
+            'inbound-smtp.us-west-2.amazonaws.com.',
+            'inbound-smtp.eu-west-1.amazonaws.com.',
+        ):
+            zone = self._make_valid_mail_zone(
+                [{'preference': 10, 'exchange': region_host}]
+            )
+            v = MailZoneValidator('test', mode='mail')
+            self.assertEqual(
+                [], v.validate(zone), f'{region_host} should be exempt'
+            )
+
+        # A single amazonaws.com host that is NOT an SES inbound endpoint
+        # must still be flagged.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'smtp.us-east-1.amazonaws.com.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 2 values', str(reasons[0]))
+
+    def test_single_mx_provider_postmark_exempt(self):
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'inbound.postmarkapp.com.'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        self.assertEqual([], v.validate(zone))
+
+    def test_min_mx_one_disables_redundancy_check(self):
+        # min_mx=1 means a single non-exempt MX is fine.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mail1.unit.tests.'}]
+        )
+        v = MailZoneValidator('test', mode='mail', min_mx=1)
+        self.assertEqual([], v.validate(zone))
+
+    def test_min_mx_three_requires_three_values(self):
+        # min_mx=3: a two-value MX is now insufficient.
+        zone = self._make_valid_mail_zone(
+            [
+                {'preference': 10, 'exchange': 'mail1.unit.tests.'},
+                {'preference': 20, 'exchange': 'mail2.unit.tests.'},
+            ]
+        )
+        v = MailZoneValidator('test', mode='mail', min_mx=3)
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 3 values', str(reasons[0]))
+
+    def test_single_mx_regexes_custom_extends_defaults(self):
+        # A user-supplied regex exempts a provider not in the built-in list,
+        # while the built-in defaults still apply.
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.customprovider.example.com.'}]
+        )
+        # Without the custom regex, it is flagged.
+        v = MailZoneValidator('test', mode='mail')
+        reasons = v.validate(zone)
+        self.assertEqual(1, len(reasons))
+        self.assertIn('should have at least 2 values', str(reasons[0]))
+
+        # With the custom regex, it is exempt.
+        v = MailZoneValidator(
+            'test',
+            mode='mail',
+            single_mx_regexes=[r'\.customprovider\.example\.com\.$'],
+        )
+        self.assertEqual([], v.validate(zone))
+
+        # Built-in SendGrid exemption still works alongside custom regexes.
+        zone2 = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.sendgrid.net.'}]
+        )
+        self.assertEqual([], v.validate(zone2))
+
+    def test_single_mx_regexes_invalid_pattern_raises(self):
+        with self.assertRaisesRegex(ValueError, r'\('):
+            MailZoneValidator('test', single_mx_regexes=['('])
 
     def test_builtin_registration(self):
         ids = [v.id for v in Zone.validators.available_validators()]
