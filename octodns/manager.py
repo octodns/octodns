@@ -360,15 +360,11 @@ class Manager(object):
                     f'Incorrect validator config for {validator_name}, {context}'
                 )
             if isinstance(instance, (RecordValidator, ValueValidator)):
-                try:
-                    Record.register_validator(instance, types=types)
-                except RecordException as e:
-                    raise ManagerException(str(e)) from e
+                # replace=True: a config validator with the same id as a
+                # built-in overrides it rather than colliding.
+                Record.register_validator(instance, types=types, replace=True)
             elif isinstance(instance, ZoneValidator):
-                try:
-                    Zone.register_zone_validator(instance)
-                except ZoneException as e:
-                    raise ManagerException(str(e)) from e
+                Zone.register_zone_validator(instance, replace=True)
             else:
                 raise ManagerException(
                     f'Validator {validator_name} ({_class.__name__}) must extend RecordValidator, ValueValidator, or ZoneValidator'

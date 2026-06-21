@@ -266,6 +266,31 @@ class TestValidatorRegistry(TestCase):
             reg.register(v, types=['A'])
         self.assertIn('"dup-test" already registered', str(ctx.exception))
 
+    def test_register_replace(self):
+        reg = ValidatorRegistry()
+        original = RecordValidator('replace-test')
+        reg.register(original, types=['A'])
+
+        # Without replace=True, a duplicate id still raises.
+        dupe = RecordValidator('replace-test')
+        with self.assertRaises(RecordException) as ctx:
+            reg.register(dupe, types=['A'])
+        self.assertIn('"replace-test" already registered', str(ctx.exception))
+
+        # With replace=True, the new instance overwrites the original.
+        replacement = RecordValidator('replace-test')
+        reg.register(replacement, types=['A'], replace=True)
+        avail = reg.available_record['A']
+        self.assertIs(replacement, avail['replace-test'])
+        self.assertIsNot(original, avail['replace-test'])
+
+        # Only the targeted type's bucket is affected — registering under a
+        # different type with the same id does not touch the first bucket.
+        other_type = RecordValidator('replace-test')
+        reg.register(other_type, types=['AAAA'], replace=True)
+        self.assertIs(replacement, reg.available_record['A']['replace-test'])
+        self.assertIs(other_type, reg.available_record['AAAA']['replace-test'])
+
     def test_enable_sets(self):
         v_legacy = RecordValidator('ev-legacy', sets={'legacy'})
         v_rfc = RecordValidator('ev-rfc', sets={'rfc'})

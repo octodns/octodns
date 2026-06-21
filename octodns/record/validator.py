@@ -19,7 +19,7 @@ class ValidatorRegistry:
         self.active_value = defaultdict(dict)
         self.configured = False
 
-    def register(self, validator, types=None):
+    def register(self, validator, types=None, replace=False):
         if isinstance(validator, RecordValidator):
             registry = self.available_record
         elif isinstance(validator, ValueValidator):
@@ -32,8 +32,14 @@ class ValidatorRegistry:
         for key in keys:
             bucket = registry[key]
             if validator.id in bucket:
-                raise RecordException(
-                    f'Validator id "{validator.id}" already registered for "{key}"'
+                if not replace:
+                    raise RecordException(
+                        f'Validator id "{validator.id}" already registered for "{key}"'
+                    )
+                self.log.info(
+                    'register: overriding built-in validator id "%s" for "%s"',
+                    validator.id,
+                    key,
                 )
             bucket[validator.id] = validator
 
@@ -164,6 +170,13 @@ class RecordValidator:
     automatically. Underscore-prefixed ids (e.g. ``_values-type``) are
     reserved for framework-internal bridge validators that must always
     run.
+
+    A config-registered validator whose id matches a built-in's
+    *replaces* that built-in in the registry — e.g. defining a
+    ``validators:`` entry named ``name-rfc`` swaps out the built-in
+    ``NameValidator`` for the custom instance. This is the supported way
+    to tweak a built-in's parameters without disabling it and inventing a
+    new id.
     '''
 
     def __init__(self, id, sets=None):
@@ -241,6 +254,13 @@ class ValueValidator:
     Config-registered validators receive their config key as ``id``
     automatically. Underscore-prefixed ids are reserved for
     framework-internal bridge validators that must always run.
+
+    A config-registered validator whose id matches a built-in's
+    *replaces* that built-in in the registry. Built-in value validators
+    are registered per record ``type`` (e.g. ``mx-value`` under ``MX``),
+    so overriding one requires passing the matching ``types:`` in config
+    — a bare override with no ``types`` registers under ``'*'`` instead
+    and does not replace the type-specific built-in.
     '''
 
     def __init__(self, id, sets=None):

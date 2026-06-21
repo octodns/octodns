@@ -182,8 +182,8 @@ class Record(EqualityTupleMixin):
         return cls._CLASSES
 
     @classmethod
-    def register_validator(cls, validator, types=None):
-        cls.validators.register(validator, types=types)
+    def register_validator(cls, validator, types=None, replace=False):
+        cls.validators.register(validator, types=types, replace=replace)
 
     @classmethod
     def enable_validators(cls, sets):

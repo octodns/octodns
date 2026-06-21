@@ -432,6 +432,27 @@ with an explicit ``sets`` value is activated when any of its sets appears in
 ``manager.enabled``. ``manager.validators`` can still be used to activate a
 validator for additional record types beyond those listed under ``types``.
 
+Overriding a built-in validator's parameters
+.............................................
+
+A config-declared validator whose key matches a built-in's id *replaces*
+that built-in, instantiated with the config you supply. This is the
+easiest way to tweak a built-in's parameters without disabling it and
+inventing a new id. For example, to force the ``mail`` zone validator
+(see `Built-in validator ids`_ above) into ``no-mail`` mode instead of its
+default ``auto`` detection::
+
+  validators:
+    mail:
+      class: octodns.zone.mail.MailZoneValidator
+      mode: no-mail
+
+Record/value validator overrides are scoped by ``types`` the same as any
+other config validator: omitting ``types`` registers the override under
+``'*'`` rather than replacing a type-specific built-in (e.g. ``mx-value``,
+which is registered under ``MX``), so pass matching ``types`` to override
+those.
+
 Disabling built-in validators
 .............................
 

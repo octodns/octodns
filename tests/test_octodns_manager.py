@@ -16,9 +16,10 @@ from helpers import (
     PlannableProvider,
     SimpleProvider,
     TemporaryDirectory,
-    validators_snapshot,
-    zone_validators_snapshot,
 )
+from helpers import TestRecordValidator as _TestRecordValidator
+from helpers import TestZoneValidator as _TestZoneValidator
+from helpers import validators_snapshot, zone_validators_snapshot
 
 from octodns import __version__
 from octodns.context import ContextDict
@@ -170,10 +171,14 @@ class TestManager(TestCase):
             Manager(get_config_filename('validators-disable-bridge.yaml'))
         self.assertIn('Cannot disable bridge validator', str(ctx.exception))
 
-    def test_validators_id_collision(self):
-        with self.assertRaises(ManagerException) as ctx:
-            Manager(get_config_filename('validators-id-collision.yaml'))
-        self.assertIn('already registered', str(ctx.exception))
+    def test_validators_override_builtin(self):
+        # A config validator whose id matches a built-in (here "name-rfc")
+        # replaces the built-in rather than raising a collision error.
+        with validators_snapshot():
+            Manager(get_config_filename('validators-override-builtin.yaml'))
+            global_validators = Record.registered_validators()['record']['*']
+            replaced = next(v for v in global_validators if v.id == 'name-rfc')
+            self.assertIsInstance(replaced, _TestRecordValidator)
 
     def test_validators_add_global(self):
         with validators_snapshot():
@@ -376,13 +381,16 @@ class TestManager(TestCase):
                 Manager(get_config_filename('zone-validators-bad-config.yaml'))
             self.assertIn('Incorrect validator config', str(ctx.exception))
 
-    def test_zone_validators_id_collision(self):
+    def test_zone_validators_override_builtin(self):
+        # A config validator whose id matches a built-in (here "mail")
+        # replaces the built-in rather than raising a collision error.
         with zone_validators_snapshot():
-            with self.assertRaises(ManagerException) as ctx:
-                Manager(
-                    get_config_filename('zone-validators-id-collision.yaml')
-                )
-            self.assertIn('already registered', str(ctx.exception))
+            Manager(
+                get_config_filename('zone-validators-override-builtin.yaml')
+            )
+            active = Zone.registered_zone_validators()
+            replaced = next(v for v in active if v.id == 'mail')
+            self.assertIsInstance(replaced, _TestZoneValidator)
 
     def test_zone_validators_add(self):
         with zone_validators_snapshot():
