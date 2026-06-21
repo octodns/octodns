@@ -128,6 +128,9 @@ their own repositories and released as independent modules.
    * - `Infomaniak`_
      - `octodns_infomaniak`_
      -
+   * - `INWX`_
+     - `octodns_inwx`_
+     -
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
@@ -234,6 +237,8 @@ their own repositories and released as independent modules.
 .. _asyncon/octoblox: https://github.com/asyncon/octoblox
 .. _Infomaniak: https://www.infomaniak.com/
 .. _octodns_infomaniak: https://github.com/M0NsTeRRR/octodns-infomaniak
+.. _INWX: https://www.inwx.com
+.. _octodns_inwx: https://github.com/fjaeckel/octodns-inwx
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
 .. _MikroTik: https://mikrotik.com/
@@ -376,7 +381,7 @@ to pull host data from gPanel_ and a similar provider that sources information
 about our network gear to create both ``A`` & ``PTR`` records for their
 interfaces. Things that might make good OSS sources might include an
 ``ElbSource`` that pulls information about `AWS Elastic Load Balancers`_ and
-dynamically creates ``CNAME``s for them, or ``Ec2Source`` that pulls instance
+dynamically creates ``CNAME``\s for them, or ``Ec2Source`` that pulls instance
 information so that records can be created for hosts similar to how our
 ``GPanelProvider`` works.
 
