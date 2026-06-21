@@ -15,14 +15,19 @@ class ZoneValidatorRegistry:
         self.active = {}
         self.configured = False
 
-    def register(self, validator):
+    def register(self, validator, replace=False):
         if not isinstance(validator, ZoneValidator):
             raise ZoneException(
                 f'{validator.__class__.__name__} must be a ZoneValidator instance'
             )
         if validator.id in self.available:
-            raise ZoneException(
-                f'ZoneValidator id "{validator.id}" already registered'
+            if not replace:
+                raise ZoneException(
+                    f'ZoneValidator id "{validator.id}" already registered'
+                )
+            self.log.info(
+                'register: overriding built-in zone validator id "%s"',
+                validator.id,
             )
         self.available[validator.id] = validator
 
@@ -106,6 +111,11 @@ class ZoneValidator:
     Every zone validator instance has a non-empty ``id`` — a short, stable,
     kebab-case identifier (e.g. ``'multi-value-mx'``). Config-registered
     validators receive their config key as ``id`` automatically.
+
+    A config-registered validator whose id matches a built-in's replaces
+    that built-in in the registry — e.g. defining a ``validators:`` entry
+    named after a built-in mail zone validator swaps it out for a custom
+    instance with different parameters (such as enforcing mail/no-mail).
     '''
 
     def __init__(self, id, sets=None):

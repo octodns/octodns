@@ -251,8 +251,8 @@ class Zone(object):
         return self._root_ns
 
     @classmethod
-    def register_zone_validator(cls, validator):
-        cls.validators.register(validator)
+    def register_zone_validator(cls, validator, replace=False):
+        cls.validators.register(validator, replace=replace)
 
     @classmethod
     def enable_zone_validators(cls, sets):

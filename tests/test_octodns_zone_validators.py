@@ -105,3 +105,20 @@ class TestZoneValidatorBase(TestCase):
         with self.assertRaises(ZoneException) as ctx:
             registry.disable('_internal')
         self.assertIn('Cannot disable bridge', str(ctx.exception))
+
+    def test_registry_replace(self):
+        registry = ZoneValidatorRegistry()
+        original = ZoneValidator('replace-test')
+        registry.register(original)
+
+        # Without replace=True, a duplicate id still raises.
+        dupe = ZoneValidator('replace-test')
+        with self.assertRaises(ZoneException) as ctx:
+            registry.register(dupe)
+        self.assertIn('"replace-test" already registered', str(ctx.exception))
+
+        # With replace=True, the new instance overwrites the original.
+        replacement = ZoneValidator('replace-test')
+        registry.register(replacement, replace=True)
+        self.assertIs(replacement, registry.available['replace-test'])
+        self.assertIsNot(original, registry.available['replace-test'])
