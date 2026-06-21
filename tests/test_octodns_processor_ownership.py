@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from helpers import PlannableProvider
 
-from octodns.processor.ownership import OwnershipProcessor
+from octodns.processor.ownership import OwnershipException, OwnershipProcessor
 from octodns.provider.plan import Plan
 from octodns.record import Delete, Record
 from octodns.zone import DuplicateRecordException, Zone
@@ -177,3 +177,48 @@ class TestOwnershipProcessor(TestCase):
         self.assertEqual(
             ['_owner.a.a', 'a'], sorted([r.name for r in got.records])
         )
+
+    def test_allow_takeover(self):
+        ownership = OwnershipProcessor('ownership')
+        # disallowed by default
+        self.assertFalse(ownership.allow_takeover)
+
+        provider = PlannableProvider('helper')
+
+        # `the-a` is managed by us (and thus has its ownership marker in
+        # plan.desired), but a foreign ownership record for it already
+        # exists in plan.existing
+        ownership_added = ownership.process_source_zone(zone.copy(), None)
+        plan = provider.plan(ownership_added)
+
+        the_a = records['the-a']
+        plan.existing.add_record(the_a)
+        foreign_ownership = Record.new(
+            zone,
+            f'{ownership.txt_name}.a.the-a',
+            {'ttl': 30, 'type': 'TXT', 'value': 'someone-else'},
+        )
+        plan.existing.add_record(foreign_ownership)
+
+        with self.assertRaises(OwnershipException) as ctx:
+            ownership.process_plan(plan, None, None)
+        self.assertIn('the-a', str(ctx.exception))
+        self.assertIn('someone-else', str(ctx.exception))
+
+        # opting in restores the old, silent takeover behavior
+        ownership.allow_takeover = True
+        got = ownership.process_plan(plan, None, None)
+        self.assertTrue(got)
+
+        # a foreign ownership record for something we don't manage is left
+        # alone and does not raise, regardless of allow_takeover
+        ownership.allow_takeover = False
+        plan = provider.plan(ownership_added)
+        foreign_unmanaged = Record.new(
+            zone,
+            f'{ownership.txt_name}.a.extra-a',
+            {'ttl': 30, 'type': 'TXT', 'value': 'someone-else'},
+        )
+        plan.existing.add_record(foreign_unmanaged)
+        got = ownership.process_plan(plan, None, None)
+        self.assertTrue(got)

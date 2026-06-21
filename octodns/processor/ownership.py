@@ -6,12 +6,18 @@ from collections import defaultdict
 
 from ..provider.plan import Plan
 from ..record import Record
-from .base import BaseProcessor
+from .base import BaseProcessor, ProcessorException
+
+
+class OwnershipException(ProcessorException):
+    pass
 
 
 # Mark anything octoDNS is managing that way it can know it's safe to modify or
 # delete. We'll take ownership of existing records that we're told to manage
-# and thus "own" them going forward.
+# and thus "own" them going forward. If a record we're told to manage already
+# has an ownership marker belonging to someone/something else, we'll refuse to
+# take it over and raise OwnershipException unless allow_takeover=True.
 class OwnershipProcessor(BaseProcessor):
     def __init__(
         self,
@@ -20,6 +26,7 @@ class OwnershipProcessor(BaseProcessor):
         txt_value='*octodns*',
         txt_ttl=60,
         should_replace=False,
+        allow_takeover=False,
         **kwargs,
     ):
         super().__init__(name, **kwargs)
@@ -28,6 +35,7 @@ class OwnershipProcessor(BaseProcessor):
         self.txt_ttl = txt_ttl
         self._txt_values = [txt_value]
         self.should_replace = should_replace
+        self.allow_takeover = allow_takeover
 
     def process_source_zone(self, desired, sources, lenient=False):
         for record in desired.records:
@@ -60,25 +68,57 @@ class OwnershipProcessor(BaseProcessor):
             and record.values == self._txt_values
         )
 
+    def _is_ownership_name(self, record):
+        # Matches the ownership naming convention regardless of value, i.e.
+        # this may be an ownership record belonging to someone/something else.
+        return record._type == 'TXT' and record.name.startswith(self.txt_name)
+
+    def _decode_ownership_name(self, record):
+        pieces = record.name.split('.', 2)
+        if len(pieces) > 2:
+            _, _type, name = pieces
+            name = name.replace('_wildcard', '*')
+        else:
+            _type = pieces[1]
+            name = ''
+        return name, _type.upper()
+
     def process_plan(self, plan, sources, target, lenient=False):
         if not plan:
             # If we don't have any change there's nothing to do
             return plan
 
-        # First find all the ownership info
+        # First find all the ownership info; we need to look at both the
+        # desired and existing states, many things will show up in both,
+        # but that's fine. While walking existing, also collect any foreign
+        # ownership markers so we can check them once `owned` is fully
+        # populated below (it depends on desired too).
         owned = defaultdict(dict)
-        # We need to look for ownership in both the desired and existing
-        # states, many things will show up in both, but that's fine.
-        for record in list(plan.existing.records) + list(plan.desired.records):
+        foreign = []
+        for record in plan.existing.records:
             if self._is_ownership(record):
-                pieces = record.name.split('.', 2)
-                if len(pieces) > 2:
-                    _, _type, name = pieces
-                    name = name.replace('_wildcard', '*')
-                else:
-                    _type = pieces[1]
-                    name = ''
-                owned[name][_type.upper()] = True
+                name, _type = self._decode_ownership_name(record)
+                owned[name][_type] = True
+            elif not self.allow_takeover and self._is_ownership_name(record):
+                foreign.append(record)
+        for record in plan.desired.records:
+            if self._is_ownership(record):
+                name, _type = self._decode_ownership_name(record)
+                owned[name][_type] = True
+
+        # If an existing ownership record doesn't belong to us, but we're
+        # about to take ownership of the record it's marking, someone/
+        # something else believes they own it. Refuse to step on it rather
+        # than silently overwriting their marker.
+        for record in foreign:
+            name, _type = self._decode_ownership_name(record)
+            if _type in owned[name]:
+                raise OwnershipException(
+                    f'{self.id}: refusing to take over {record.fqdn} '
+                    f'{_type}, owned by {record.values}, not '
+                    f'{self._txt_values}; set allow_takeover=true to '
+                    'override'
+                )
 
         # Cases:
         # - Configured in source
