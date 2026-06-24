@@ -31,7 +31,7 @@ def main():
     parser.add_argument(
         '--all',
         action='store_true',
-        help='Validate records in lenient mode, printing warnings so that all validation issues are shown',
+        help='Continue validating even after errors, printing all validation issues instead of stopping at the first',
     )
     parser.add_argument(
         '--honor-lenient',
@@ -40,9 +40,6 @@ def main():
     )
 
     args = parser.parse_args(WARNING)
-
-    if args.all and args.honor_lenient:
-        parser.error('--all and --honor-lenient are mutually exclusive')
 
     # FlaggingHandler sets flag=True on any WARNING-level log record reaching
     # the 'Record' or 'Zone' loggers. --honor-lenient works by suppressing

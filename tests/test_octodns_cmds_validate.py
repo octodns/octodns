@@ -36,7 +36,16 @@ class TestValidateMain(TestCase):
             # Should not raise — clean config, no validation errors
             main()
 
-    def test_all_and_honor_lenient_are_mutually_exclusive(self):
+    def test_all_and_honor_lenient_non_lenient_issue_exits_1(self):
+        from octodns.record.base import Record
+        from octodns.zone import Zone
+        from octodns.zone.validator import ValidationReason
+
+        non_lenient_record = Record.new(
+            Zone('unit.tests.', []),
+            'test',
+            {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'},
+        )
         with patch(
             'sys.argv',
             [
@@ -47,10 +56,47 @@ class TestValidateMain(TestCase):
                 '--honor-lenient',
             ],
         ):
-            with self.assertRaises(SystemExit) as ctx:
+            with patch.object(
+                Zone.validators,
+                'process_zone',
+                return_value=[
+                    ValidationReason('non-lenient issue', [non_lenient_record])
+                ],
+            ):
+                with self.assertRaises(SystemExit) as ctx:
+                    main()
+                self.assertEqual(1, ctx.exception.code)
+
+    def test_all_and_honor_lenient_only_lenient_issues_exits_0(self):
+        from octodns.record.base import Record
+        from octodns.zone import Zone
+        from octodns.zone.validator import ValidationReason
+
+        lenient_record = Record.new(
+            Zone('unit.tests.', []),
+            'test',
+            {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'},
+            lenient=True,
+        )
+        with patch(
+            'sys.argv',
+            [
+                'octodns-validate',
+                '--config-file',
+                get_config_filename('simple-lenient-zone.yaml'),
+                '--all',
+                '--honor-lenient',
+            ],
+        ):
+            with patch.object(
+                Zone.validators,
+                'process_zone',
+                return_value=[
+                    ValidationReason('lenient issue', [lenient_record])
+                ],
+            ):
+                # Only lenient issues — suppressed, flagging never fires → exit 0
                 main()
-            # argparse parser.error() exits with code 2
-            self.assertEqual(2, ctx.exception.code)
 
     def test_honor_lenient_exits_0_when_only_lenient_issues(self):
         # simple-lenient-zone.yaml has empty. with lenient:true
@@ -110,3 +156,35 @@ class TestValidateMain(TestCase):
                 # With --honor-lenient, lenient zone warnings are suppressed →
                 # FlaggingHandler never fires → no exit(1)
                 main()
+
+    def test_honor_lenient_non_lenient_issue_exits_1(self):
+        from octodns.record.base import Record
+        from octodns.zone import Zone
+        from octodns.zone.exception import ValidationError
+        from octodns.zone.validator import ValidationReason
+
+        non_lenient_record = Record.new(
+            Zone('unit.tests.', []),
+            'www',
+            {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'},
+        )
+        with patch(
+            'sys.argv',
+            [
+                'octodns-validate',
+                '--config-file',
+                get_config_filename('simple-validate.yaml'),
+                '--honor-lenient',
+            ],
+        ):
+            with patch.object(
+                Zone.validators,
+                'process_zone',
+                return_value=[
+                    ValidationReason('non-lenient issue', [non_lenient_record])
+                ],
+            ):
+                # Without --all, non-lenient issues raise ValidationError directly
+                # (not demoted to a warning, so FlaggingHandler is never involved)
+                with self.assertRaises(ValidationError):
+                    main()

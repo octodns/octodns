@@ -695,19 +695,83 @@ class TestManager(TestCase):
                     any('zone is broken' in msg for msg in logs.output)
                 )
 
-                # lenient=True, suppress_lenient_warnings=True: no warning, no exception
-                with self.assertNoLogs('Zone', level='WARNING'):
+                # lenient=True (--all), suppress_lenient_warnings=True (--honor-lenient):
+                # non-lenient zone, no per-record lenient → warning is NOT suppressed
+                # (--honor-lenient only suppresses warnings due to lenient config, not due to --all)
+                with self.assertLogs('Zone', level='WARNING') as logs:
                     Manager(
                         get_config_filename('simple-validate.yaml')
                     ).validate_configs(
                         lenient=True, suppress_lenient_warnings=True
                     )
+                self.assertTrue(
+                    any('zone is broken' in msg for msg in logs.output)
+                )
 
                 # zone config has lenient:true, no lenient= arg: suppress_lenient_warnings=True silences it
                 with self.assertNoLogs('Zone', level='WARNING'):
                     Manager(
                         get_config_filename('simple-lenient-zone.yaml')
                     ).validate_configs(suppress_lenient_warnings=True)
+
+    def test_validate_configs_suppress_lenient_record_warnings(self):
+        # Record-level warnings from populate must respect the same suppression
+        # rules as zone-level warnings: suppress only when lenient by config.
+        from octodns.record.base import (
+            Record,
+            _suppress_lenient_record_warnings,
+            _zone_config_lenient,
+        )
+
+        with zone_validators_snapshot():
+            real_new = Record.new.__func__
+
+            @classmethod
+            def instrumented_new(
+                cls, zone, name, data, source=None, lenient=False
+            ):
+                record = real_new(
+                    cls, zone, name, data, source=source, lenient=lenient
+                )
+                if lenient:
+                    # mirror what Record.new does for a best-practice violation:
+                    # suppress only when both contextvar flags say to
+                    record_config_lenient = (data.get('octodns') or {}).get(
+                        'lenient', False
+                    )
+                    is_config_lenient = (
+                        record_config_lenient or _zone_config_lenient.get()
+                    )
+                    if (
+                        _suppress_lenient_record_warnings.get()
+                        and is_config_lenient
+                    ):
+                        cls.log.debug('suppressed record warning for %s', name)
+                    else:
+                        cls.log.warning('record warning for %s', name)
+                return record
+
+            with patch.object(Record, 'new', instrumented_new):
+                # lenient zone + suppress=True → no Record WARNING
+                with self.assertNoLogs('Record', level='WARNING'):
+                    Manager(
+                        get_config_filename('simple-lenient-zone.yaml')
+                    ).validate_configs(suppress_lenient_warnings=True)
+
+                # lenient=True (--all) + suppress=True on a non-lenient zone:
+                # warning comes from --all, not from config → must NOT be suppressed
+                with patch.object(
+                    Zone.validators, 'process_zone', return_value=[]
+                ):
+                    with self.assertLogs('Record', level='WARNING') as logs:
+                        Manager(
+                            get_config_filename('simple-validate.yaml')
+                        ).validate_configs(
+                            lenient=True, suppress_lenient_warnings=True
+                        )
+                    self.assertTrue(
+                        any('record warning' in msg for msg in logs.output)
+                    )
 
     def test_validate_configs_lenient_not_inherited_across_zones(self):
         # Regression test for the loop bug: validate_configs() was reassigning

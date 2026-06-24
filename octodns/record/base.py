@@ -3,6 +3,8 @@
 #
 
 from collections import defaultdict
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from logging import getLogger
 
@@ -129,6 +131,25 @@ class ValuesTypeValidator(RecordValidator):
         )
 
 
+_suppress_lenient_record_warnings: ContextVar[bool] = ContextVar(
+    '_suppress_lenient_record_warnings', default=False
+)
+_zone_config_lenient: ContextVar[bool] = ContextVar(
+    '_zone_config_lenient', default=False
+)
+
+
+@contextmanager
+def suppress_lenient_record_warnings(zone_config_lenient=False):
+    t1 = _suppress_lenient_record_warnings.set(True)
+    t2 = _zone_config_lenient.set(zone_config_lenient)
+    try:
+        yield
+    finally:
+        _suppress_lenient_record_warnings.reset(t1)
+        _zone_config_lenient.reset(t2)
+
+
 class Record(EqualityTupleMixin):
     log = getLogger('Record')
 
@@ -232,14 +253,26 @@ class Record(EqualityTupleMixin):
             raise Exception(msg)
         reasons.extend(_class.validate(name, fqdn, data))
         try:
-            lenient |= data['octodns']['lenient']
+            record_config_lenient = data['octodns']['lenient']
         except KeyError:
-            pass
+            record_config_lenient = False
+        lenient |= record_config_lenient
         if reasons:
             if lenient:
-                cls.log.warning(
-                    ValidationError.build_message(fqdn, reasons, context)
+                is_config_lenient = (
+                    record_config_lenient or _zone_config_lenient.get()
                 )
+                if (
+                    _suppress_lenient_record_warnings.get()
+                    and is_config_lenient
+                ):
+                    cls.log.debug(
+                        ValidationError.build_message(fqdn, reasons, context)
+                    )
+                else:
+                    cls.log.warning(
+                        ValidationError.build_message(fqdn, reasons, context)
+                    )
             else:
                 raise ValidationError(fqdn, reasons, context)
         return _class(zone, name, data, source=source, context=context)

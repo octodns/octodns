@@ -3,6 +3,7 @@
 #
 
 from unittest import TestCase
+from unittest.mock import patch
 
 from helpers import SimpleProvider
 
@@ -805,6 +806,45 @@ class TestZone(TestCase):
         with self.assertLogs('Zone', level='DEBUG') as logs:
             zone.validate(suppress_lenient_warnings=True)
         self.assertTrue(any('suppressed' in msg.lower() for msg in logs.output))
+
+    def test_validate_zone_config_lenient_suppresses_empty_record_reasons(self):
+        # zone_config_lenient=True suppresses warnings even for ValidationReasons
+        # that have no records (empty record set), which reason.lenient cannot
+        # handle since it requires all records to be individually lenient-tagged.
+        from octodns.zone.validator import ValidationReason
+
+        zone = Zone('unit.tests.', [])
+        with patch.object(
+            Zone.validators,
+            'process_zone',
+            return_value=[ValidationReason('zone-wide issue', [])],
+        ):
+            # Without zone_config_lenient: lenient=False means it raises
+            with self.assertRaises(ValidationError):
+                zone.validate()
+
+            # lenient=True alone (--all): warns but not suppressed
+            with self.assertLogs('Zone', level='WARNING') as logs:
+                zone.validate(lenient=True)
+            self.assertTrue(
+                any('zone-wide issue' in msg for msg in logs.output)
+            )
+
+            # lenient=True + suppress + zone_config_lenient=True: suppressed
+            with self.assertNoLogs('Zone', level='WARNING'):
+                zone.validate(
+                    lenient=True,
+                    suppress_lenient_warnings=True,
+                    zone_config_lenient=True,
+                )
+
+            # lenient=True + suppress but zone_config_lenient=False: NOT suppressed
+            # (--all makes it a warning, but --honor-lenient shouldn't suppress it)
+            with self.assertLogs('Zone', level='WARNING') as logs:
+                zone.validate(lenient=True, suppress_lenient_warnings=True)
+            self.assertTrue(
+                any('zone-wide issue' in msg for msg in logs.output)
+            )
 
     def test_validator_registration_methods(self):
         # Test class methods that delegate to Zone.validators

@@ -4,6 +4,7 @@
 
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext as _nullcontext
 from fnmatch import filter as fnmatch_filter
 from hashlib import sha256
 from importlib import import_module
@@ -23,6 +24,7 @@ from .provider.base import BaseProvider
 from .provider.plan import Plan
 from .provider.yaml import SplitYamlProvider, YamlProvider
 from .record import Record
+from .record.base import suppress_lenient_record_warnings
 from .record.exception import RecordException
 from .record.validator import RecordValidator, ValueValidator
 from .secret.environ import EnvironSecrets
@@ -1348,15 +1350,26 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown source: ' + source
                 )
 
-            zone_lenient = lenient or config.get('lenient', False)
-            for source in sources:
-                if isinstance(source, YamlProvider):
-                    source.populate(zone, lenient=zone_lenient)
+            zone_config_lenient = config.get('lenient', False)
+            zone_lenient = lenient or zone_config_lenient
 
-            zone.validate(
-                lenient=zone_lenient,
-                suppress_lenient_warnings=suppress_lenient_warnings,
+            ctx = (
+                suppress_lenient_record_warnings(
+                    zone_config_lenient=zone_config_lenient
+                )
+                if suppress_lenient_warnings
+                else _nullcontext()
             )
+            with ctx:
+                for source in sources:
+                    if isinstance(source, YamlProvider):
+                        source.populate(zone, lenient=zone_lenient)
+
+                zone.validate(
+                    lenient=zone_lenient,
+                    suppress_lenient_warnings=suppress_lenient_warnings,
+                    zone_config_lenient=zone_config_lenient,
+                )
 
             # check that processors are in order if any are specified
             processors = config.get('processors') or []

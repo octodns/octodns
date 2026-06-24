@@ -743,6 +743,58 @@ class TestRecordValidation(TestCase):
             lenient=True,
         )
 
+    def test_suppress_lenient_record_warnings_context_manager(self):
+        from octodns.record.base import suppress_lenient_record_warnings
+
+        # lenient-by-config record (octodns.lenient=True): warning suppressed
+        with self.assertNoLogs('Record', level='WARNING'):
+            with suppress_lenient_record_warnings(zone_config_lenient=False):
+                Record.new(
+                    self.zone,
+                    'www',
+                    {
+                        'octodns': {'lenient': True},
+                        'type': 'A',
+                        'ttl': -1,
+                        'value': '1.2.3.4',
+                    },
+                )
+
+        # lenient-by-zone-config (zone_config_lenient=True): warning suppressed
+        with self.assertNoLogs('Record', level='WARNING'):
+            with suppress_lenient_record_warnings(zone_config_lenient=True):
+                Record.new(
+                    self.zone,
+                    'www',
+                    {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'},
+                    lenient=True,
+                )
+
+        # lenient-by-all-flag only (zone_config_lenient=False, no octodns.lenient):
+        # NOT suppressed — the warning must reach FlaggingHandler
+        with self.assertLogs('Record', level='WARNING') as logs:
+            with suppress_lenient_record_warnings(zone_config_lenient=False):
+                Record.new(
+                    self.zone,
+                    'www',
+                    {'type': 'A', 'ttl': -1, 'value': '1.2.3.4'},
+                    lenient=True,
+                )
+        self.assertTrue(any('invalid ttl' in msg for msg in logs.output))
+
+        # outside context manager: lenient warning always fires
+        with self.assertLogs('Record', level='WARNING'):
+            Record.new(
+                self.zone,
+                'www',
+                {
+                    'octodns': {'lenient': True},
+                    'type': 'A',
+                    'ttl': -1,
+                    'value': '1.2.3.4',
+                },
+            )
+
     def test_values_and_value(self):
         # value w/one
         r = Record.new(

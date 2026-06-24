@@ -274,19 +274,28 @@ class Zone(object):
     def available_zone_validators(cls):
         return cls.validators.available_validators()
 
-    def validate(self, lenient=False, suppress_lenient_warnings=False):
+    def validate(
+        self,
+        lenient=False,
+        suppress_lenient_warnings=False,
+        zone_config_lenient=False,
+    ):
         '''
         Validate zone records using all registered zone validators.
 
         :param lenient: When True, all validation reasons are treated as
             warnings (logged) rather than errors (raised). Equivalent to
-            passing ``lenient: true`` at the zone config level.
-        :param suppress_lenient_warnings: When True, validation reasons that
-            would normally be logged as warnings (because ``lenient`` is True
-            or the reason's records are individually lenient-tagged) are
-            silently suppressed instead. Non-lenient reasons still raise
-            ``ValidationError`` regardless of this flag. Set by
-            ``--honor-lenient`` in the octodns-validate CLI.
+            passing ``lenient: true`` at the zone config level. Set by the
+            ``--all`` CLI flag.
+        :param suppress_lenient_warnings: When True, warnings that are due to
+            lenient configuration (zone-level ``lenient: true`` or
+            per-record ``lenient: true``) are silently suppressed. Reasons
+            that become warnings only because of the global ``--all`` flag
+            are still logged and trigger exit 1. Set by ``--honor-lenient``.
+        :param zone_config_lenient: When True, this zone has ``lenient: true``
+            in its zone config. Used with ``suppress_lenient_warnings`` to
+            suppress all warnings for this zone (since every issue in it is
+            lenient by zone-level config).
         '''
         reasons = self.validators.process_zone(self)
         if not reasons:
@@ -294,25 +303,30 @@ class Zone(object):
 
         reasons_to_raise = []
         reasons_to_warn = []
+        reasons_to_suppress = []
         for reason in reasons:
-            if lenient or reason.lenient:
+            is_lenient_reason = zone_config_lenient or reason.lenient
+            if is_lenient_reason and suppress_lenient_warnings:
+                reasons_to_suppress.append(reason)
+            elif lenient or is_lenient_reason:
                 reasons_to_warn.append(reason)
             else:
                 reasons_to_raise.append(reason)
 
-        if reasons_to_warn and not suppress_lenient_warnings:
-            self.log.warning(
-                ValidationError.build_message(
-                    self.decoded_name, reasons_to_warn, context=self.context
-                )
-            )
-        elif reasons_to_warn and suppress_lenient_warnings:
+        if reasons_to_suppress:
             self.log.debug(
                 'suppressed lenient warnings for %s: %s',
                 self.decoded_name,
                 ValidationError.build_message(
-                    self.decoded_name, reasons_to_warn, context=self.context
+                    self.decoded_name, reasons_to_suppress, context=self.context
                 ),
+            )
+
+        if reasons_to_warn:
+            self.log.warning(
+                ValidationError.build_message(
+                    self.decoded_name, reasons_to_warn, context=self.context
+                )
             )
 
         if reasons_to_raise:
