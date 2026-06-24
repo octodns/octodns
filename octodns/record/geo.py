@@ -126,10 +126,7 @@ class GeoValue(EqualityTupleMixin):
         )
 
     def __repr__(self):
-        return (
-            f"'Geo {self.continent_code} {self.country_code} "
-            "{self.subdivision_code} {self.values}'"
-        )
+        return f"'Geo {self.continent_code} {self.country_code} {self.subdivision_code} {self.values}'"
 
 
 class GeoValidator(RecordValidator):
