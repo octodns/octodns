@@ -65,8 +65,10 @@ class TestRecordGeo(TestCase):
         # Geo provider does consider lack of geo diffs to be changes
         self.assertTrue(geo.changes(other, geo_target))
 
-        # __repr__ doesn't blow up
-        geo.__repr__()
+        # __repr__ includes all the fields
+        af = geo.geo['AF']
+        expected = f"'Geo {af.continent_code} {af.country_code} {af.subdivision_code} {af.values}'"
+        self.assertEqual(expected, af.__repr__())
 
 
 class TestRecordGeoCodes(TestCase):
