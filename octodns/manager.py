@@ -1351,7 +1351,7 @@ class Manager(object):
                 )
 
             zone_config_lenient = config.get('lenient', False)
-            zone_lenient = lenient or zone_config_lenient
+            effective_lenient = lenient or zone_config_lenient
 
             ctx = (
                 suppress_lenient_record_warnings(
@@ -1363,10 +1363,10 @@ class Manager(object):
             with ctx:
                 for source in sources:
                     if isinstance(source, YamlProvider):
-                        source.populate(zone, lenient=zone_lenient)
+                        source.populate(zone, lenient=effective_lenient)
 
                 zone.validate(
-                    lenient=zone_lenient,
+                    lenient=effective_lenient,
                     suppress_lenient_warnings=suppress_lenient_warnings,
                     zone_config_lenient=zone_config_lenient,
                 )
