@@ -347,10 +347,7 @@ def build_config_schema():
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',
         'title': 'octoDNS config file',
-        'description': (
-            'Schema for an octoDNS main configuration YAML file: '
-            'providers, processors, validators, secret_handlers, and zones.'
-        ),
+        'description': 'Schema for an octoDNS main configuration YAML file: providers, processors, validators, secret_handlers, and zones.',
         'type': 'object',
         'required': ['providers', 'zones'],
         'additionalProperties': False,

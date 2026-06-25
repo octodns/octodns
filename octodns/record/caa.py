@@ -94,8 +94,7 @@ class CaaValueBestPracticeValidator(ValueValidator):
         tags = {v.get('tag') for v in data}
         if 'issue' in tags and 'issuewild' not in tags:
             return [
-                'CAA issue tag is present without issuewild; '
-                'add an explicit issuewild to clarify wildcard certificate policy'
+                'CAA issue tag is present without issuewild; add an explicit issuewild to clarify wildcard certificate policy'
             ]
         return []
 

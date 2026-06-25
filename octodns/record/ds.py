@@ -189,8 +189,7 @@ class DsValueBestPracticeValidator(ValueValidator):
                 digest_type = int(value['digest_type'])
                 if digest_type == 1:
                     reasons.append(
-                        'DS digest_type 1 (SHA-1) is not recommended per RFC 8624; '
-                        'use digest_type 2 (SHA-256)'
+                        'DS digest_type 1 (SHA-1) is not recommended per RFC 8624; use digest_type 2 (SHA-256)'
                     )
             except (KeyError, ValueError, TypeError):
                 pass
