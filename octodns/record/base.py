@@ -35,15 +35,13 @@ class NameValidator(RecordValidator):
         n = len(fqdn)
         if n > 253:
             reasons.append(
-                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} '
-                'chars, max is 253'
+                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} chars, max is 253'
             )
         for label in name.split('.'):
             n = len(label)
             if n > 63:
                 reasons.append(
-                    f'invalid label, "{label}" is too long at {n}'
-                    ' chars, max is 63'
+                    f'invalid label, "{label}" is too long at {n} chars, max is 63'
                 )
         # in the case of endswith there's an implicit second . from the Zone
         if '..' in name or name.endswith('.'):
@@ -138,9 +136,7 @@ class Record(EqualityTupleMixin):
         super().__init_subclass__(**kwargs)
         if 'validate' in cls.__dict__:
             deprecated(
-                f'`{cls.__name__}.validate` override is DEPRECATED. '
-                'Add a RecordValidator to `VALIDATORS` instead. '
-                'Will be removed in 2.0',
+                f'`{cls.__name__}.validate` override is DEPRECATED. Add a RecordValidator to `VALIDATORS` instead. Will be removed in 2.0',
                 stacklevel=3,
             )
 

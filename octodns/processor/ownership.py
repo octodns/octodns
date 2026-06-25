@@ -114,10 +114,7 @@ class OwnershipProcessor(BaseProcessor):
             name, _type = self._decode_ownership_name(record)
             if _type in owned[name]:
                 raise OwnershipException(
-                    f'{self.id}: refusing to take over {record.fqdn} '
-                    f'{_type}, owned by {record.values}, not '
-                    f'{self._txt_values}; set allow_takeover=true to '
-                    'override'
+                    f'{self.id}: refusing to take over {record.fqdn} {_type}, owned by {record.values}, not {self._txt_values}; set allow_takeover=true to override'
                 )
 
         # Cases:

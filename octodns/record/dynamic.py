@@ -167,8 +167,7 @@ class _DynamicMixin(object):
     VALIDATORS = [DynamicValidator('dynamic', sets={'legacy', 'strict'})]
 
     geo_re = re.compile(
-        r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
-        r'(-(?P<subdivision_code>\w\w))?)?$'
+        r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)(-(?P<subdivision_code>\w\w))?)?$'
     )
 
     @classmethod
@@ -268,23 +267,20 @@ class _DynamicMixin(object):
                         weight = int(weight)
                         if weight < 1 or weight > 100:
                             reasons.append(
-                                f'invalid weight "{weight}" in '
-                                f'pool "{_id}" value {value_num}'
+                                f'invalid weight "{weight}" in pool "{_id}" value {value_num}'
                             )
                     except KeyError:
                         pass
                     except ValueError:
                         reasons.append(
-                            f'invalid weight "{weight}" in '
-                            f'pool "{_id}" value {value_num}'
+                            f'invalid weight "{weight}" in pool "{_id}" value {value_num}'
                         )
 
                     try:
                         status = value['status']
                         if status not in ['up', 'down', 'obey']:
                             reasons.append(
-                                f'invalid status "{status}" in '
-                                f'pool "{_id}" value {value_num}'
+                                f'invalid status "{status}" in pool "{_id}" value {value_num}'
                             )
                     except KeyError:
                         pass
@@ -298,8 +294,7 @@ class _DynamicMixin(object):
                         )
                     except KeyError:
                         reasons.append(
-                            f'missing value in pool "{_id}" '
-                            f'value {value_num}'
+                            f'missing value in pool "{_id}" value {value_num}'
                         )
 
                 if len(values) == 1 and values[0].get('weight', 1) != 1:
@@ -313,8 +308,7 @@ class _DynamicMixin(object):
                         pools_seen_as_fallback.add(fallback)
                     else:
                         reasons.append(
-                            f'undefined fallback "{fallback}" '
-                            f'for pool "{_id}"'
+                            f'undefined fallback "{fallback}" for pool "{_id}"'
                         )
 
                 # Check for loops
@@ -367,8 +361,7 @@ class _DynamicMixin(object):
                         )
                     elif pool in pools_seen and (subnets or geos):
                         reasons.append(
-                            f'rule {rule_num} invalid, target '
-                            f'pool "{pool}" reused'
+                            f'rule {rule_num} invalid, target pool "{pool}" reused'
                         )
                     pools_seen.add(pool)
 
@@ -516,8 +509,5 @@ class _DynamicMixin(object):
                 values = self.value
 
             klass = self.__class__.__name__
-            return (
-                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
-                f'{values}, {self.dynamic}>'
-            )
+            return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {values}, {self.dynamic}>'
         return super().__repr__()

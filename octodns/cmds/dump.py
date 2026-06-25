@@ -18,14 +18,12 @@ def main():
     parser.add_argument(
         '--output-dir',
         required=True,
-        help='The directory into which the results will be '
-        'written (Note: will overwrite existing files)',
+        help='The directory into which the results will be written (Note: will overwrite existing files)',
     )
     parser.add_argument(
         '--output-provider',
         required=False,
-        help='The configured provider to use when dumping '
-        'records. Must support copy() and directory',
+        help='The configured provider to use when dumping records. Must support copy() and directory',
     )
     parser.add_argument(
         '--lenient',

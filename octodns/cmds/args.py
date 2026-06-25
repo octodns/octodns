@@ -83,10 +83,7 @@ class ArgumentParser(_Base):
         logger.addHandler(handler)
 
         if args.log_syslog:
-            fmt = (
-                'octodns[%(process)-5s:%(thread)d]: %(name)s '
-                '%(levelname)-5s %(message)s'
-            )
+            fmt = 'octodns[%(process)-5s:%(thread)d]: %(name)s %(levelname)-5s %(message)s'
             handler = SysLogHandler(
                 address=args.syslog_device, facility=args.syslog_facility
             )

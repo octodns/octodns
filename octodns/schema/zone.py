@@ -172,10 +172,7 @@ def build_zone_schema():
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',
         'title': 'octoDNS zone file',
-        'description': (
-            'Schema for an octoDNS zone YAML file: a mapping of record names '
-            'to a record or list of records.'
-        ),
+        'description': 'Schema for an octoDNS zone YAML file: a mapping of record names to a record or list of records.',
         'type': 'object',
         'propertyNames': _NAME_SCHEMA,
         'additionalProperties': {

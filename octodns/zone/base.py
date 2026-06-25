@@ -597,8 +597,7 @@ class Zone(object):
             except KeyError:
                 if not target.supports(record):
                     self.log.debug(
-                        'changes:  skipping record=%s %s - %s does '
-                        'not support it',
+                        'changes:  skipping record=%s %s - %s does not support it',
                         record.fqdn,
                         record._type,
                         target.id,
@@ -613,8 +612,7 @@ class Zone(object):
                 change = record.changes(desired_record, target)
                 if change:
                     self.log.debug(
-                        'changes: zone=%s, modified\n'
-                        '    existing=%s,\n     desired=%s',
+                        'changes: zone=%s, modified\n    existing=%s,\n     desired=%s',
                         self,
                         record,
                         desired_record,
@@ -650,8 +648,7 @@ class Zone(object):
 
             if not target.supports(record):
                 self.log.debug(
-                    'changes:  skipping record=%s %s - %s does not '
-                    'support it',
+                    'changes:  skipping record=%s %s - %s does not support it',
                     record.fqdn,
                     record._type,
                     target.id,

@@ -25,8 +25,7 @@ def main():
         '--force',
         action='store_true',
         default=False,
-        help='Acknowledge that significant changes are being '
-        'made and do them',
+        help='Acknowledge that significant changes are being made and do them',
     )
     parser.add_argument(
         '--checksum',
@@ -45,9 +44,7 @@ def main():
         '--source',
         default=[],
         action='append',
-        help='Limit sync to zones with the specified '
-        'source(s) (all sources will be synchronized for the '
-        'selected zones)',
+        help='Limit sync to zones with the specified source(s) (all sources will be synchronized for the selected zones)',
     )
     parser.add_argument(
         '--target',

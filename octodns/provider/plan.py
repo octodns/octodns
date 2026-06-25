@@ -29,10 +29,7 @@ class TooMuchChange(UnsafePlan):
         existing_count,
         name,
     ):
-        msg = (
-            f'[{name}] {why}, {update_pcent:.2f}% is over {update_threshold:.2f}% '
-            f'({change_count}/{existing_count}), force required'
-        )
+        msg = f'[{name}] {why}, {update_pcent:.2f}% is over {update_threshold:.2f}% ({change_count}/{existing_count}), force required'
         super().__init__(msg)
 
 
@@ -274,8 +271,7 @@ class PlanMarkdown(_PlanFhOutput):
                 fh.write('\n\n')
 
                 fh.write(
-                    '| Operation | Name | Type | TTL | Value | Source |\n'
-                    '|--|--|--|--|--|--|\n'
+                    '| Operation | Name | Type | TTL | Value | Source |\n|--|--|--|--|--|--|\n'
                 )
 
                 if plan.exists is False:

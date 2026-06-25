@@ -70,8 +70,7 @@ class CaaZoneValidator(ZoneValidator):
         if not apex_caa and self.presence == 'required':
             reasons.append(
                 ValidationReason(
-                    f'zone "{zone.decoded_name}" has no CAA records at the '
-                    'apex',
+                    f'zone "{zone.decoded_name}" has no CAA records at the apex',
                     set(),
                 )
             )
@@ -90,9 +89,7 @@ class CaaZoneValidator(ZoneValidator):
             if not has_issue and not has_issuewild:
                 reasons.append(
                     ValidationReason(
-                        f'CAA record "{record.fqdn}" has no ``issue`` '
-                        'or ``issuewild`` tag; having only ``iodef`` means any '
-                        'CA can issue certificates',
+                        f'CAA record "{record.fqdn}" has no ``issue`` or ``issuewild`` tag; having only ``iodef`` means any CA can issue certificates',
                         [record],
                     )
                 )
@@ -102,9 +99,7 @@ class CaaZoneValidator(ZoneValidator):
             if has_issue and not has_issuewild:
                 reasons.append(
                     ValidationReason(
-                        f'CAA record "{record.fqdn}" has ``issue`` but '
-                        'no ``issuewild``; consider adding an explicit '
-                        '``issuewild`` to define wildcard certificate policy',
+                        f'CAA record "{record.fqdn}" has ``issue`` but no ``issuewild``; consider adding an explicit ``issuewild`` to define wildcard certificate policy',
                         [record],
                     )
                 )

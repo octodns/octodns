@@ -90,8 +90,7 @@ class GeoCodes(object):
 
 class GeoValue(EqualityTupleMixin):
     geo_re = re.compile(
-        r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)'
-        r'(-(?P<subdivision_code>\w\w))?)?$'
+        r'^(?P<continent_code>\w\w)(-(?P<country_code>\w\w)(-(?P<subdivision_code>\w\w))?)?$'
     )
 
     @classmethod
@@ -209,8 +208,5 @@ class _GeoMixin(ValuesMixin):
     def __repr__(self):
         if self.geo:
             klass = self.__class__.__name__
-            return (
-                f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, '
-                f'{self.values}, {self.geo}>'
-            )
+            return f'<{klass} {self._type} {self.ttl}, {self.decoded_fqdn}, {self.values}, {self.geo}>'
         return super().__repr__()

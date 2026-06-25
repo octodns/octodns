@@ -138,8 +138,7 @@ class ValidatorRegistry:
         legacy = getattr(value_type, 'validate', None)
         if legacy is not None:
             deprecated(
-                f'`{value_type.__name__}.validate` classmethod is DEPRECATED. '
-                'Add a ValueValidator to `VALIDATORS` instead. Will be removed in 2.0',
+                f'`{value_type.__name__}.validate` classmethod is DEPRECATED. Add a ValueValidator to `VALIDATORS` instead. Will be removed in 2.0',
                 stacklevel=3,
             )
             reasons.extend(legacy(values, _type))

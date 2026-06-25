@@ -148,8 +148,7 @@ class SortEnforcingLoader(ContextLoader):
                 raise ConstructorError(
                     None,
                     None,
-                    'keys out of order: '
-                    f'expected {expected} got {key} at {context}',
+                    f'keys out of order: expected {expected} got {key} at {context}',
                 )
 
         return ret
