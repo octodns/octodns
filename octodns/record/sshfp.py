@@ -60,9 +60,7 @@ class SshfpValueValidator(ValueValidator):
                 actual = len(value['fingerprint'])
                 if actual != expected:
                     reasons.append(
-                        f'fingerprint length {actual} does not match '
-                        f'fingerprint_type {fingerprint_type} '
-                        f'(expected {expected})'
+                        f'fingerprint length {actual} does not match fingerprint_type {fingerprint_type} (expected {expected})'
                     )
         return reasons
 
@@ -118,8 +116,7 @@ class SshfpValueRfcValidator(ValueValidator):
                     expected = self._fingerprint_type_lengths[fingerprint_type]
                     if len(str(fp)) != expected:
                         reasons.append(
-                            f'fingerprint must be {expected} hex characters '
-                            f'for fingerprint_type {fingerprint_type}'
+                            f'fingerprint must be {expected} hex characters for fingerprint_type {fingerprint_type}'
                         )
         return reasons
 
@@ -148,8 +145,7 @@ class SshfpValueBestPracticeValidator(ValueValidator):
                 continue
             if fp_type == 1:
                 reasons.append(
-                    'SSHFP fingerprint_type 1 (SHA-1) is deprecated; '
-                    'use fingerprint_type 2 (SHA-256)'
+                    'SSHFP fingerprint_type 1 (SHA-1) is deprecated; use fingerprint_type 2 (SHA-256)'
                 )
         return reasons
 

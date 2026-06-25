@@ -103,11 +103,7 @@ class BaseProvider(BaseSource):
         '''
         super().__init__(id)
         self.log.debug(
-            '__init__: id=%s, apply_disabled=%s, '
-            'update_pcent_threshold=%.2f, '
-            'delete_pcent_threshold=%.2f, '
-            'strict_supports=%s, '
-            'root_ns_warnings=%s',
+            '__init__: id=%s, apply_disabled=%s, update_pcent_threshold=%.2f, delete_pcent_threshold=%.2f, strict_supports=%s, root_ns_warnings=%s',
             id,
             apply_disabled,
             update_pcent_threshold,
@@ -169,10 +165,7 @@ class BaseProvider(BaseSource):
                                     unsupported_pools.append(_id)
                         if unsupported_pools:
                             unsupported_pools = ','.join(unsupported_pools)
-                            msg = (
-                                f'"status" flag used in pools {unsupported_pools}'
-                                f' in {record.fqdn} is not supported'
-                            )
+                            msg = f'"status" flag used in pools {unsupported_pools} in {record.fqdn} is not supported'
                             fallback = (
                                 'will ignore it and respect the healthcheck'
                             )
@@ -254,8 +247,7 @@ class BaseProvider(BaseSource):
         if self.SUPPORTS_ROOT_NS:
             if not record and self.root_ns_warnings:
                 self.log.warning(
-                    'root NS record supported, but no record '
-                    'is configured for %s',
+                    'root NS record supported, but no record is configured for %s',
                     desired.decoded_name,
                 )
         else:
@@ -314,8 +306,7 @@ class BaseProvider(BaseSource):
         ):
             if self.root_ns_warnings:
                 self.log.info(
-                    'root NS record in existing, but not supported or '
-                    'not configured; ignoring it'
+                    'root NS record in existing, but not supported or not configured; ignoring it'
                 )
             existing.remove_record(existing_root_ns)
 

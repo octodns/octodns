@@ -28,8 +28,7 @@ class TlsaValueValidator(ValueValidator):
                     )
             except ValueError:
                 reasons.append(
-                    f'invalid certificate_usage '
-                    f'"{value["certificate_usage"]}"'
+                    f'invalid certificate_usage "{value["certificate_usage"]}"'
                 )
 
             try:
@@ -143,8 +142,7 @@ class TlsaValueBestPracticeValidator(ValueValidator):
                 continue
             if matching_type == 0:
                 reasons.append(
-                    'TLSA matching_type 0 (full data) is not recommended; '
-                    'use matching_type 1 (SHA-256) or 2 (SHA-512)'
+                    'TLSA matching_type 0 (full data) is not recommended; use matching_type 1 (SHA-256) or 2 (SHA-512)'
                 )
         return reasons
 

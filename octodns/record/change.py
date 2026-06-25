@@ -58,10 +58,7 @@ class Update(Change):
     # do nothing
     def __repr__(self, leader=''):
         source = self.new.source.id if self.new.source else ''
-        return (
-            f'Update\n{leader}    {self.existing} ->\n'
-            f'{leader}    {self.new} ({source})'
-        )
+        return f'Update\n{leader}    {self.existing} ->\n{leader}    {self.new} ({source})'
 
 
 class Delete(Change):

@@ -291,10 +291,7 @@ class NaptrValue(EqualityTupleMixin, dict):
         flags = self.flags if self.flags is not None else ''
         service = self.service if self.service is not None else ''
         regexp = self.regexp if self.regexp is not None else ''
-        return (
-            f"'{self.order} {self.preference} \"{flags}\" \"{service}\" "
-            f"\"{regexp}\" {self.replacement}'"
-        )
+        return f"'{self.order} {self.preference} \"{flags}\" \"{service}\" \"{regexp}\" {self.replacement}'"
 
 
 class NaptrRecord(ValuesMixin, Record):
