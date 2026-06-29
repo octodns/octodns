@@ -40,6 +40,7 @@ class GlueForInZoneNsZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'NS record "{record.fqdn}" points to in-zone target "{target}" without glue records (A/AAAA)',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons
@@ -65,6 +66,7 @@ class NsTargetNotCnameZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'NS record "{record.fqdn}" points to target "{target}" which is a CNAME',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons
@@ -86,6 +88,7 @@ class MultiValueNsZoneValidator(ZoneValidator):
                         ValidationReason(
                             f'NS record "{record.fqdn}" has only {len(record.values)} value; at least 2 are recommended for redundancy',
                             [record],
+                            validator_id=self.id,
                         )
                     )
         return reasons

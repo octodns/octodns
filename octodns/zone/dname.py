@@ -28,6 +28,7 @@ class DnameCoexistenceValidator(ZoneValidator):
                         ValidationReason(
                             f'Invalid state, DNAME at {dname_record.fqdn} cannot coexist with CNAME',
                             node,
+                            validator_id=self.id,
                         )
                     )
 
@@ -36,6 +37,7 @@ class DnameCoexistenceValidator(ZoneValidator):
                         ValidationReason(
                             f'Invalid state, DNAME at {dname_record.fqdn} cannot coexist with NS at a non-apex node',
                             node,
+                            validator_id=self.id,
                         )
                     )
 
@@ -51,6 +53,7 @@ class DnameCoexistenceValidator(ZoneValidator):
                         ValidationReason(
                             f'Record "{record.decoded_fqdn}" is occluded by DNAME "{dname.decoded_fqdn}"',
                             [record],
+                            validator_id=self.id,
                         )
                     )
 

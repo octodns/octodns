@@ -115,7 +115,9 @@ class MailZoneValidator(ZoneValidator):
             return None, None
         reason = None
         if len(values) > 1:
-            reason = ValidationReason(reason=multi_msg, records={txt_record})
+            reason = ValidationReason(
+                reason=multi_msg, records={txt_record}, validator_id=self.id
+            )
         return values[0], reason
 
     def _parse_dmarc_tags(self, dmarc_value):
@@ -158,6 +160,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" handles mail but is missing MX records at the apex',
                     records,
+                    validator_id=self.id,
                 )
             )
 
@@ -167,6 +170,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" handles mail but is missing an SPF TXT record at the apex',
                     records,
+                    validator_id=self.id,
                 )
             )
         elif not (
@@ -176,6 +180,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'SPF record at the apex of "{zone.decoded_name}" should terminate with "~all" or "-all"',
                     {apex_txt},
+                    validator_id=self.id,
                 )
             )
 
@@ -185,6 +190,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" handles mail but is missing a DMARC TXT record at _dmarc',
                     records,
+                    validator_id=self.id,
                 )
             )
         else:
@@ -194,6 +200,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'DMARC record at _dmarc.{zone.decoded_name} is missing a policy (p=...)',
                         [dmarc_txt],
+                        validator_id=self.id,
                     )
                 )
 
@@ -224,6 +231,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail but is missing a Null MX record (0 .)',
                     records,
+                    validator_id=self.id,
                 )
             )
         elif not self._is_null_mx(apex_mx_record):
@@ -231,6 +239,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a single Null MX record (0 .)',
                     [apex_mx_record],
+                    validator_id=self.id,
                 )
             )
 
@@ -240,6 +249,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail but is missing strict SPF TXT record "v=spf1 -all"',
                     records,
+                    validator_id=self.id,
                 )
             )
         elif not apex_spf_value == 'v=spf1 -all':
@@ -247,6 +257,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail and should have a single strict SPF TXT record "v=spf1 -all"',
                     [apex_txt],
+                    validator_id=self.id,
                 )
             )
 
@@ -256,6 +267,7 @@ class MailZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" disables mail but is missing strict DMARC TXT record "v=DMARC1; p=reject;"',
                     records,
+                    validator_id=self.id,
                 )
             )
         else:
@@ -265,6 +277,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'zone "{zone.decoded_name}" disables mail and should have a DMARC TXT record with "v=DMARC1; p=reject;"',
                         [dmarc_txt],
+                        validator_id=self.id,
                     )
                 )
 
@@ -295,6 +308,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" handles mail but is missing an SPF TXT record',
                         records,
+                        validator_id=self.id,
                     )
                 )
             elif not (
@@ -304,6 +318,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'SPF record at "{mx_record.decoded_fqdn}" should terminate with "~all" or "-all"',
                         {txt_record},
+                        validator_id=self.id,
                     )
                 )
         else:
@@ -312,6 +327,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail and should have a single Null MX record (0 .)',
                         {mx_record},
+                        validator_id=self.id,
                     )
                 )
             if spf_value is None:
@@ -319,6 +335,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail but is missing strict SPF TXT record "v=spf1 -all"',
                         records,
+                        validator_id=self.id,
                     )
                 )
             elif spf_value != 'v=spf1 -all':
@@ -326,6 +343,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'"{mx_record.decoded_fqdn}" disables mail and should have a strict SPF TXT record "v=spf1 -all"',
                         {txt_record},
+                        validator_id=self.id,
                     )
                 )
 
@@ -360,6 +378,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'MX record "{record.fqdn}" should have at least {self.min_mx} values for redundancy, found {len(record.values)}',
                         [record],
+                        validator_id=self.id,
                     )
                 )
 
@@ -386,6 +405,7 @@ class MailZoneValidator(ZoneValidator):
                     ValidationReason(
                         reason=f'zone "{zone.decoded_name}" has multiple DMARC values',
                         records={dmarc_txt},
+                        validator_id=self.id,
                     )
                 )
             dmarc_value = dmarc_value[0]
@@ -487,6 +507,7 @@ class MxTargetNotCnameZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'MX record "{record.fqdn}" points to exchange "{target}" which is a CNAME',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons
@@ -518,6 +539,7 @@ class MxTargetResolvableInZoneZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'MX record "{record.decoded_fqdn}" points to in-zone target "{target}" that does not exist',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons

@@ -29,6 +29,7 @@ class SrvTargetNotCnameZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'SRV record "{record.decoded_fqdn}" points to target "{target}" which is a CNAME',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons
@@ -53,6 +54,7 @@ class SrvTargetResolvableInZoneZoneValidator(ZoneValidator):
                                 ValidationReason(
                                     f'SRV record "{record.decoded_fqdn}" points to in-zone target "{target}" that does not exist',
                                     [record],
+                                    validator_id=self.id,
                                 )
                             )
         return reasons

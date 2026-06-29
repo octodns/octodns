@@ -3,6 +3,7 @@
 #
 
 from logging import getLogger
+from warnings import deprecated
 
 from .exception import ZoneException
 
@@ -75,7 +76,13 @@ class ZoneValidatorRegistry:
 
 
 class ValidationReason:
-    def __init__(self, reason, records):
+    def __init__(self, reason, records, validator_id=None):
+        if validator_id is None:
+            deprecated(
+                'omitting `validator_id` is DEPRECATED. It will be a required parameter as of 2.0',
+                stacklevel=3,
+            )
+        self.validator_id = validator_id
         self.reason = reason
         self.records = set(records)
 
@@ -90,6 +97,8 @@ class ValidationReason:
         }
         if contexts:
             msg += f" ({', '.join(sorted(contexts))})"
+        if self.validator_id is not None:
+            msg += f'\n  via: {self.validator_id}'
         return msg
 
     def __repr__(self):
