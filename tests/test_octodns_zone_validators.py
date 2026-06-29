@@ -36,6 +36,21 @@ class TestValidationError(TestCase):
         err2 = ValidationError('unit.tests.', [v])
         self.assertNotIn('ctx', str(err2))
 
+    def test_validation_error_via(self):
+        # build_message includes "via: <id>" indented under each reason that has
+        # a validator_id, and omits it when validator_id is absent.
+        with_id = ValidationReason('flagged', [], validator_id='my-validator')
+        without_id = ValidationReason('also-flagged', [])
+
+        msg = ValidationError.build_message(
+            'unit.tests.', [with_id, without_id]
+        )
+        self.assertIn('flagged', msg)
+        self.assertIn('    via: my-validator', msg)
+        self.assertIn('also-flagged', msg)
+        # "via:" should only appear once (for the reason that has a validator_id)
+        self.assertEqual(msg.count('via:'), 1)
+
 
 class TestZoneValidatorBase(TestCase):
     def test_zone_validator_base(self):
@@ -63,6 +78,18 @@ class TestZoneValidatorBase(TestCase):
         )
         reason2 = ValidationReason('lenient problem', [r2])
         self.assertTrue(reason2.lenient)
+
+    def test_validation_reason_validator_id(self):
+        # validator_id is stored and does not appear in str() — that belongs to
+        # build_message so that presentation concerns stay in one place.
+        reason = ValidationReason('problem', [], validator_id='my-validator')
+        self.assertEqual('my-validator', reason.validator_id)
+        self.assertEqual('problem', str(reason))
+        self.assertNotIn('via:', str(reason))
+
+        # Omitting validator_id emits a DeprecationWarning.
+        with self.assertWarns(DeprecationWarning):
+            ValidationReason('problem', [])
 
     def test_registry(self):
         registry = ZoneValidatorRegistry()
