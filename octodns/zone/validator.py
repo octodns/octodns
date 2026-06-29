@@ -3,8 +3,8 @@
 #
 
 from logging import getLogger
-from warnings import deprecated
 
+from ..deprecation import deprecated
 from .exception import ZoneException
 
 
