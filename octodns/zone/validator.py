@@ -119,6 +119,9 @@ class ZoneValidator:
     kebab-case identifier (e.g. ``'multi-value-mx'``). Config-registered
     validators receive their config key as ``id`` automatically.
 
+    When creating ``ValidationReason`` instances, pass ``validator_id=self.id``
+    so that error output can attribute each reason to its source validator.
+
     A config-registered validator whose id matches a built-in's replaces
     that built-in in the registry — e.g. defining a ``validators:`` entry
     named after a built-in mail zone validator swaps it out for a custom
