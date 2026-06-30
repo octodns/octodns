@@ -214,7 +214,11 @@ class TestZoneValidator(ZoneValidator):
             mx_records = zone.get('', type='MX')
             if not mx_records:
                 return [
-                    ValidationReason('zone apex is missing an MX record', [])
+                    ValidationReason(
+                        'zone apex is missing an MX record',
+                        [],
+                        validator_id=self.id,
+                    )
                 ]
         return []
 

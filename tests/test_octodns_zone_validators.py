@@ -27,7 +27,7 @@ def _add_record(zone, name, data, lenient=True):
 
 class TestValidationError(TestCase):
     def test_validation_error_context(self):
-        v = ValidationReason('reason', [])
+        v = ValidationReason('reason', [], validator_id='test-validator')
         err = ValidationError('unit.tests.', [v], context='ctx')
         self.assertIn('ctx', str(err))
         self.assertEqual('ctx', err.context)
@@ -66,7 +66,9 @@ class TestZoneValidatorBase(TestCase):
 
     def test_validation_reason(self):
         r1 = _add_record(_make_zone(), 'r1', {'type': 'A', 'value': '1.2.3.4'})
-        reason = ValidationReason('problem', [r1])
+        reason = ValidationReason(
+            'problem', [r1], validator_id='test-validator'
+        )
         self.assertEqual('problem', str(reason))
         self.assertEqual('problem', repr(reason))
         self.assertFalse(reason.lenient)
@@ -76,7 +78,9 @@ class TestZoneValidatorBase(TestCase):
             'r2',
             {'type': 'A', 'value': '1.2.3.4', 'octodns': {'lenient': True}},
         )
-        reason2 = ValidationReason('lenient problem', [r2])
+        reason2 = ValidationReason(
+            'lenient problem', [r2], validator_id='test-validator'
+        )
         self.assertTrue(reason2.lenient)
 
     def test_validation_reason_validator_id(self):
