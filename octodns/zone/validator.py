@@ -67,8 +67,11 @@ class ZoneValidatorRegistry:
             )
             self.enable_sets({'legacy'})
 
+        disabled = zone.disabled_zone_validators
         reasons = []
         for validator in self.active.values():
+            if validator.id in disabled and not validator.id.startswith('_'):
+                continue
             reasons.extend(validator.validate(zone))
 
         return reasons

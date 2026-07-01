@@ -1,0 +1,9 @@
+---
+'':
+  octodns:
+    healthcheck:
+      protocol: BOGUS
+  ttl: 300
+  type: A
+  values:
+  - 1.2.3.4

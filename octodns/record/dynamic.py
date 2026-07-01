@@ -21,7 +21,7 @@ class DynamicValidator(RecordValidator):
     are defined but unused.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         reasons = []
 
         if 'dynamic' not in data:
@@ -35,7 +35,7 @@ class DynamicValidator(RecordValidator):
             pools = {}
 
         pool_reasons, pools_exist, pools_seen_as_fallback = (
-            record_cls._validate_pools(pools)
+            record_cls._validate_pools(pools, disabled=disabled)
         )
         reasons.extend(pool_reasons)
 
@@ -239,7 +239,7 @@ class _DynamicMixin(object):
         }
 
     @classmethod
-    def _validate_pools(cls, pools):
+    def _validate_pools(cls, pools, disabled=None):
         reasons = []
         pools_exist = set()
         pools_seen_as_fallback = set()
@@ -289,7 +289,10 @@ class _DynamicMixin(object):
                         value = value['value']
                         reasons.extend(
                             _process_value_validators(
-                                cls._value_type, value, cls._type
+                                cls._value_type,
+                                value,
+                                cls._type,
+                                disabled=disabled,
                             )
                         )
                     except KeyError:

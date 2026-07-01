@@ -18,7 +18,7 @@ class CnameRootValidator(RecordValidator):
     RFC 1034/2181.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         if name == '':
             return ['root CNAME not allowed']
         return []

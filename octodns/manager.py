@@ -1375,6 +1375,12 @@ class Manager(object):
             delete_pcent_threshold = zone.get("delete_pcent_threshold", None)
             ignore_subzone_adds = zone.get("ignore_subzone_adds", False)
             context = getattr(zone, 'context', None)
+            # Per-zone validator config (e.g. `disable_validators`, additive
+            # to the global `manager.validators` config) is interpreted by
+            # Zone itself, which raises ZoneException for invalid entries
+            # (e.g. attempting to disable a bridge validator).
+            validators = zone.get('validators')
+
             return Zone(
                 idna_encode(zone_name),
                 sub_zones,
@@ -1382,6 +1388,7 @@ class Manager(object):
                 delete_pcent_threshold,
                 ignore_subzone_adds=ignore_subzone_adds,
                 context=context,
+                validators=validators,
             )
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')

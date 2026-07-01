@@ -121,19 +121,39 @@ class ValidatorRegistry:
             },
         }
 
-    def process_record(self, record_cls, name, fqdn, data):
+    def process_record(self, record_cls, name, fqdn, data, disabled=None):
         if not self.configured:
             self.log.warning(
                 '_process_validators: no validators configured, automatically enabling legacy set'
             )
             self.enable_sets({'legacy'})
+        disabled = disabled or {}
         reasons = []
         for key in ('*', record_cls._type):
+            skip = disabled.get(key, ())
             for validator in self.active_record.get(key, {}).values():
-                reasons.extend(validator.validate(record_cls, name, fqdn, data))
+                if validator.id in skip and not validator.id.startswith('_'):
+                    continue
+                try:
+                    reasons.extend(
+                        validator.validate(
+                            record_cls, name, fqdn, data, disabled=disabled
+                        )
+                    )
+                except TypeError as e:
+                    if "unexpected keyword argument 'disabled'" not in str(e):
+                        raise
+                    deprecated(
+                        f'`validate` without the `disabled` param is DEPRECATED. Will be removed in 2.0. Class {validator.__class__.__name__}',
+                        stacklevel=3,
+                    )
+                    reasons.extend(
+                        validator.validate(record_cls, name, fqdn, data)
+                    )
         return reasons
 
-    def process_values(self, value_type, values, _type):
+    def process_values(self, value_type, values, _type, disabled=None):
+        disabled = disabled or {}
         reasons = []
         legacy = getattr(value_type, 'validate', None)
         if legacy is not None:
@@ -143,7 +163,10 @@ class ValidatorRegistry:
             )
             reasons.extend(legacy(values, _type))
         for key in ('*', _type):
+            skip = disabled.get(key, ())
             for validator in self.active_value.get(key, {}).values():
+                if validator.id in skip and not validator.id.startswith('_'):
+                    continue
                 reasons.extend(validator.validate(value_type, values, _type))
         return reasons
 
@@ -195,7 +218,7 @@ class RecordValidator:
         self.id = id
         self.sets = set(sets) if sets is not None else None
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         '''
         Validate a record's non-value attributes.
 
@@ -216,6 +239,14 @@ class RecordValidator:
             The raw record config dict (as loaded from YAML/JSON) including
             ``ttl``, ``type``, ``value``/``values``, and any type-specific
             fields like ``dynamic``, ``geo``, or ``octodns``.
+        disabled : dict or None
+            The zone's per-type map of disabled validator ids (``record_cls
+            ._type`` or ``'*'`` -> set of ids), as configured via the zone's
+            ``validators.record.disable_validators``. Most validators can
+            ignore this; it only matters to validators that themselves
+            dispatch to other validators (e.g. value-type bridges, ``geo``
+            and ``dynamic`` validators), which must forward it along so the
+            disabled ids are honored down the chain.
 
         Returns
         -------
@@ -231,6 +262,12 @@ class RecordValidator:
         reported via the returned list. Reason strings are surfaced
         verbatim in ``ValidationError`` messages, so phrasing and
         punctuation should be stable across releases.
+
+        Third-party validators that predate the ``disabled`` parameter and
+        implement ``validate(self, record_cls, name, fqdn, data)`` continue to
+        work: the caller detects the ``TypeError`` and falls back to calling
+        without it, emitting a deprecation warning. Support for the
+        parameter-less form will be removed in 2.0.
         '''
         return []
 

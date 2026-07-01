@@ -24,7 +24,7 @@ from octodns.zone import (
     SubzoneRecordException,
     Zone,
 )
-from octodns.zone.exception import ValidationError
+from octodns.zone.exception import ValidationError, ZoneException
 
 
 class TestZone(TestCase):
@@ -983,6 +983,89 @@ class TestZone(TestCase):
         # finally remove the root NS, no more
         zone.remove_record(root_ns)
         self.assertFalse(zone.root_ns)
+
+
+class TestZoneValidatorsConfig(TestCase):
+    def test_defaults(self):
+        zone = Zone('unit.tests.', [])
+        self.assertEqual({}, zone.validators_config)
+        self.assertEqual({}, zone.disabled_record_validators)
+        self.assertEqual(frozenset(), zone.disabled_zone_validators)
+
+    def test_disabled_record_validators(self):
+        zone = Zone(
+            'unit.tests.',
+            [],
+            validators={
+                'record': {
+                    'disable_validators': {
+                        'MX': ['mx-value'],
+                        '*': ['healthcheck'],
+                    }
+                }
+            },
+        )
+        self.assertEqual(
+            {'MX': frozenset({'mx-value'}), '*': frozenset({'healthcheck'})},
+            zone.disabled_record_validators,
+        )
+        self.assertEqual(frozenset(), zone.disabled_zone_validators)
+
+    def test_disabled_zone_validators(self):
+        zone = Zone(
+            'unit.tests.',
+            [],
+            validators={'zone': {'disable_validators': ['dname-coexistence']}},
+        )
+        self.assertEqual(
+            frozenset({'dname-coexistence'}), zone.disabled_zone_validators
+        )
+        self.assertEqual({}, zone.disabled_record_validators)
+
+    def test_bridge_record_validator_rejected(self):
+        with self.assertRaises(ZoneException) as ctx:
+            Zone(
+                'unit.tests.',
+                [],
+                validators={
+                    'record': {'disable_validators': {'MX': ['_values-type']}}
+                },
+            )
+        self.assertIn(
+            'Cannot disable bridge validator "_values-type"', str(ctx.exception)
+        )
+        self.assertIn('unit.tests.', str(ctx.exception))
+
+    def test_bridge_zone_validator_rejected(self):
+        with self.assertRaises(ZoneException) as ctx:
+            Zone(
+                'unit.tests.',
+                [],
+                validators={'zone': {'disable_validators': ['_internal']}},
+            )
+        self.assertIn(
+            'Cannot disable bridge zone validator "_internal"',
+            str(ctx.exception),
+        )
+        self.assertIn('unit.tests.', str(ctx.exception))
+
+    def test_copy_propagates_validators_config(self):
+        zone = Zone(
+            'unit.tests.',
+            [],
+            validators={
+                'record': {'disable_validators': {'MX': ['mx-value']}},
+                'zone': {'disable_validators': ['dname-coexistence']},
+            },
+        )
+        copy = zone.copy()
+        self.assertEqual(zone.validators_config, copy.validators_config)
+        self.assertEqual(
+            zone.disabled_record_validators, copy.disabled_record_validators
+        )
+        self.assertEqual(
+            zone.disabled_zone_validators, copy.disabled_zone_validators
+        )
 
 
 class TestZoneGet(TestCase):

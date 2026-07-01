@@ -17,7 +17,7 @@ class AliasRootValidator(RecordValidator):
     type only has meaning at the apex.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         if name != '':
             return ['non-root ALIAS not allowed']
         return []

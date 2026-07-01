@@ -650,12 +650,64 @@ class TestConfigSchema(TestCase):
                         'processors': ['p1'],
                         'lenient': True,
                         'glob': '*.example.*',
+                        'validators': {
+                            'record': {
+                                'disable_validators': {'MX': ['mx-value']}
+                            },
+                            'zone': {
+                                'disable_validators': ['dname-coexistence']
+                            },
+                        },
                     },
                     '*.arpa.': {
                         'sources': ['config'],
                         'targets': ['route53'],
                         'regex': r'^.*\.arpa\.$',
                     },
+                },
+            }
+        )
+
+    def test_zone_validators_unknown_key_rejected(self):
+        self._invalid(
+            {
+                'providers': {},
+                'zones': {
+                    'example.com.': {
+                        'sources': ['config'],
+                        'targets': ['route53'],
+                        'validators': {'typo_record': {}},
+                    }
+                },
+            }
+        )
+
+    def test_zone_validators_record_unknown_key_rejected(self):
+        self._invalid(
+            {
+                'providers': {},
+                'zones': {
+                    'example.com.': {
+                        'sources': ['config'],
+                        'targets': ['route53'],
+                        'validators': {
+                            'record': {'typo_disable_validators': {}}
+                        },
+                    }
+                },
+            }
+        )
+
+    def test_zone_validators_zone_unknown_key_rejected(self):
+        self._invalid(
+            {
+                'providers': {},
+                'zones': {
+                    'example.com.': {
+                        'sources': ['config'],
+                        'targets': ['route53'],
+                        'validators': {'zone': {'typo_disable_validators': []}},
+                    }
                 },
             }
         )
