@@ -22,7 +22,9 @@ class TestZoneContext(TestCase):
     def test_zone_validate_context(self):
         class DummyValidator(ZoneValidator):
             def validate(self, zone):
-                return [ValidationReason('test-reason', [])]
+                return [
+                    ValidationReason('test-reason', [], validator_id=self.id)
+                ]
 
         with zone_validators_snapshot():
             Zone.register_zone_validator(DummyValidator('dummy'))
@@ -46,7 +48,9 @@ class TestZoneContext(TestCase):
         )
         r2.context = 'ctx2'
 
-        reason = ValidationReason('problem', [r1, r2])
+        reason = ValidationReason(
+            'problem', [r1, r2], validator_id='test-validator'
+        )
         self.assertIn('problem (ctx1, ctx2)', str(reason))
 
     def test_manager_get_zone_context(self):

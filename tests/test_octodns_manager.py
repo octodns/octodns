@@ -575,7 +575,11 @@ class TestManager(TestCase):
                 with patch.object(
                     Zone.validators,
                     'process_zone',
-                    return_value=[ValidationReason('zone is broken', [])],
+                    return_value=[
+                        ValidationReason(
+                            'zone is broken', [], validator_id='test-mock'
+                        )
+                    ],
                 ):
                     with self.assertRaises(ValidationError) as ctx:
                         manager.sync(
@@ -596,7 +600,11 @@ class TestManager(TestCase):
                 with patch.object(
                     Zone.validators,
                     'process_zone',
-                    return_value=[ValidationReason('zone is broken', [])],
+                    return_value=[
+                        ValidationReason(
+                            'zone is broken', [], validator_id='test-mock'
+                        )
+                    ],
                 ):
                     with self.assertLogs('Zone', level='WARNING') as logs:
                         manager.sync(dry_run=True)
@@ -613,7 +621,11 @@ class TestManager(TestCase):
                 with patch.object(
                     Zone.validators,
                     'process_zone',
-                    return_value=[ValidationReason('zone is broken', [])],
+                    return_value=[
+                        ValidationReason(
+                            'zone is broken', [], validator_id='test-mock'
+                        )
+                    ],
                 ):
                     with self.assertRaises(ValidationError) as ctx:
                         manager.dump(
@@ -632,7 +644,11 @@ class TestManager(TestCase):
                 with patch.object(
                     Zone.validators,
                     'process_zone',
-                    return_value=[ValidationReason('zone is broken', [])],
+                    return_value=[
+                        ValidationReason(
+                            'zone is broken', [], validator_id='test-mock'
+                        )
+                    ],
                 ):
                     with self.assertLogs('Zone', level='WARNING') as logs:
                         manager.dump(
@@ -652,7 +668,11 @@ class TestManager(TestCase):
             with patch.object(
                 Zone.validators,
                 'process_zone',
-                return_value=[ValidationReason('zone is broken', [])],
+                return_value=[
+                    ValidationReason(
+                        'zone is broken', [], validator_id='test-mock'
+                    )
+                ],
             ):
                 with self.assertRaises(ValidationError) as ctx:
                     Manager(
@@ -667,7 +687,11 @@ class TestManager(TestCase):
             with patch.object(
                 Zone.validators,
                 'process_zone',
-                return_value=[ValidationReason('zone is broken', [])],
+                return_value=[
+                    ValidationReason(
+                        'zone is broken', [], validator_id='test-mock'
+                    )
+                ],
             ):
                 with self.assertLogs('Zone', level='WARNING') as logs:
                     Manager(

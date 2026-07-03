@@ -4,6 +4,7 @@
 
 from logging import getLogger
 
+from ..deprecation import deprecated
 from .exception import ZoneException
 
 
@@ -75,7 +76,13 @@ class ZoneValidatorRegistry:
 
 
 class ValidationReason:
-    def __init__(self, reason, records):
+    def __init__(self, reason, records, validator_id=None):
+        if validator_id is None:
+            deprecated(
+                'omitting `validator_id` is DEPRECATED. It will be a required parameter as of 2.0',
+                stacklevel=3,
+            )
+        self.validator_id = validator_id
         self.reason = reason
         self.records = set(records)
 
@@ -90,6 +97,8 @@ class ValidationReason:
         }
         if contexts:
             msg += f" ({', '.join(sorted(contexts))})"
+        if self.validator_id:
+            msg += f', via: {self.validator_id}'
         return msg
 
     def __repr__(self):
@@ -111,6 +120,9 @@ class ZoneValidator:
     Every zone validator instance has a non-empty ``id`` — a short, stable,
     kebab-case identifier (e.g. ``'multi-value-mx'``). Config-registered
     validators receive their config key as ``id`` automatically.
+
+    When creating ``ValidationReason`` instances, pass ``validator_id=self.id``
+    so that error output can attribute each reason to its source validator.
 
     A config-registered validator whose id matches a built-in's replaces
     that built-in in the registry — e.g. defining a ``validators:`` entry
