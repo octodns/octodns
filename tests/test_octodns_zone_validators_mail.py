@@ -1006,6 +1006,17 @@ class TestMailZoneValidator(TestCase):
         self.assertEqual(1, len(reasons))
         self.assertIn('should have at least 2 values', str(reasons[0]))
 
+    def test_single_mx_provider_matches_without_trailing_dot(self):
+        # A known single-MX provider's exchange must still be recognized as
+        # exempt from the redundancy check even without a trailing dot (e.g.
+        # when the `mx-value-best-practice` trailing-dot validator has been
+        # disabled for the zone, or the data simply omits it).
+        zone = self._make_valid_mail_zone(
+            [{'preference': 10, 'exchange': 'mx.sendgrid.net'}]
+        )
+        v = MailZoneValidator('test', mode='mail')
+        self.assertEqual([], v.validate(zone))
+
     def test_single_mx_provider_postmark_exempt(self):
         zone = self._make_valid_mail_zone(
             [{'preference': 10, 'exchange': 'inbound.postmarkapp.com.'}]
