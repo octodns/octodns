@@ -1344,12 +1344,12 @@ class Manager(object):
                     f'Zone {decoded_zone_name}, unknown source: ' + source
                 )
 
-            lenient = lenient or config.get('lenient', False)
+            zone_lenient = lenient or config.get('lenient', False)
             for source in sources:
                 if isinstance(source, YamlProvider):
-                    source.populate(zone, lenient=lenient)
+                    source.populate(zone, lenient=zone_lenient)
 
-            zone.validate(lenient=lenient)
+            zone.validate(lenient=zone_lenient)
 
             # check that processors are in order if any are specified
             processors = config.get('processors') or []
