@@ -57,7 +57,10 @@ class MailZoneValidator(ZoneValidator):
     # MX exchanges of providers known to (correctly) operate with a single MX
     # record. A record with exactly one value whose exchange matches one of
     # these patterns is exempt from the ``min_mx`` redundancy check. Patterns
-    # are matched via re.search against the exchange including its trailing dot.
+    # are matched via re.search against the exchange, normalized to always
+    # include a trailing dot (see ``_is_single_mx_provider``) so an exchange
+    # missing one (e.g. the ``mx-value-best-practice`` trailing-dot check was
+    # disabled for the zone) still matches.
     #
     # PRs welcome: if you run across another reputable provider that only hands
     # out a single MX, please add it here.
@@ -94,6 +97,11 @@ class MailZoneValidator(ZoneValidator):
     def _is_single_mx_provider(self, mx_record):
         # called only when mx_record has exactly one value
         exchange = str(mx_record.values[0].exchange)
+        # normalize so a value missing its trailing dot (e.g. the
+        # trailing-dot best-practice validator was disabled for this zone)
+        # still matches the (dot-anchored) known-provider patterns.
+        if not exchange.endswith('.'):
+            exchange += '.'
         return any(r.search(exchange) for r in self._single_mx_res)
 
     def _is_null_mx(self, mx_record):
