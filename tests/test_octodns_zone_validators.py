@@ -37,16 +37,16 @@ class TestValidationError(TestCase):
         self.assertNotIn('ctx', str(err2))
 
     def test_validation_error_via(self):
-        # build_message includes "via: <id>" indented under each reason that has
-        # a validator_id, and omits it when validator_id is absent.
+        # build_message relies on ValidationReason.__str__ to append ", via:
+        # <id>" on the same line for reasons that have a validator_id, and
+        # omit it when validator_id is absent.
         with_id = ValidationReason('flagged', [], validator_id='my-validator')
         without_id = ValidationReason('also-flagged', [])
 
         msg = ValidationError.build_message(
             'unit.tests.', [with_id, without_id]
         )
-        self.assertIn('flagged', msg)
-        self.assertIn('    via: my-validator', msg)
+        self.assertIn('flagged, via: my-validator', msg)
         self.assertIn('also-flagged', msg)
         # "via:" should only appear once (for the reason that has a validator_id)
         self.assertEqual(msg.count('via:'), 1)
@@ -69,7 +69,7 @@ class TestZoneValidatorBase(TestCase):
         reason = ValidationReason(
             'problem', [r1], validator_id='test-validator'
         )
-        self.assertEqual('problem', str(reason))
+        self.assertEqual('problem, via: test-validator', str(reason))
         self.assertEqual('problem', repr(reason))
         self.assertFalse(reason.lenient)
 
@@ -84,12 +84,14 @@ class TestZoneValidatorBase(TestCase):
         self.assertTrue(reason2.lenient)
 
     def test_validation_reason_validator_id(self):
-        # validator_id is stored and does not appear in str() — that belongs to
-        # build_message so that presentation concerns stay in one place.
+        # validator_id is stored and appears in str() as a ", via: <id>" suffix
+        # on the same line as the reason.
         reason = ValidationReason('problem', [], validator_id='my-validator')
         self.assertEqual('my-validator', reason.validator_id)
-        self.assertEqual('problem', str(reason))
-        self.assertNotIn('via:', str(reason))
+        self.assertEqual('problem, via: my-validator', str(reason))
+
+        without_id = ValidationReason('problem', [])
+        self.assertEqual('problem', str(without_id))
 
         # Omitting validator_id emits a DeprecationWarning.
         with self.assertWarns(DeprecationWarning):

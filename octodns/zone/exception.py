@@ -12,13 +12,7 @@ class ZoneException(Exception):
 class ValidationError(ZoneException):
     @classmethod
     def build_message(cls, zone_name, reasons, context=None):
-        def _reason_str(r):
-            s = str(r)
-            if getattr(r, 'validator_id', None):
-                s += f'\n    via: {r.validator_id}'
-            return s
-
-        reasons = '\n  - '.join([_reason_str(r) for r in reasons])
+        reasons = '\n  - '.join([str(r) for r in reasons])
         msg = f'Invalid zone "{idna_decode(zone_name)}"'
         if context:
             msg += f', {context}'
