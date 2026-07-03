@@ -7,7 +7,7 @@ import re
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class CaaValueValidator(ValueValidator):
@@ -22,14 +22,27 @@ class CaaValueValidator(ValueValidator):
             try:
                 flags = int(value.get('flags', 0))
                 if flags < 0 or flags > 255:
-                    reasons.append(f'invalid flags "{flags}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid flags "{flags}"', validator_id=self.id
+                        )
+                    )
             except ValueError:
-                reasons.append(f'invalid flags "{value["flags"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid flags "{value["flags"]}"',
+                        validator_id=self.id,
+                    )
+                )
 
             if 'tag' not in value:
-                reasons.append('missing tag')
+                reasons.append(
+                    ValidationReason('missing tag', validator_id=self.id)
+                )
             if 'value' not in value:
-                reasons.append('missing value')
+                reasons.append(
+                    ValidationReason('missing value', validator_id=self.id)
+                )
         return reasons
 
 
@@ -57,19 +70,35 @@ class CaaValueRfcValidator(ValueValidator):
                 flags = int(value.get('flags', 0))
                 if flags not in (0, 128):
                     reasons.append(
-                        f'flags "{flags}" is not valid; must be 0 or 128'
+                        ValidationReason(
+                            f'flags "{flags}" is not valid; must be 0 or 128',
+                            validator_id=self.id,
+                        )
                     )
             except (ValueError, TypeError):
-                reasons.append(f'invalid flags "{value["flags"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid flags "{value["flags"]}"',
+                        validator_id=self.id,
+                    )
+                )
 
             tag = value.get('tag')
             if not tag:
-                reasons.append('missing tag')
+                reasons.append(
+                    ValidationReason('missing tag', validator_id=self.id)
+                )
             elif not self._tag_re.match(tag):
-                reasons.append(f'invalid tag "{tag}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid tag "{tag}"', validator_id=self.id
+                    )
+                )
 
             if 'value' not in value:
-                reasons.append('missing value')
+                reasons.append(
+                    ValidationReason('missing value', validator_id=self.id)
+                )
         return reasons
 
 
@@ -94,7 +123,10 @@ class CaaValueBestPracticeValidator(ValueValidator):
         tags = {v.get('tag') for v in data}
         if 'issue' in tags and 'issuewild' not in tags:
             return [
-                'CAA issue tag is present without issuewild; add an explicit issuewild to clarify wildcard certificate policy'
+                ValidationReason(
+                    'CAA issue tag is present without issuewild; add an explicit issuewild to clarify wildcard certificate policy',
+                    validator_id=self.id,
+                )
             ]
         return []
 

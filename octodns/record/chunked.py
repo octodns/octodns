@@ -5,7 +5,7 @@
 import re
 
 from .base import ValuesMixin
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class ChunkedValueValidator(ValueValidator):
@@ -19,22 +19,37 @@ class ChunkedValueValidator(ValueValidator):
 
     def validate(self, value_cls, data, _type):
         if not data:
-            return ['missing value(s)']
+            return [ValidationReason('missing value(s)', validator_id=self.id)]
         elif not isinstance(data, (list, tuple)):
             data = (data,)
         reasons = []
         for value in data:
             if value is None:
-                reasons.append('missing value(s)')
+                reasons.append(
+                    ValidationReason('missing value(s)', validator_id=self.id)
+                )
                 continue
             if self._unescaped_semicolon_re.search(value):
-                reasons.append(f'unescaped ; in "{value}"')
+                reasons.append(
+                    ValidationReason(
+                        f'unescaped ; in "{value}"', validator_id=self.id
+                    )
+                )
             if self._double_escaped_semicolon_re.search(value):
-                reasons.append(f'double escaped ; in "{value}"')
+                reasons.append(
+                    ValidationReason(
+                        f'double escaped ; in "{value}"', validator_id=self.id
+                    )
+                )
             try:
                 value.encode('ascii')
             except UnicodeEncodeError:
-                reasons.append(f'non ASCII character in "{value}"')
+                reasons.append(
+                    ValidationReason(
+                        f'non ASCII character in "{value}"',
+                        validator_id=self.id,
+                    )
+                )
         return reasons
 
 

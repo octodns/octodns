@@ -9,7 +9,7 @@ from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class DsValueValidator(ValueValidator):
@@ -36,47 +36,103 @@ class DsValueValidator(ValueValidator):
                 try:
                     int(value['flags'])
                 except KeyError:
-                    reasons.append('missing flags')
+                    reasons.append(
+                        ValidationReason('missing flags', validator_id=self.id)
+                    )
                 except ValueError:
-                    reasons.append(f'invalid flags "{value["flags"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid flags "{value["flags"]}"',
+                            validator_id=self.id,
+                        )
+                    )
                 try:
                     int(value['protocol'])
                 except KeyError:
-                    reasons.append('missing protocol')
+                    reasons.append(
+                        ValidationReason(
+                            'missing protocol', validator_id=self.id
+                        )
+                    )
                 except ValueError:
-                    reasons.append(f'invalid protocol "{value["protocol"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid protocol "{value["protocol"]}"',
+                            validator_id=self.id,
+                        )
+                    )
                 try:
                     int(value['algorithm'])
                 except KeyError:
-                    reasons.append('missing algorithm')
+                    reasons.append(
+                        ValidationReason(
+                            'missing algorithm', validator_id=self.id
+                        )
+                    )
                 except ValueError:
-                    reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid algorithm "{value["algorithm"]}"',
+                            validator_id=self.id,
+                        )
+                    )
                 if 'public_key' not in value:
-                    reasons.append('missing public_key')
+                    reasons.append(
+                        ValidationReason(
+                            'missing public_key', validator_id=self.id
+                        )
+                    )
 
             else:
                 try:
                     int(value['key_tag'])
                 except KeyError:
-                    reasons.append('missing key_tag')
+                    reasons.append(
+                        ValidationReason(
+                            'missing key_tag', validator_id=self.id
+                        )
+                    )
                 except ValueError:
-                    reasons.append(f'invalid key_tag "{value["key_tag"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid key_tag "{value["key_tag"]}"',
+                            validator_id=self.id,
+                        )
+                    )
                 try:
                     int(value['algorithm'])
                 except KeyError:
-                    reasons.append('missing algorithm')
+                    reasons.append(
+                        ValidationReason(
+                            'missing algorithm', validator_id=self.id
+                        )
+                    )
                 except ValueError:
-                    reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid algorithm "{value["algorithm"]}"',
+                            validator_id=self.id,
+                        )
+                    )
                 try:
                     int(value['digest_type'])
                 except KeyError:
-                    reasons.append('missing digest_type')
+                    reasons.append(
+                        ValidationReason(
+                            'missing digest_type', validator_id=self.id
+                        )
+                    )
                 except ValueError:
                     reasons.append(
-                        f'invalid digest_type "{value["digest_type"]}"'
+                        ValidationReason(
+                            f'invalid digest_type "{value["digest_type"]}"',
+                            validator_id=self.id,
+                        )
                     )
                 if 'digest' not in value:
-                    reasons.append('missing digest')
+                    reasons.append(
+                        ValidationReason('missing digest', validator_id=self.id)
+                    )
         return reasons
 
 
@@ -117,30 +173,52 @@ class DsValueRfcValidator(ValueValidator):
                 ('digest_type', 255),
             ):
                 if field not in value:
-                    reasons.append(f'missing {field}')
+                    reasons.append(
+                        ValidationReason(
+                            f'missing {field}', validator_id=self.id
+                        )
+                    )
                 else:
                     try:
                         int_val = int(value[field])
                         if not 0 <= int_val <= max_val:
                             reasons.append(
-                                f'invalid {field} "{int_val}"; must be 0-{max_val}'
+                                ValidationReason(
+                                    f'invalid {field} "{int_val}"; must be 0-{max_val}',
+                                    validator_id=self.id,
+                                )
                             )
                         elif field == 'digest_type':
                             digest_type = int_val
                     except (ValueError, TypeError):
-                        reasons.append(f'invalid {field} "{value[field]}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid {field} "{value[field]}"',
+                                validator_id=self.id,
+                            )
+                        )
 
             if 'digest' not in value:
-                reasons.append('missing digest')
+                reasons.append(
+                    ValidationReason('missing digest', validator_id=self.id)
+                )
             else:
                 digest = value['digest']
                 if not digest or not self._hex_re.match(str(digest)):
-                    reasons.append(f'invalid digest "{digest}"; must be hex')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid digest "{digest}"; must be hex',
+                            validator_id=self.id,
+                        )
+                    )
                 elif digest_type in self._digest_type_lengths:
                     expected = self._digest_type_lengths[digest_type]
                     if len(str(digest)) != expected:
                         reasons.append(
-                            f'digest must be {expected} hex characters for digest_type {digest_type}'
+                            ValidationReason(
+                                f'digest must be {expected} hex characters for digest_type {digest_type}',
+                                validator_id=self.id,
+                            )
                         )
         return reasons
 
@@ -181,7 +259,10 @@ class DsValueBestPracticeValidator(ValueValidator):
                 if algorithm in self._deprecated_algorithms:
                     name = self._deprecated_algorithms[algorithm]
                     reasons.append(
-                        f'DS algorithm {algorithm} ({name}) is deprecated per RFC 8624'
+                        ValidationReason(
+                            f'DS algorithm {algorithm} ({name}) is deprecated per RFC 8624',
+                            validator_id=self.id,
+                        )
                     )
             except (KeyError, ValueError, TypeError):
                 pass
@@ -189,7 +270,10 @@ class DsValueBestPracticeValidator(ValueValidator):
                 digest_type = int(value['digest_type'])
                 if digest_type == 1:
                     reasons.append(
-                        'DS digest_type 1 (SHA-1) is not recommended per RFC 8624; use digest_type 2 (SHA-256)'
+                        ValidationReason(
+                            'DS digest_type 1 (SHA-1) is not recommended per RFC 8624; use digest_type 2 (SHA-256)',
+                            validator_id=self.id,
+                        )
                     )
             except (KeyError, ValueError, TypeError):
                 pass

@@ -3,7 +3,7 @@
 #
 
 from .base import Record, ValuesMixin
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class OpenpgpkeyValueValidator(ValueValidator):
@@ -14,7 +14,7 @@ class OpenpgpkeyValueValidator(ValueValidator):
 
     def validate(self, value_cls, data, _type):
         if not data or all(not d for d in data):
-            return ['missing value(s)']
+            return [ValidationReason('missing value(s)', validator_id=self.id)]
         return []
 
 

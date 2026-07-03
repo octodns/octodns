@@ -4,8 +4,10 @@
 
 from logging import getLogger
 
-from ..deprecation import deprecated
+from ..record.validator import ValidationReason
 from .exception import ZoneException
+
+__all__ = ['ValidationReason', 'ZoneValidator', 'ZoneValidatorRegistry']
 
 
 class ZoneValidatorRegistry:
@@ -73,36 +75,6 @@ class ZoneValidatorRegistry:
             reasons.extend(validator.validate(zone))
 
         return reasons
-
-
-class ValidationReason:
-    def __init__(self, reason, records, validator_id=None):
-        if validator_id is None:
-            deprecated(
-                'omitting `validator_id` is DEPRECATED. It will be a required parameter as of 2.0',
-                stacklevel=3,
-            )
-        self.validator_id = validator_id
-        self.reason = reason
-        self.records = set(records)
-
-    @property
-    def lenient(self):
-        return bool(self.records) and all(r.lenient for r in self.records)
-
-    def __str__(self):
-        msg = self.reason
-        contexts = {
-            r.context for r in self.records if getattr(r, 'context', None)
-        }
-        if contexts:
-            msg += f" ({', '.join(sorted(contexts))})"
-        if self.validator_id:
-            msg += f', via: {self.validator_id}'
-        return msg
-
-    def __repr__(self):
-        return self.reason
 
 
 class ZoneValidator:

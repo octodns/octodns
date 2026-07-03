@@ -5,7 +5,7 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class LocValueValidator(ValueValidator):
@@ -56,12 +56,22 @@ class LocValueValidator(ValueValidator):
                         )
                     ):
                         reasons.append(
-                            f'invalid value for {key} ' f'"{value[key]}"'
+                            ValidationReason(
+                                f'invalid value for {key} "{value[key]}"',
+                                validator_id=self.id,
+                            )
                         )
                 except KeyError:
-                    reasons.append(f'missing {key}')
+                    reasons.append(
+                        ValidationReason(f'missing {key}', validator_id=self.id)
+                    )
                 except ValueError:
-                    reasons.append(f'invalid {key} "{value[key]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid {key} "{value[key]}"',
+                            validator_id=self.id,
+                        )
+                    )
 
             for key in float_keys:
                 try:
@@ -83,26 +93,44 @@ class LocValueValidator(ValueValidator):
                         )
                     ):
                         reasons.append(
-                            f'invalid value for {key} ' f'"{value[key]}"'
+                            ValidationReason(
+                                f'invalid value for {key} "{value[key]}"',
+                                validator_id=self.id,
+                            )
                         )
                 except KeyError:
-                    reasons.append(f'missing {key}')
+                    reasons.append(
+                        ValidationReason(f'missing {key}', validator_id=self.id)
+                    )
                 except ValueError:
-                    reasons.append(f'invalid {key} "{value[key]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid {key} "{value[key]}"',
+                            validator_id=self.id,
+                        )
+                    )
 
             for key in direction_keys:
                 try:
                     str(value[key])
                     if key == 'lat_direction' and value[key] not in ['N', 'S']:
                         reasons.append(
-                            f'invalid direction for {key} ' f'"{value[key]}"'
+                            ValidationReason(
+                                f'invalid direction for {key} "{value[key]}"',
+                                validator_id=self.id,
+                            )
                         )
                     if key == 'long_direction' and value[key] not in ['E', 'W']:
                         reasons.append(
-                            f'invalid direction for {key} ' f'"{value[key]}"'
+                            ValidationReason(
+                                f'invalid direction for {key} "{value[key]}"',
+                                validator_id=self.id,
+                            )
                         )
                 except KeyError:
-                    reasons.append(f'missing {key}')
+                    reasons.append(
+                        ValidationReason(f'missing {key}', validator_id=self.id)
+                    )
         return reasons
 
 
