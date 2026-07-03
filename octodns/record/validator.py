@@ -174,6 +174,10 @@ class ValidationReason(str):
     '''
 
     def __new__(cls, reason, records=(), validator_id=None):
+        # str content is fixed at __new__ time (str is immutable), so this
+        # must exist to make the content `reason` alone; otherwise str.__new__
+        # would be called with `records`/`validator_id` too and raise a
+        # TypeError.
         return super().__new__(cls, reason)
 
     def __init__(self, reason, records=(), validator_id=None):
