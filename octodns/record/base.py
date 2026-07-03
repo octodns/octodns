@@ -234,7 +234,16 @@ class Record(EqualityTupleMixin):
                 msg += f', {context}'
             raise Exception(msg)
         disabled = zone.disabled_record_validators
-        reasons.extend(_class.validate(name, fqdn, data, disabled=disabled))
+        try:
+            reasons.extend(_class.validate(name, fqdn, data, disabled=disabled))
+        except TypeError as e:
+            if "unexpected keyword argument 'disabled'" not in str(e):
+                raise
+            deprecated(
+                f'`validate` without the `disabled` param is DEPRECATED. Will be removed in 2.0. Class {_class.__name__}',
+                stacklevel=3,
+            )
+            reasons.extend(_class.validate(name, fqdn, data))
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
