@@ -28,7 +28,7 @@ class NameValidator(RecordValidator):
     limits from RFC 1035, and flags empty/double-dot labels.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         reasons = []
         if name == '@':
             reasons.append(
@@ -71,7 +71,7 @@ class TtlValidator(RecordValidator):
     integer.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         reasons = []
         try:
             ttl = int(data['ttl'])
@@ -92,7 +92,7 @@ class HealthcheckValidator(RecordValidator):
     present, is one of the supported protocols.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         reasons = []
         try:
             if data['octodns']['healthcheck']['protocol'] not in (
@@ -122,9 +122,12 @@ class ValueTypeValidator(RecordValidator):
     def __init__(self):
         super().__init__(id='_value-type')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         return _process_value_validators(
-            record_cls._value_type, data.get('value', None), record_cls._type
+            record_cls._value_type,
+            data.get('value', None),
+            record_cls._type,
+            disabled=disabled,
         )
 
 
@@ -140,7 +143,7 @@ class ValuesTypeValidator(RecordValidator):
     def __init__(self):
         super().__init__(id='_values-type')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         values = data.get('values', data.get('value', []))
         values = (
             values
@@ -148,7 +151,7 @@ class ValuesTypeValidator(RecordValidator):
             else ([] if values is None else [values])
         )
         return _process_value_validators(
-            record_cls._value_type, values, record_cls._type
+            record_cls._value_type, values, record_cls._type, disabled=disabled
         )
 
 
@@ -253,7 +256,17 @@ class Record(EqualityTupleMixin):
             if context:
                 msg += f', {context}'
             raise Exception(msg)
-        reasons.extend(_class.validate(name, fqdn, data))
+        disabled = zone.disabled_record_validators
+        try:
+            reasons.extend(_class.validate(name, fqdn, data, disabled=disabled))
+        except TypeError as e:
+            if "unexpected keyword argument 'disabled'" not in str(e):
+                raise
+            deprecated(
+                f'`validate` without the `disabled` param is DEPRECATED. Will be removed in 2.0. Class {_class.__name__}',
+                stacklevel=3,
+            )
+            reasons.extend(_class.validate(name, fqdn, data))
         try:
             lenient |= data['octodns']['lenient']
         except KeyError:
@@ -268,12 +281,14 @@ class Record(EqualityTupleMixin):
         return _class(zone, name, data, source=source, context=context)
 
     @classmethod
-    def _process_validators(cls, name, fqdn, data):
-        return cls.validators.process_record(cls, name, fqdn, data)
+    def _process_validators(cls, name, fqdn, data, disabled=None):
+        return cls.validators.process_record(
+            cls, name, fqdn, data, disabled=disabled
+        )
 
     @classmethod
-    def validate(cls, name, fqdn, data):
-        return cls._process_validators(name, fqdn, data)
+    def validate(cls, name, fqdn, data, disabled=None):
+        return cls._process_validators(name, fqdn, data, disabled=disabled)
 
     @classmethod
     def from_rrs(cls, zone, rrs, lenient=False, source=None):
@@ -458,8 +473,10 @@ class Record(EqualityTupleMixin):
         raise NotImplementedError('Abstract base class, __repr__ required')
 
 
-def _process_value_validators(value_type, values, _type):
-    return Record.validators.process_values(value_type, values, _type)
+def _process_value_validators(value_type, values, _type, disabled=None):
+    return Record.validators.process_values(
+        value_type, values, _type, disabled=disabled
+    )
 
 
 class ValuesMixin(object):

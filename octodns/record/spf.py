@@ -12,7 +12,7 @@ class SpfRecordTypeValidator(RecordValidator):
     Validates that the deprecated SPF record type is not used.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         return [
             ValidationReason(
                 'The SPF record type is DEPRECATED in favor of TXT values and will become an ValidationError in 2.0',

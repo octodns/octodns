@@ -183,6 +183,32 @@ class TestBaseProvider(TestCase):
         self.assertEqual(1, len(plan.changes))
         self.assertIsNone(plan.meta)
 
+    def test_plan_existing_zone_inherits_validators_config(self):
+        # The `existing` zone built inside plan() must carry over the
+        # `desired` zone's per-zone validators config, otherwise a
+        # validator disabled for this zone via `desired` would still run
+        # (and warn, since populate(existing, ...) is always lenient) when
+        # populating the current/existing state.
+        class CapturingProvider(HelperProvider):
+            def populate(self, zone, target=False, lenient=False):
+                self.captured_zone = zone
+                return True
+
+        desired = Zone(
+            'unit.tests.',
+            [],
+            validators={
+                'record': {'disable_validators': {'*': ['healthcheck']}}
+            },
+        )
+        provider = CapturingProvider([])
+        provider.plan(desired)
+
+        self.assertEqual(
+            desired.disabled_record_validators,
+            provider.captured_zone.disabled_record_validators,
+        )
+
     def test_plan_meta(self):
         class HasMetaProvider(HelperProvider):
             def _plan_meta(self, *args, **kwargs):

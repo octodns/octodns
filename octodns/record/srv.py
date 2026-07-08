@@ -25,7 +25,7 @@ class SrvNameValidator(RecordValidator):
 
     _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         if not self._name_re.match(name):
             return [
                 ValidationReason(
@@ -128,7 +128,7 @@ class SrvNameRfcValidator(RecordValidator):
             return False
         return all(c.isalnum() or c == '-' for c in body)
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         labels = name.split('.') if name else []
         if len(labels) < 2:
             return [
