@@ -1,3 +1,16 @@
+## 1.21.0 - 2026-07-08
+
+Minor:
+* Add per-zone validators.record.disable_validators and validators.zone.disable_validators to selectively disable built-in validators for individual zones, additive to the global manager.validators config - [#1441](https://github.com/octodns/octodns/pull/1441)
+* Convert record/value validator reasons to `ValidationReason` objects, unifying with zone-level validators and surfacing `via: <validator-id>` attribution in record/value `ValidationError` messages - [#1443](https://github.com/octodns/octodns/pull/1443)
+* Add required validator_id parameter to ValidatorReason - [#1439](https://github.com/octodns/octodns/pull/1439)
+
+Patch:
+* Fix MailZoneValidator's single-MX provider exemption to match known providers even when the MX exchange is missing its trailing dot (e.g. when the mx-value-best-practice validator is disabled for a zone) - [#1442](https://github.com/octodns/octodns/pull/1442)
+* Fix lenient parameter leak across zones in validate_configs - [#1440](https://github.com/octodns/octodns/pull/1440)
+* Collapse remaining multi-line string concatenations to avoid f-string interpolation bugs - [#1438](https://github.com/octodns/octodns/pull/1438)
+* Fix broken f-string interpolation in alias zone error message and Geo repr - [#1437](https://github.com/octodns/octodns/pull/1437)
+
 ## 1.20.0 - 2026-06-21
 
 Minor:
