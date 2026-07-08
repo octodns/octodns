@@ -5,7 +5,7 @@ SCRIPT_PATH="$(dirname -- "$(readlink -f -- "${0}")")"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
-SOURCES="$(find *.py octodns tests docs -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
+SOURCES="$(find octodns tests docs -name '*.py') $(grep --files-with-matches '^#!.*python' script/*)"
 
 PRAGMA_OUTPUT=$(grep -r -I --line-number "\<p\?print(" octodns/ tests/ || echo)
 PRAGMA_COUNT=$(echo "$PRAGMA_OUTPUT" | grep -c . || true)

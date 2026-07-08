@@ -13,7 +13,7 @@ pip install build setuptools
 echo "## environment & versions ######################################################"
 python --version
 pip --version
-echo "## validate setup.py build #####################################################"
+echo "## validate package build #######################################################"
 python -m build --sdist --wheel
 echo "## validate wheel install ###################################################"
 pip install dist/*$VERSION*.whl
