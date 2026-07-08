@@ -72,6 +72,7 @@ class CaaZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'zone "{zone.decoded_name}" has no CAA records at the apex',
                     set(),
+                    validator_id=self.id,
                 )
             )
 
@@ -91,6 +92,7 @@ class CaaZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'CAA record "{record.fqdn}" has no ``issue`` or ``issuewild`` tag; having only ``iodef`` means any CA can issue certificates',
                         [record],
+                        validator_id=self.id,
                     )
                 )
 
@@ -101,6 +103,7 @@ class CaaZoneValidator(ZoneValidator):
                     ValidationReason(
                         f'CAA record "{record.fqdn}" has ``issue`` but no ``issuewild``; consider adding an explicit ``issuewild`` to define wildcard certificate policy',
                         [record],
+                        validator_id=self.id,
                     )
                 )
 

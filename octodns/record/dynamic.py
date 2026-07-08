@@ -10,7 +10,7 @@ from .base import _process_value_validators
 from .change import Update
 from .geo import GeoCodes
 from .subnet import Subnets
-from .validator import RecordValidator
+from .validator import RecordValidator, ValidationReason
 
 
 class DynamicValidator(RecordValidator):
@@ -27,7 +27,11 @@ class DynamicValidator(RecordValidator):
         if 'dynamic' not in data:
             return reasons
         elif 'geo' in data:
-            reasons.append('"dynamic" record with "geo" content')
+            reasons.append(
+                ValidationReason(
+                    '"dynamic" record with "geo" content', validator_id=self.id
+                )
+            )
 
         try:
             pools = data['dynamic']['pools']
@@ -35,7 +39,9 @@ class DynamicValidator(RecordValidator):
             pools = {}
 
         pool_reasons, pools_exist, pools_seen_as_fallback = (
-            record_cls._validate_pools(pools, disabled=disabled)
+            record_cls._validate_pools(
+                pools, disabled=disabled, validator_id=self.id
+            )
         )
         reasons.extend(pool_reasons)
 
@@ -44,13 +50,19 @@ class DynamicValidator(RecordValidator):
         except KeyError:
             rules = []
 
-        rule_reasons, pools_seen = record_cls._validate_rules(pools, rules)
+        rule_reasons, pools_seen = record_cls._validate_rules(
+            pools, rules, validator_id=self.id
+        )
         reasons.extend(rule_reasons)
 
         unused = pools_exist - pools_seen - pools_seen_as_fallback
         if unused:
             unused = '", "'.join(sorted(unused))
-            reasons.append(f'unused pools: "{unused}"')
+            reasons.append(
+                ValidationReason(
+                    f'unused pools: "{unused}"', validator_id=self.id
+                )
+            )
 
         return reasons
 
@@ -239,23 +251,39 @@ class _DynamicMixin(object):
         }
 
     @classmethod
-    def _validate_pools(cls, pools, disabled=None):
+    def _validate_pools(cls, pools, disabled=None, validator_id=None):
         reasons = []
         pools_exist = set()
         pools_seen_as_fallback = set()
         if not isinstance(pools, dict):
-            reasons.append('pools must be a dict')
+            reasons.append(
+                ValidationReason(
+                    'pools must be a dict', validator_id=validator_id
+                )
+            )
         elif not pools:
-            reasons.append('missing pools')
+            reasons.append(
+                ValidationReason('missing pools', validator_id=validator_id)
+            )
         else:
             for _id, pool in sorted(pools.items()):
                 if not isinstance(pool, dict):
-                    reasons.append(f'pool "{_id}" must be a dict')
+                    reasons.append(
+                        ValidationReason(
+                            f'pool "{_id}" must be a dict',
+                            validator_id=validator_id,
+                        )
+                    )
                     continue
                 try:
                     values = pool['values']
                 except KeyError:
-                    reasons.append(f'pool "{_id}" is missing values')
+                    reasons.append(
+                        ValidationReason(
+                            f'pool "{_id}" is missing values',
+                            validator_id=validator_id,
+                        )
+                    )
                     continue
 
                 pools_exist.add(_id)
@@ -267,20 +295,29 @@ class _DynamicMixin(object):
                         weight = int(weight)
                         if weight < 1 or weight > 100:
                             reasons.append(
-                                f'invalid weight "{weight}" in pool "{_id}" value {value_num}'
+                                ValidationReason(
+                                    f'invalid weight "{weight}" in pool "{_id}" value {value_num}',
+                                    validator_id=validator_id,
+                                )
                             )
                     except KeyError:
                         pass
                     except ValueError:
                         reasons.append(
-                            f'invalid weight "{weight}" in pool "{_id}" value {value_num}'
+                            ValidationReason(
+                                f'invalid weight "{weight}" in pool "{_id}" value {value_num}',
+                                validator_id=validator_id,
+                            )
                         )
 
                     try:
                         status = value['status']
                         if status not in ['up', 'down', 'obey']:
                             reasons.append(
-                                f'invalid status "{status}" in pool "{_id}" value {value_num}'
+                                ValidationReason(
+                                    f'invalid status "{status}" in pool "{_id}" value {value_num}',
+                                    validator_id=validator_id,
+                                )
                             )
                     except KeyError:
                         pass
@@ -297,12 +334,18 @@ class _DynamicMixin(object):
                         )
                     except KeyError:
                         reasons.append(
-                            f'missing value in pool "{_id}" value {value_num}'
+                            ValidationReason(
+                                f'missing value in pool "{_id}" value {value_num}',
+                                validator_id=validator_id,
+                            )
                         )
 
                 if len(values) == 1 and values[0].get('weight', 1) != 1:
                     reasons.append(
-                        f'pool "{_id}" has single value with weight!=1'
+                        ValidationReason(
+                            f'pool "{_id}" has single value with weight!=1',
+                            validator_id=validator_id,
+                        )
                     )
 
                 fallback = pool.get('fallback', None)
@@ -311,7 +354,10 @@ class _DynamicMixin(object):
                         pools_seen_as_fallback.add(fallback)
                     else:
                         reasons.append(
-                            f'undefined fallback "{fallback}" for pool "{_id}"'
+                            ValidationReason(
+                                f'undefined fallback "{fallback}" for pool "{_id}"',
+                                validator_id=validator_id,
+                            )
                         )
 
                 # Check for loops
@@ -322,7 +368,12 @@ class _DynamicMixin(object):
                     fallback = pools.get(fallback, {}).get('fallback', None)
                     if fallback in seen:
                         loop = ' -> '.join(seen)
-                        reasons.append(f'loop in pool fallbacks: {loop}')
+                        reasons.append(
+                            ValidationReason(
+                                f'loop in pool fallbacks: {loop}',
+                                validator_id=validator_id,
+                            )
+                        )
                         # exit the loop
                         break
                     seen.append(fallback)
@@ -330,7 +381,7 @@ class _DynamicMixin(object):
         return reasons, pools_exist, pools_seen_as_fallback
 
     @classmethod
-    def _validate_rules(cls, pools, rules):
+    def _validate_rules(cls, pools, rules, validator_id=None):
         reasons = []
         pools_seen = set()
 
@@ -338,9 +389,15 @@ class _DynamicMixin(object):
         geos_seen = {}
 
         if not isinstance(rules, (list, tuple)):
-            reasons.append('rules must be a list')
+            reasons.append(
+                ValidationReason(
+                    'rules must be a list', validator_id=validator_id
+                )
+            )
         elif not rules:
-            reasons.append('missing rules')
+            reasons.append(
+                ValidationReason('missing rules', validator_id=validator_id)
+            )
         else:
             seen_default = False
 
@@ -349,22 +406,38 @@ class _DynamicMixin(object):
                 try:
                     pool = rule['pool']
                 except KeyError:
-                    reasons.append(f'rule {rule_num} missing pool')
+                    reasons.append(
+                        ValidationReason(
+                            f'rule {rule_num} missing pool',
+                            validator_id=validator_id,
+                        )
+                    )
                     continue
 
                 subnets = rule.get('subnets', [])
                 geos = rule.get('geos', [])
 
                 if not isinstance(pool, str):
-                    reasons.append(f'rule {rule_num} invalid pool "{pool}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'rule {rule_num} invalid pool "{pool}"',
+                            validator_id=validator_id,
+                        )
+                    )
                 else:
                     if pool not in pools:
                         reasons.append(
-                            f'rule {rule_num} undefined pool ' f'"{pool}"'
+                            ValidationReason(
+                                f'rule {rule_num} undefined pool "{pool}"',
+                                validator_id=validator_id,
+                            )
                         )
                     elif pool in pools_seen and (subnets or geos):
                         reasons.append(
-                            f'rule {rule_num} invalid, target pool "{pool}" reused'
+                            ValidationReason(
+                                f'rule {rule_num} invalid, target pool "{pool}" reused',
+                                validator_id=validator_id,
+                            )
                         )
                     pools_seen.add(pool)
 
@@ -376,25 +449,45 @@ class _DynamicMixin(object):
                     if subnets and geos:
                         if not previous_subnets and previous_geos:
                             reasons.append(
-                                f'rule {rule_num} with subnet(s) and geo(s) should appear before all geo-only rules'
+                                ValidationReason(
+                                    f'rule {rule_num} with subnet(s) and geo(s) should appear before all geo-only rules',
+                                    validator_id=validator_id,
+                                )
                             )
                     elif subnets:
                         if previous_geos:
                             reasons.append(
-                                f'rule {rule_num} with only subnet targeting should appear before all geo targeting rules'
+                                ValidationReason(
+                                    f'rule {rule_num} with only subnet targeting should appear before all geo targeting rules',
+                                    validator_id=validator_id,
+                                )
                             )
 
                 if not (subnets or geos):
                     if seen_default:
-                        reasons.append(f'rule {rule_num} duplicate default')
+                        reasons.append(
+                            ValidationReason(
+                                f'rule {rule_num} duplicate default',
+                                validator_id=validator_id,
+                            )
+                        )
                     seen_default = True
 
                 if not isinstance(subnets, (list, tuple)):
-                    reasons.append(f'rule {rule_num} subnets must be a list')
+                    reasons.append(
+                        ValidationReason(
+                            f'rule {rule_num} subnets must be a list',
+                            validator_id=validator_id,
+                        )
+                    )
                 else:
                     for subnet in subnets:
                         reasons.extend(
-                            Subnets.validate(subnet, f'rule {rule_num} ')
+                            Subnets.validate(
+                                subnet,
+                                f'rule {rule_num} ',
+                                validator_id=validator_id,
+                            )
                         )
                     networks = []
                     for subnet in subnets:
@@ -416,24 +509,39 @@ class _DynamicMixin(object):
                         for seen, where in subnets_seen_version.items():
                             if subnet == seen:
                                 reasons.append(
-                                    f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}'
+                                    ValidationReason(
+                                        f'rule {rule_num} targets subnet {subnet} which has previously been seen in rule {where}',
+                                        validator_id=validator_id,
+                                    )
                                 )
                             elif subnet.subnet_of(seen):
                                 reasons.append(
-                                    f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}'
+                                    ValidationReason(
+                                        f'rule {rule_num} targets subnet {subnet} which is more specific than the previously seen {seen} in rule {where}',
+                                        validator_id=validator_id,
+                                    )
                                 )
 
                         subnets_seen_version[subnet] = rule_num
 
                 if not isinstance(geos, (list, tuple)):
-                    reasons.append(f'rule {rule_num} geos must be a list')
+                    reasons.append(
+                        ValidationReason(
+                            f'rule {rule_num} geos must be a list',
+                            validator_id=validator_id,
+                        )
+                    )
                 else:
                     # sorted so that NA would come before NA-US so that the code
                     # below can detect rules that have needlessly targeted a
                     # more specific location along with it's parent/ancestor
                     for geo in sorted(geos):
                         reasons.extend(
-                            GeoCodes.validate(geo, f'rule {rule_num} ')
+                            GeoCodes.validate(
+                                geo,
+                                f'rule {rule_num} ',
+                                validator_id=validator_id,
+                            )
                         )
 
                         # have we ever seen a broader version of the geo we're
@@ -442,18 +550,27 @@ class _DynamicMixin(object):
                         for seen, where in geos_seen.items():
                             if geo == seen:
                                 reasons.append(
-                                    f'rule {rule_num} targets geo {geo} which has previously been seen in rule {where}'
+                                    ValidationReason(
+                                        f'rule {rule_num} targets geo {geo} which has previously been seen in rule {where}',
+                                        validator_id=validator_id,
+                                    )
                                 )
                             elif geo.startswith(seen):
                                 reasons.append(
-                                    f'rule {rule_num} targets geo {geo} which is more specific than the previously seen {seen} in rule {where}'
+                                    ValidationReason(
+                                        f'rule {rule_num} targets geo {geo} which is more specific than the previously seen {seen} in rule {where}',
+                                        validator_id=validator_id,
+                                    )
                                 )
 
                         geos_seen[geo] = rule_num
 
             if rules[-1].get('subnets') or rules[-1].get('geos'):
                 reasons.append(
-                    'final rule has "subnets" and/or "geos" and is not catchall'
+                    ValidationReason(
+                        'final rule has "subnets" and/or "geos" and is not catchall',
+                        validator_id=validator_id,
+                    )
                 )
 
         return reasons, pools_seen

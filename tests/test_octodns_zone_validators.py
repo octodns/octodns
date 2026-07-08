@@ -27,7 +27,7 @@ def _add_record(zone, name, data, lenient=True):
 
 class TestValidationError(TestCase):
     def test_validation_error_context(self):
-        v = ValidationReason('reason', [])
+        v = ValidationReason('reason', [], validator_id='test-validator')
         err = ValidationError('unit.tests.', [v], context='ctx')
         self.assertIn('ctx', str(err))
         self.assertEqual('ctx', err.context)
@@ -35,6 +35,21 @@ class TestValidationError(TestCase):
         # test without context
         err2 = ValidationError('unit.tests.', [v])
         self.assertNotIn('ctx', str(err2))
+
+    def test_validation_error_via(self):
+        # build_message relies on ValidationReason.__str__ to append ", via:
+        # <id>" on the same line for reasons that have a validator_id, and
+        # omit it when validator_id is absent.
+        with_id = ValidationReason('flagged', [], validator_id='my-validator')
+        without_id = ValidationReason('also-flagged', [])
+
+        msg = ValidationError.build_message(
+            'unit.tests.', [with_id, without_id]
+        )
+        self.assertIn('flagged, via: my-validator', msg)
+        self.assertIn('also-flagged', msg)
+        # "via:" should only appear once (for the reason that has a validator_id)
+        self.assertEqual(msg.count('via:'), 1)
 
 
 class TestZoneValidatorBase(TestCase):
@@ -51,8 +66,10 @@ class TestZoneValidatorBase(TestCase):
 
     def test_validation_reason(self):
         r1 = _add_record(_make_zone(), 'r1', {'type': 'A', 'value': '1.2.3.4'})
-        reason = ValidationReason('problem', [r1])
-        self.assertEqual('problem', str(reason))
+        reason = ValidationReason(
+            'problem', [r1], validator_id='test-validator'
+        )
+        self.assertEqual('problem, via: test-validator', str(reason))
         self.assertEqual('problem', repr(reason))
         self.assertFalse(reason.lenient)
 
@@ -61,8 +78,24 @@ class TestZoneValidatorBase(TestCase):
             'r2',
             {'type': 'A', 'value': '1.2.3.4', 'octodns': {'lenient': True}},
         )
-        reason2 = ValidationReason('lenient problem', [r2])
+        reason2 = ValidationReason(
+            'lenient problem', [r2], validator_id='test-validator'
+        )
         self.assertTrue(reason2.lenient)
+
+    def test_validation_reason_validator_id(self):
+        # validator_id is stored and appears in str() as a ", via: <id>" suffix
+        # on the same line as the reason.
+        reason = ValidationReason('problem', [], validator_id='my-validator')
+        self.assertEqual('my-validator', reason.validator_id)
+        self.assertEqual('problem, via: my-validator', str(reason))
+
+        without_id = ValidationReason('problem', [])
+        self.assertEqual('problem', str(without_id))
+
+        # Omitting validator_id emits a DeprecationWarning.
+        with self.assertWarns(DeprecationWarning):
+            ValidationReason('problem', [])
 
     def test_registry(self):
         registry = ZoneValidatorRegistry()

@@ -5,7 +5,7 @@
 from .base import Record, ValueMixin
 from .dynamic import _DynamicMixin
 from .target import _TargetValue
-from .validator import RecordValidator
+from .validator import RecordValidator, ValidationReason
 
 
 class CnameValue(_TargetValue):
@@ -20,7 +20,9 @@ class CnameRootValidator(RecordValidator):
 
     def validate(self, record_cls, name, fqdn, data, disabled=None):
         if name == '':
-            return ['root CNAME not allowed']
+            return [
+                ValidationReason('root CNAME not allowed', validator_id=self.id)
+            ]
         return []
 
 

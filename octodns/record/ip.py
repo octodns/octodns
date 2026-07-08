@@ -3,7 +3,7 @@
 #
 
 
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class IpValueValidator(ValueValidator):
@@ -17,19 +17,28 @@ class IpValueValidator(ValueValidator):
         if not isinstance(data, (list, tuple)):
             data = (data,)
         if len(data) == 0:
-            return ['missing value(s)']
+            return [ValidationReason('missing value(s)', validator_id=self.id)]
         reasons = []
         for value in data:
             if value == '':
-                reasons.append('empty value')
+                reasons.append(
+                    ValidationReason('empty value', validator_id=self.id)
+                )
             elif value is None:
-                reasons.append('missing value(s)')
+                reasons.append(
+                    ValidationReason('missing value(s)', validator_id=self.id)
+                )
             else:
                 try:
                     value_cls._address_type(str(value))
                 except Exception:
                     addr_name = value_cls._address_name
-                    reasons.append(f'invalid {addr_name} address "{value}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid {addr_name} address "{value}"',
+                            validator_id=self.id,
+                        )
+                    )
         return reasons
 
 

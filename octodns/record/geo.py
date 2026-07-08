@@ -10,14 +10,14 @@ from ..equality import EqualityTupleMixin
 from .base import ValuesMixin, _process_value_validators
 from .change import Update
 from .geo_data import geo_data
-from .validator import RecordValidator
+from .validator import RecordValidator, ValidationReason
 
 
 class GeoCodes(object):
     log = getLogger('GeoCodes')
 
     @classmethod
-    def validate(cls, code, prefix):
+    def validate(cls, code, prefix, validator_id=None):
         '''
         Validates an octoDNS geo code making sure that it is a valid and
         corresponding:
@@ -31,16 +31,36 @@ class GeoCodes(object):
         pieces = code.split('-')
         n = len(pieces)
         if n > 3:
-            reasons.append(f'{prefix}invalid geo code "{code}"')
+            reasons.append(
+                ValidationReason(
+                    f'{prefix}invalid geo code "{code}"',
+                    validator_id=validator_id,
+                )
+            )
         elif n > 0 and pieces[0] not in geo_data:
-            reasons.append(f'{prefix}unknown continent code "{code}"')
+            reasons.append(
+                ValidationReason(
+                    f'{prefix}unknown continent code "{code}"',
+                    validator_id=validator_id,
+                )
+            )
         elif n > 1 and pieces[1] not in geo_data[pieces[0]]:
-            reasons.append(f'{prefix}unknown country code "{code}"')
+            reasons.append(
+                ValidationReason(
+                    f'{prefix}unknown country code "{code}"',
+                    validator_id=validator_id,
+                )
+            )
         elif (
             n > 2
             and pieces[2] not in geo_data[pieces[0]][pieces[1]]['provinces']
         ):
-            reasons.append(f'{prefix}unknown province code "{code}"')
+            reasons.append(
+                ValidationReason(
+                    f'{prefix}unknown province code "{code}"',
+                    validator_id=validator_id,
+                )
+            )
 
         return reasons
 
@@ -94,11 +114,15 @@ class GeoValue(EqualityTupleMixin):
     )
 
     @classmethod
-    def _validate_geo(cls, code):
+    def _validate_geo(cls, code, validator_id=None):
         reasons = []
         match = cls.geo_re.match(code)
         if not match:
-            reasons.append(f'invalid geo "{code}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid geo "{code}"', validator_id=validator_id
+                )
+            )
         return reasons
 
     def __init__(self, geo, values):
@@ -144,7 +168,9 @@ class GeoValidator(RecordValidator):
                 stacklevel=99,
             )
             for code, values in geo.items():
-                reasons.extend(GeoValue._validate_geo(code))
+                reasons.extend(
+                    GeoValue._validate_geo(code, validator_id=self.id)
+                )
                 reasons.extend(
                     _process_value_validators(
                         record_cls._value_type,

@@ -24,6 +24,7 @@ class CnameCoexistenceValidator(ZoneValidator):
                         ValidationReason(
                             f'Invalid state, CNAME at {record.fqdn} cannot coexist with other records',
                             node,
+                            validator_id=self.id,
                         )
                     )
                 elif 'ALIAS' in types and ('A' in types or 'AAAA' in types):
@@ -32,6 +33,7 @@ class CnameCoexistenceValidator(ZoneValidator):
                         ValidationReason(
                             f'Invalid state, ALIAS at {record.fqdn} cannot coexist with A or AAAA records',
                             node,
+                            validator_id=self.id,
                         )
                     )
 
@@ -71,7 +73,9 @@ class NoCnameLoopZoneValidator(ZoneValidator):
                     }
                     reasons.append(
                         ValidationReason(
-                            f'Loop detected: {loop_path}', cycle_records
+                            f'Loop detected: {loop_path}',
+                            cycle_records,
+                            validator_id=self.id,
                         )
                     )
                     break
@@ -106,6 +110,7 @@ class CnameTargetResolvableInZoneZoneValidator(ZoneValidator):
                             ValidationReason(
                                 f'{record._type} record "{record.decoded_fqdn}" points to in-zone target "{target}" that does not exist',
                                 [record],
+                                validator_id=self.id,
                             )
                         )
         return reasons
@@ -125,6 +130,7 @@ class RootCnameZoneValidator(ZoneValidator):
                 ValidationReason(
                     f'CNAME record at zone apex "{cname.decoded_fqdn}" is not allowed',
                     [cname],
+                    validator_id=self.id,
                 )
             )
         return reasons
@@ -148,6 +154,7 @@ class CnameTargetNotCnameZoneValidator(ZoneValidator):
                             ValidationReason(
                                 f'CNAME record "{record.decoded_fqdn}" points to target "{target}" which is also a CNAME',
                                 [record],
+                                validator_id=self.id,
                             )
                         )
         return reasons

@@ -8,7 +8,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import RecordValidator, ValueValidator
+from .validator import RecordValidator, ValidationReason, ValueValidator
 
 
 class UriNameValidator(RecordValidator):
@@ -22,7 +22,11 @@ class UriNameValidator(RecordValidator):
 
     def validate(self, record_cls, name, fqdn, data, disabled=None):
         if not self._name_re.match(name):
-            return ['invalid name for URI record']
+            return [
+                ValidationReason(
+                    'invalid name for URI record', validator_id=self.id
+                )
+            ]
         return []
 
 
@@ -39,26 +43,44 @@ class UriValueValidator(ValueValidator):
             try:
                 int(value['priority'])
             except KeyError:
-                reasons.append('missing priority')
+                reasons.append(
+                    ValidationReason('missing priority', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid priority "{value["priority"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 int(value['weight'])
             except KeyError:
-                reasons.append('missing weight')
+                reasons.append(
+                    ValidationReason('missing weight', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid weight "{value["weight"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 target = value['target']
                 if not target:
-                    reasons.append('missing target')
+                    reasons.append(
+                        ValidationReason('missing target', validator_id=self.id)
+                    )
                     continue
                 # actual validation of the target is non-trivial and specific
                 # to the details of the schema etc. rfc3986 has support for
                 # validation, but we don't currently require the module and
                 # this seems too esoteric a use case to add it
             except KeyError:
-                reasons.append('missing target')
+                reasons.append(
+                    ValidationReason('missing target', validator_id=self.id)
+                )
         return reasons
 
 
@@ -81,18 +103,32 @@ class UriValueRfcValidator(ValueValidator):
         for value in data:
             for field in ('priority', 'weight'):
                 if field not in value:
-                    reasons.append(f'missing {field}')
+                    reasons.append(
+                        ValidationReason(
+                            f'missing {field}', validator_id=self.id
+                        )
+                    )
                 else:
                     try:
                         int_val = int(value[field])
                         if not 0 <= int_val <= 65535:
                             reasons.append(
-                                f'invalid {field} "{int_val}"; must be 0-65535'
+                                ValidationReason(
+                                    f'invalid {field} "{int_val}"; must be 0-65535',
+                                    validator_id=self.id,
+                                )
                             )
                     except (ValueError, TypeError):
-                        reasons.append(f'invalid {field} "{value[field]}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid {field} "{value[field]}"',
+                                validator_id=self.id,
+                            )
+                        )
             if 'target' not in value:
-                reasons.append('missing target')
+                reasons.append(
+                    ValidationReason('missing target', validator_id=self.id)
+                )
         return reasons
 
 
@@ -228,18 +264,32 @@ class UriNameRfcValidator(RecordValidator):
     def validate(self, record_cls, name, fqdn, data, disabled=None):
         labels = name.split('.') if name else []
         if len(labels) < 2:
-            return ['URI name must have at least two labels (_service._proto)']
+            return [
+                ValidationReason(
+                    'URI name must have at least two labels (_service._proto)',
+                    validator_id=self.id,
+                )
+            ]
 
         reasons = []
         service, proto = labels[0], labels[1]
         if service != '*' and not (
             service.startswith('_') and self._is_valid_service_name(service[1:])
         ):
-            reasons.append(f'invalid URI service label "{service}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid URI service label "{service}"',
+                    validator_id=self.id,
+                )
+            )
         if not (
             proto.startswith('_') and self._is_valid_service_name(proto[1:])
         ):
-            reasons.append(f'invalid URI proto label "{proto}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid URI proto label "{proto}"', validator_id=self.id
+                )
+            )
         return reasons
 
 

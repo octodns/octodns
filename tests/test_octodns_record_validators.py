@@ -26,6 +26,7 @@ from octodns.record.srv import SrvNameValidator, SrvRecord
 from octodns.record.uri import UriNameValidator, UriRecord
 from octodns.record.validator import (
     RecordValidator,
+    ValidationReason,
     ValidatorRegistry,
     ValueValidator,
 )
@@ -436,6 +437,49 @@ class TestValidatorRegistry(TestCase):
         self.assertEqual(
             [], reg.process_record(ARecord, 'ok', 'ok.unit.tests.', {'ttl': 30})
         )
+
+    def test_process_record_stamps_missing_validator_id(self):
+        # A validator that constructs its own `ValidationReason` but leaves
+        # `validator_id` unset should have it stamped by the registry with
+        # the validator's own id, without re-wrapping the object or firing
+        # the "returning str reasons" deprecation.
+        class ForbidBadPrefixReason(RecordValidator):
+            def __init__(self, prefix):
+                super().__init__(id='test-forbid-bad-prefix-reason')
+                self.prefix = prefix
+
+            def validate(self, record_cls, name, fqdn, data):
+                if name.startswith(self.prefix):
+                    with warnings.catch_warnings():
+                        # constructing without validator_id emits its own
+                        # deprecation; not what we're testing here
+                        warnings.simplefilter('ignore', DeprecationWarning)
+                        reason = ValidationReason(
+                            f'name starts with "{self.prefix}"'
+                        )
+                    return [reason]
+                return []
+
+        reg = ValidatorRegistry()
+        reg.register(ForbidBadPrefixReason('bad-'), types=['A'])
+        reg.enable('test-forbid-bad-prefix-reason', types=['A'])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            reasons = reg.process_record(
+                ARecord, 'bad-name', 'bad-name.unit.tests.', {'ttl': 30}
+            )
+        self.assertEqual(1, len(reasons))
+        self.assertEqual('name starts with "bad-"', reasons[0])
+        self.assertEqual(
+            'test-forbid-bad-prefix-reason', reasons[0].validator_id
+        )
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'returning `str` reasons' in str(w.message)
+        ]
+        self.assertFalse(matched)
 
     def test_process_record_lazy_init(self):
         reg = ValidatorRegistry()
