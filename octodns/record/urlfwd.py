@@ -5,7 +5,7 @@
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class UrlfwdValueValidator(ValueValidator):
@@ -21,30 +21,68 @@ class UrlfwdValueValidator(ValueValidator):
             try:
                 code = int(value['code'])
                 if code not in value_cls.VALID_CODES:
-                    reasons.append(f'unrecognized return code "{code}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized return code "{code}"',
+                            validator_id=self.id,
+                        )
+                    )
             except KeyError:
-                reasons.append('missing code')
+                reasons.append(
+                    ValidationReason('missing code', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid return code "{value["code"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid return code "{value["code"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 masking = int(value['masking'])
                 if masking not in value_cls.VALID_MASKS:
-                    reasons.append(f'unrecognized masking setting "{masking}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized masking setting "{masking}"',
+                            validator_id=self.id,
+                        )
+                    )
             except KeyError:
-                reasons.append('missing masking')
+                reasons.append(
+                    ValidationReason('missing masking', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid masking setting "{value["masking"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid masking setting "{value["masking"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 query = int(value['query'])
                 if query not in value_cls.VALID_QUERY:
-                    reasons.append(f'unrecognized query setting "{query}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized query setting "{query}"',
+                            validator_id=self.id,
+                        )
+                    )
             except KeyError:
-                reasons.append('missing query')
+                reasons.append(
+                    ValidationReason('missing query', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid query setting "{value["query"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid query setting "{value["query"]}"',
+                        validator_id=self.id,
+                    )
+                )
             for k in ('path', 'target'):
                 if k not in value:
-                    reasons.append(f'missing {k}')
+                    reasons.append(
+                        ValidationReason(f'missing {k}', validator_id=self.id)
+                    )
         return reasons
 
 

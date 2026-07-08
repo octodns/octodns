@@ -130,7 +130,10 @@ class ValidatorRegistry:
         reasons = []
         for key in ('*', record_cls._type):
             for validator in self.active_record.get(key, {}).values():
-                reasons.extend(validator.validate(record_cls, name, fqdn, data))
+                reasons.extend(
+                    _as_reason(r, validator.id)
+                    for r in validator.validate(record_cls, name, fqdn, data)
+                )
         return reasons
 
     def process_values(self, value_type, values, _type):
@@ -141,11 +144,82 @@ class ValidatorRegistry:
                 f'`{value_type.__name__}.validate` classmethod is DEPRECATED. Add a ValueValidator to `VALIDATORS` instead. Will be removed in 2.0',
                 stacklevel=3,
             )
-            reasons.extend(legacy(values, _type))
+            legacy_id = f'{value_type.__name__}.validate'
+            reasons.extend(
+                _as_reason(r, legacy_id, warn=False)
+                for r in legacy(values, _type)
+            )
         for key in ('*', _type):
             for validator in self.active_value.get(key, {}).values():
-                reasons.extend(validator.validate(value_type, values, _type))
+                reasons.extend(
+                    _as_reason(r, validator.id)
+                    for r in validator.validate(value_type, values, _type)
+                )
         return reasons
+
+
+class ValidationReason(str):
+    '''
+    A single validation failure reason.
+
+    Behaves as a plain ``str`` (its content is the bare, human-readable
+    reason text) so existing code that compares or joins reasons as
+    strings keeps working unchanged. In addition it carries the set of
+    ``records`` the failure applies to and the ``validator_id`` of the
+    validator that produced it, which ``__str__`` uses to append context
+    and ``, via: <validator_id>`` attribution — richer output that only
+    appears where a caller explicitly renders with ``str(reason)``
+    (e.g. in ``ValidationError`` messages); plain string joins/comparisons
+    see only the bare reason.
+    '''
+
+    def __new__(cls, reason, records=(), validator_id=None):
+        # str content is fixed at __new__ time (str is immutable), so this
+        # must exist to make the content `reason` alone; otherwise str.__new__
+        # would be called with `records`/`validator_id` too and raise a
+        # TypeError.
+        return super().__new__(cls, reason)
+
+    def __init__(self, reason, records=(), validator_id=None):
+        if validator_id is None:
+            deprecated(
+                'omitting `validator_id` is DEPRECATED. It will be a required parameter as of 2.0',
+                stacklevel=3,
+            )
+        self.validator_id = validator_id
+        self.reason = reason
+        self.records = set(records)
+
+    @property
+    def lenient(self):
+        return bool(self.records) and all(r.lenient for r in self.records)
+
+    def __str__(self):
+        msg = self.reason
+        contexts = {
+            r.context for r in self.records if getattr(r, 'context', None)
+        }
+        if contexts:
+            msg += f" ({', '.join(sorted(contexts))})"
+        if self.validator_id:
+            msg += f', via: {self.validator_id}'
+        return msg
+
+    def __repr__(self):
+        return self.reason
+
+
+def _as_reason(reason, validator_id, warn=True):
+    if not isinstance(reason, ValidationReason):
+        if warn:
+            deprecated(
+                'validators returning `str` reasons is DEPRECATED; return `ValidationReason`. Will be required in 2.0',
+                stacklevel=4,
+            )
+        return ValidationReason(reason, validator_id=validator_id)
+    if reason.validator_id is None:
+        reason.validator_id = validator_id
+    return reason
 
 
 class RecordValidator:
@@ -219,18 +293,23 @@ class RecordValidator:
 
         Returns
         -------
-        list[str]
-            A list of human-readable reason strings describing validation
-            failures. Must return an empty list when the record is valid.
-            Reasons from multiple validators are concatenated by the caller,
-            so each reason must stand alone without context from the others.
+        list[ValidationReason]
+            A list of ``ValidationReason`` objects describing validation
+            failures — construct each with ``ValidationReason(reason,
+            validator_id=self.id)``. Must return an empty list when the
+            record is valid. Reasons from multiple validators are
+            concatenated by the caller, so each reason must stand alone
+            without context from the others. Returning bare ``str``
+            reasons is DEPRECATED — the registry wraps them in
+            ``ValidationReason`` and emits a deprecation warning; support
+            will be removed in 2.0.
 
         Notes
         -----
         Implementations must not raise on invalid input — all failures are
-        reported via the returned list. Reason strings are surfaced
-        verbatim in ``ValidationError`` messages, so phrasing and
-        punctuation should be stable across releases.
+        reported via the returned list. Reason text is surfaced verbatim
+        in ``ValidationError`` messages, so phrasing and punctuation
+        should be stable across releases.
         '''
         return []
 
@@ -239,8 +318,8 @@ class ValueValidator:
     '''
     Base class for value-level validators.
 
-    Subclasses override ``validate`` to return a list of reason strings
-    describing any validation failures. An empty list indicates the value is
+    Subclasses override ``validate`` to return a list of ``ValidationReason``
+    objects describing any validation failures. An empty list indicates the value is
     valid. ``value_cls`` is the concrete value class being validated.
     Per-instance configuration should live on the validator instance
     (``self``); ``value_cls`` is only the right home for state that's
@@ -306,12 +385,16 @@ class ValueValidator:
 
         Returns
         -------
-        list[str]
-            A list of human-readable reason strings describing validation
-            failures. Must return an empty list when the values are
-            valid. Reasons from multiple validators are concatenated by
-            the caller, so each reason must stand alone without context
-            from the others.
+        list[ValidationReason]
+            A list of ``ValidationReason`` objects describing validation
+            failures — construct each with ``ValidationReason(reason,
+            validator_id=self.id)``. Must return an empty list when the
+            values are valid. Reasons from multiple validators are
+            concatenated by the caller, so each reason must stand alone
+            without context from the others. Returning bare ``str``
+            reasons is DEPRECATED — the registry wraps them in
+            ``ValidationReason`` and emits a deprecation warning; support
+            will be removed in 2.0.
 
         Notes
         -----

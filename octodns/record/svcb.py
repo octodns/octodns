@@ -13,30 +13,41 @@ from .base import Record, ValuesMixin, unquote
 from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
 from .target import _check_target_format, _check_target_trailing_dot
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 SUPPORTED_PARAMS = {}
 
 
-def validate_svcparam_port(svcparamvalue):
+def validate_svcparam_port(svcparamvalue, validator_id=None):
     reasons = []
     try:
         port = int(svcparamvalue)
         if 0 < port > 65535:
-            reasons.append(f'port {port} is not a valid number')
+            reasons.append(
+                ValidationReason(
+                    f'port {port} is not a valid number',
+                    validator_id=validator_id,
+                )
+            )
     except ValueError:
-        reasons.append('port is not a number')
+        reasons.append(
+            ValidationReason('port is not a number', validator_id=validator_id)
+        )
     return reasons
 
 
-def validate_list(svcparamkey, svcparamvalue):
+def validate_list(svcparamkey, svcparamvalue, validator_id=None):
     if not isinstance(svcparamvalue, list):
-        return [f'{svcparamkey} is not a list']
+        return [
+            ValidationReason(
+                f'{svcparamkey} is not a list', validator_id=validator_id
+            )
+        ]
     return list()
 
 
-def validate_svcparam_alpn(svcparamvalue):
-    reasons = validate_list('alpn', svcparamvalue)
+def validate_svcparam_alpn(svcparamvalue, validator_id=None):
+    reasons = validate_list('alpn', svcparamvalue, validator_id=validator_id)
     if len(reasons) != 0:
         return reasons
     return chunked_value_validator.validate(
@@ -44,8 +55,10 @@ def validate_svcparam_alpn(svcparamvalue):
     )
 
 
-def validate_svcparam_iphint(ip_version, svcparamvalue):
-    reasons = validate_list(f'ipv{ip_version}hint', svcparamvalue)
+def validate_svcparam_iphint(ip_version, svcparamvalue, validator_id=None):
+    reasons = validate_list(
+        f'ipv{ip_version}hint', svcparamvalue, validator_id=validator_id
+    )
     if len(reasons) != 0:
         return reasons
     for address in svcparamvalue:
@@ -56,21 +69,26 @@ def validate_svcparam_iphint(ip_version, svcparamvalue):
                 IPv6Address(address)
         except AddressValueError:
             reasons.append(
-                f'ipv{ip_version}hint "{address}" is not a valid IPv{ip_version} address'
+                ValidationReason(
+                    f'ipv{ip_version}hint "{address}" is not a valid IPv{ip_version} address',
+                    validator_id=validator_id,
+                )
             )
     return reasons
 
 
-def validate_svcparam_ipv4hint(svcparamvalue):
-    return validate_svcparam_iphint(4, svcparamvalue)
+def validate_svcparam_ipv4hint(svcparamvalue, validator_id=None):
+    return validate_svcparam_iphint(4, svcparamvalue, validator_id=validator_id)
 
 
-def validate_svcparam_ipv6hint(svcparamvalue):
-    return validate_svcparam_iphint(6, svcparamvalue)
+def validate_svcparam_ipv6hint(svcparamvalue, validator_id=None):
+    return validate_svcparam_iphint(6, svcparamvalue, validator_id=validator_id)
 
 
-def validate_svcparam_mandatory(svcparamvalue):
-    reasons = validate_list('mandatory', svcparamvalue)
+def validate_svcparam_mandatory(svcparamvalue, validator_id=None):
+    reasons = validate_list(
+        'mandatory', svcparamvalue, validator_id=validator_id
+    )
     if len(reasons) != 0:
         return reasons
     for mandatory in svcparamvalue:
@@ -78,26 +96,47 @@ def validate_svcparam_mandatory(svcparamvalue):
             mandatory not in SUPPORTED_PARAMS.keys()
             and not mandatory.startswith('key')
         ):
-            reasons.append(f'unsupported SvcParam "{mandatory}" in mandatory')
+            reasons.append(
+                ValidationReason(
+                    f'unsupported SvcParam "{mandatory}" in mandatory',
+                    validator_id=validator_id,
+                )
+            )
         if mandatory.startswith('key'):
-            reasons += validate_svckey_number(mandatory)
+            reasons += validate_svckey_number(
+                mandatory, validator_id=validator_id
+            )
     return reasons
 
 
-def validate_svcparam_ech(svcparamvalue):
+def validate_svcparam_ech(svcparamvalue, validator_id=None):
     try:
         b64decode(svcparamvalue, validate=True)
     except binascii_error:
-        return ['ech SvcParam is invalid Base64']
+        return [
+            ValidationReason(
+                'ech SvcParam is invalid Base64', validator_id=validator_id
+            )
+        ]
 
 
-def validate_svckey_number(paramkey):
+def validate_svckey_number(paramkey, validator_id=None):
     try:
         paramkeynum = int(paramkey[3:])
         if 7 < paramkeynum > 65535:
-            return [f'SvcParam key "{paramkey}" has wrong key number']
+            return [
+                ValidationReason(
+                    f'SvcParam key "{paramkey}" has wrong key number',
+                    validator_id=validator_id,
+                )
+            ]
     except ValueError:
-        return [f'SvcParam key "{paramkey}" has wrong format']
+        return [
+            ValidationReason(
+                f'SvcParam key "{paramkey}" has wrong format',
+                validator_id=validator_id,
+            )
+        ]
     return []
 
 
@@ -155,44 +194,76 @@ class SvcbValueValidator(ValueValidator):
         for value in data:
             svcpriority = -1
             if 'svcpriority' not in value:
-                reasons.append('missing svcpriority')
+                reasons.append(
+                    ValidationReason(
+                        'missing svcpriority', validator_id=self.id
+                    )
+                )
             else:
                 try:
                     svcpriority = int(value.get('svcpriority', 0))
                     if svcpriority < 0 or svcpriority > 65535:
-                        reasons.append(f'invalid priority ' f'"{svcpriority}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid priority "{svcpriority}"',
+                                validator_id=self.id,
+                            )
+                        )
                 except ValueError:
-                    reasons.append(f'invalid priority "{value["svcpriority"]}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid priority "{value["svcpriority"]}"',
+                            validator_id=self.id,
+                        )
+                    )
 
             reasons += _check_target_format(
-                value.get('targetname'), _type, 'targetname'
+                value.get('targetname'),
+                _type,
+                'targetname',
+                validator_id=self.id,
             )
 
             if 'svcparams' in value:
                 svcparams = value.get('svcparams', dict())
                 if svcpriority == 0 and len(svcparams) != 0:
-                    reasons.append('svcparams set on AliasMode SVCB record')
+                    reasons.append(
+                        ValidationReason(
+                            'svcparams set on AliasMode SVCB record',
+                            validator_id=self.id,
+                        )
+                    )
                 for svcparamkey, svcparamvalue in svcparams.items():
                     # XXX: Should we test for keys existing when set in 'mandatory'?
                     if svcparamkey.startswith('key'):
-                        reasons += validate_svckey_number(svcparamkey)
+                        reasons += validate_svckey_number(
+                            svcparamkey, validator_id=self.id
+                        )
                         continue
                     if (
                         svcparamkey not in SUPPORTED_PARAMS.keys()
                         and not svcparamkey.startswith('key')
                     ):
-                        reasons.append(f'Unknown SvcParam {svcparamkey}')
+                        reasons.append(
+                            ValidationReason(
+                                f'Unknown SvcParam {svcparamkey}',
+                                validator_id=self.id,
+                            )
+                        )
                         continue
                     if SUPPORTED_PARAMS[svcparamkey].get('has_arg', True):
                         reasons += SUPPORTED_PARAMS[svcparamkey]['validate'](
-                            svcparamvalue
+                            svcparamvalue, validator_id=self.id
                         )
                     if (
                         not SUPPORTED_PARAMS[svcparamkey].get('has_arg', True)
                         and svcparamvalue is not None
                     ):
                         reasons.append(
-                            f'SvcParam {svcparamkey} has value when it should not'
+                            ValidationReason(
+                                f'SvcParam {svcparamkey} has value when it should not',
+                                validator_id=self.id,
+                            )
                         )
 
         return reasons
@@ -344,7 +415,10 @@ class SvcbValueBestPracticeValidator(ValueValidator):
         reasons = []
         for value in data:
             reasons += _check_target_trailing_dot(
-                value.get('targetname'), _type, 'targetname'
+                value.get('targetname'),
+                _type,
+                'targetname',
+                validator_id=self.id,
             )
         return reasons
 

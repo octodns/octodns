@@ -7,7 +7,7 @@ import re
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class SshfpValueValidator(ValueValidator):
@@ -29,11 +29,23 @@ class SshfpValueValidator(ValueValidator):
             try:
                 algorithm = int(value['algorithm'])
                 if algorithm not in value_cls.VALID_ALGORITHMS:
-                    reasons.append(f'unrecognized algorithm "{algorithm}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized algorithm "{algorithm}"',
+                            validator_id=self.id,
+                        )
+                    )
             except KeyError:
-                reasons.append('missing algorithm')
+                reasons.append(
+                    ValidationReason('missing algorithm', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid algorithm "{value["algorithm"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid algorithm "{value["algorithm"]}"',
+                        validator_id=self.id,
+                    )
+                )
             # Start unset so the length check below can tell the difference
             # between a known-good fingerprint_type and a missing/invalid one.
             fingerprint_type = None
@@ -41,16 +53,30 @@ class SshfpValueValidator(ValueValidator):
                 fingerprint_type = int(value['fingerprint_type'])
                 if fingerprint_type not in value_cls.VALID_FINGERPRINT_TYPES:
                     reasons.append(
-                        'unrecognized fingerprint_type ' f'"{fingerprint_type}"'
+                        ValidationReason(
+                            f'unrecognized fingerprint_type "{fingerprint_type}"',
+                            validator_id=self.id,
+                        )
                     )
             except KeyError:
-                reasons.append('missing fingerprint_type')
+                reasons.append(
+                    ValidationReason(
+                        'missing fingerprint_type', validator_id=self.id
+                    )
+                )
             except ValueError:
                 reasons.append(
-                    'invalid fingerprint_type ' f'"{value["fingerprint_type"]}"'
+                    ValidationReason(
+                        f'invalid fingerprint_type "{value["fingerprint_type"]}"',
+                        validator_id=self.id,
+                    )
                 )
             if 'fingerprint' not in value:
-                reasons.append('missing fingerprint')
+                reasons.append(
+                    ValidationReason(
+                        'missing fingerprint', validator_id=self.id
+                    )
+                )
             # Only length-check when we have both a known fingerprint_type and
             # an actual fingerprint; unknown types and missing fingerprints
             # are already reported above and we don't want to stack a
@@ -60,7 +86,10 @@ class SshfpValueValidator(ValueValidator):
                 actual = len(value['fingerprint'])
                 if actual != expected:
                     reasons.append(
-                        f'fingerprint length {actual} does not match fingerprint_type {fingerprint_type} (expected {expected})'
+                        ValidationReason(
+                            f'fingerprint length {actual} does not match fingerprint_type {fingerprint_type} (expected {expected})',
+                            validator_id=self.id,
+                        )
                     )
         return reasons
 
@@ -94,29 +123,53 @@ class SshfpValueRfcValidator(ValueValidator):
                 ('fingerprint_type', 255),
             ):
                 if field not in value:
-                    reasons.append(f'missing {field}')
+                    reasons.append(
+                        ValidationReason(
+                            f'missing {field}', validator_id=self.id
+                        )
+                    )
                 else:
                     try:
                         int_val = int(value[field])
                         if not 0 <= int_val <= max_val:
                             reasons.append(
-                                f'invalid {field} "{int_val}"; must be 0-{max_val}'
+                                ValidationReason(
+                                    f'invalid {field} "{int_val}"; must be 0-{max_val}',
+                                    validator_id=self.id,
+                                )
                             )
                         elif field == 'fingerprint_type':
                             fingerprint_type = int_val
                     except (ValueError, TypeError):
-                        reasons.append(f'invalid {field} "{value[field]}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid {field} "{value[field]}"',
+                                validator_id=self.id,
+                            )
+                        )
             if 'fingerprint' not in value:
-                reasons.append('missing fingerprint')
+                reasons.append(
+                    ValidationReason(
+                        'missing fingerprint', validator_id=self.id
+                    )
+                )
             else:
                 fp = value['fingerprint']
                 if not fp or not self._hex_re.match(str(fp)):
-                    reasons.append(f'invalid fingerprint "{fp}"; must be hex')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid fingerprint "{fp}"; must be hex',
+                            validator_id=self.id,
+                        )
+                    )
                 elif fingerprint_type in self._fingerprint_type_lengths:
                     expected = self._fingerprint_type_lengths[fingerprint_type]
                     if len(str(fp)) != expected:
                         reasons.append(
-                            f'fingerprint must be {expected} hex characters for fingerprint_type {fingerprint_type}'
+                            ValidationReason(
+                                f'fingerprint must be {expected} hex characters for fingerprint_type {fingerprint_type}',
+                                validator_id=self.id,
+                            )
                         )
         return reasons
 
@@ -145,7 +198,10 @@ class SshfpValueBestPracticeValidator(ValueValidator):
                 continue
             if fp_type == 1:
                 reasons.append(
-                    'SSHFP fingerprint_type 1 (SHA-1) is deprecated; use fingerprint_type 2 (SHA-256)'
+                    ValidationReason(
+                        'SSHFP fingerprint_type 1 (SHA-1) is deprecated; use fingerprint_type 2 (SHA-256)',
+                        validator_id=self.id,
+                    )
                 )
         return reasons
 

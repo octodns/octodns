@@ -7,7 +7,7 @@ import re
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class TlsaValueValidator(ValueValidator):
@@ -24,37 +24,76 @@ class TlsaValueValidator(ValueValidator):
                 certificate_usage = int(value.get('certificate_usage', 0))
                 if certificate_usage < 0 or certificate_usage > 3:
                     reasons.append(
-                        f'invalid certificate_usage ' f'"{certificate_usage}"'
+                        ValidationReason(
+                            f'invalid certificate_usage "{certificate_usage}"',
+                            validator_id=self.id,
+                        )
                     )
             except ValueError:
                 reasons.append(
-                    f'invalid certificate_usage "{value["certificate_usage"]}"'
+                    ValidationReason(
+                        f'invalid certificate_usage "{value["certificate_usage"]}"',
+                        validator_id=self.id,
+                    )
                 )
 
             try:
                 selector = int(value.get('selector', 0))
                 if selector < 0 or selector > 1:
-                    reasons.append(f'invalid selector "{selector}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid selector "{selector}"',
+                            validator_id=self.id,
+                        )
+                    )
             except ValueError:
-                reasons.append(f'invalid selector "{value["selector"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid selector "{value["selector"]}"',
+                        validator_id=self.id,
+                    )
+                )
 
             try:
                 matching_type = int(value.get('matching_type', 0))
                 if matching_type < 0 or matching_type > 2:
-                    reasons.append(f'invalid matching_type "{matching_type}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid matching_type "{matching_type}"',
+                            validator_id=self.id,
+                        )
+                    )
             except ValueError:
                 reasons.append(
-                    f'invalid matching_type ' f'"{value["matching_type"]}"'
+                    ValidationReason(
+                        f'invalid matching_type "{value["matching_type"]}"',
+                        validator_id=self.id,
+                    )
                 )
 
             if 'certificate_usage' not in value:
-                reasons.append('missing certificate_usage')
+                reasons.append(
+                    ValidationReason(
+                        'missing certificate_usage', validator_id=self.id
+                    )
+                )
             if 'selector' not in value:
-                reasons.append('missing selector')
+                reasons.append(
+                    ValidationReason('missing selector', validator_id=self.id)
+                )
             if 'matching_type' not in value:
-                reasons.append('missing matching_type')
+                reasons.append(
+                    ValidationReason(
+                        'missing matching_type', validator_id=self.id
+                    )
+                )
             if 'certificate_association_data' not in value:
-                reasons.append('missing certificate_association_data')
+                reasons.append(
+                    ValidationReason(
+                        'missing certificate_association_data',
+                        validator_id=self.id,
+                    )
+                )
         return reasons
 
 
@@ -86,32 +125,55 @@ class TlsaValueRfcValidator(ValueValidator):
             matching_type = None
             for field in ('certificate_usage', 'selector', 'matching_type'):
                 if field not in value:
-                    reasons.append(f'missing {field}')
+                    reasons.append(
+                        ValidationReason(
+                            f'missing {field}', validator_id=self.id
+                        )
+                    )
                 else:
                     try:
                         int_val = int(value[field])
                         if not 0 <= int_val <= 255:
                             reasons.append(
-                                f'invalid {field} "{int_val}"; must be 0-255'
+                                ValidationReason(
+                                    f'invalid {field} "{int_val}"; must be 0-255',
+                                    validator_id=self.id,
+                                )
                             )
                         elif field == 'matching_type':
                             matching_type = int_val
                     except (ValueError, TypeError):
-                        reasons.append(f'invalid {field} "{value[field]}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid {field} "{value[field]}"',
+                                validator_id=self.id,
+                            )
+                        )
 
             if 'certificate_association_data' not in value:
-                reasons.append('missing certificate_association_data')
+                reasons.append(
+                    ValidationReason(
+                        'missing certificate_association_data',
+                        validator_id=self.id,
+                    )
+                )
             else:
                 cad = value['certificate_association_data']
                 if not cad or not self._hex_re.match(str(cad)):
                     reasons.append(
-                        f'invalid certificate_association_data "{cad}"; must be hex'
+                        ValidationReason(
+                            f'invalid certificate_association_data "{cad}"; must be hex',
+                            validator_id=self.id,
+                        )
                     )
                 elif matching_type in self._matching_type_lengths:
                     expected = self._matching_type_lengths[matching_type]
                     if len(str(cad)) != expected:
                         reasons.append(
-                            f'certificate_association_data must be {expected} hex characters for matching_type {matching_type}'
+                            ValidationReason(
+                                f'certificate_association_data must be {expected} hex characters for matching_type {matching_type}',
+                                validator_id=self.id,
+                            )
                         )
         return reasons
 
@@ -142,7 +204,10 @@ class TlsaValueBestPracticeValidator(ValueValidator):
                 continue
             if matching_type == 0:
                 reasons.append(
-                    'TLSA matching_type 0 (full data) is not recommended; use matching_type 1 (SHA-256) or 2 (SHA-512)'
+                    ValidationReason(
+                        'TLSA matching_type 0 (full data) is not recommended; use matching_type 1 (SHA-256) or 2 (SHA-512)',
+                        validator_id=self.id,
+                    )
                 )
         return reasons
 

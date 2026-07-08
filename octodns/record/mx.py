@@ -11,7 +11,7 @@ from .target import (
     _check_target_not_ip,
     _check_target_trailing_dot,
 )
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class MxValueValidator(ValueValidator):
@@ -30,15 +30,26 @@ class MxValueValidator(ValueValidator):
                 except KeyError:
                     int(value['priority'])
             except KeyError:
-                reasons.append('missing preference')
+                reasons.append(
+                    ValidationReason('missing preference', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid preference "{value["preference"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid preference "{value["preference"]}"',
+                        validator_id=self.id,
+                    )
+                )
             exchange = None
             try:
                 exchange = value.get('exchange') or value['value']
-                reasons += _check_target_format(exchange, _type, 'exchange')
+                reasons += _check_target_format(
+                    exchange, _type, 'exchange', validator_id=self.id
+                )
             except KeyError:
-                reasons.append('missing exchange')
+                reasons.append(
+                    ValidationReason('missing exchange', validator_id=self.id)
+                )
         return reasons
 
 
@@ -68,23 +79,39 @@ class MxValueRfcValidator(ValueValidator):
                     preference = int(raw)
                     if not 0 <= preference <= 65535:
                         reasons.append(
-                            f'preference "{preference}" out of range 0-65535'
+                            ValidationReason(
+                                f'preference "{preference}" out of range 0-65535',
+                                validator_id=self.id,
+                            )
                         )
                 except (ValueError, TypeError):
-                    reasons.append(f'invalid preference "{raw}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'invalid preference "{raw}"', validator_id=self.id
+                        )
+                    )
             else:
-                reasons.append('missing preference')
+                reasons.append(
+                    ValidationReason('missing preference', validator_id=self.id)
+                )
 
             exchange = value.get('exchange') or value.get('value')
             if not exchange:
-                reasons.append('missing exchange')
+                reasons.append(
+                    ValidationReason('missing exchange', validator_id=self.id)
+                )
             elif exchange == '.':
                 if preference is not None and preference != 0:
                     reasons.append(
-                        'preference must be 0 for null MX (exchange ".")'
+                        ValidationReason(
+                            'preference must be 0 for null MX (exchange ".")',
+                            validator_id=self.id,
+                        )
                     )
             else:
-                reasons += _check_target_format(exchange, _type, 'exchange')
+                reasons += _check_target_format(
+                    exchange, _type, 'exchange', validator_id=self.id
+                )
         return reasons
 
 
@@ -107,7 +134,7 @@ class MxValueBestPracticeValidator(ValueValidator):
             exchange = value.get('exchange') or value.get('value')
             if exchange:
                 reasons += _check_target_trailing_dot(
-                    exchange, _type, 'exchange'
+                    exchange, _type, 'exchange', validator_id=self.id
                 )
         return reasons
 
@@ -122,7 +149,9 @@ class MxValueNotIpValidator(ValueValidator):
         for value in data:
             exchange = value.get('exchange') or value.get('value')
             if exchange:
-                reasons += _check_target_not_ip(exchange, _type, 'exchange')
+                reasons += _check_target_not_ip(
+                    exchange, _type, 'exchange', validator_id=self.id
+                )
         return reasons
 
 
