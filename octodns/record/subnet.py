@@ -4,10 +4,12 @@
 
 import ipaddress
 
+from .validator import ValidationReason
+
 
 class Subnets(object):
     @classmethod
-    def validate(cls, subnet, prefix):
+    def validate(cls, subnet, prefix, validator_id=None):
         '''
         Validates an octoDNS subnet making sure that it is valid
         '''
@@ -16,7 +18,12 @@ class Subnets(object):
         try:
             cls.parse(subnet)
         except ValueError:
-            reasons.append(f'{prefix}invalid subnet "{subnet}"')
+            reasons.append(
+                ValidationReason(
+                    f'{prefix}invalid subnet "{subnet}"',
+                    validator_id=validator_id,
+                )
+            )
 
         return reasons
 

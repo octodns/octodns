@@ -7,23 +7,28 @@ import ipaddress
 from fqdn import FQDN
 
 from ..idna import idna_encode
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
-def _check_target_format(target, _type, key='value'):
+def _check_target_format(target, _type, key='value', validator_id=None):
     if not target:
-        return [f'missing {key}']
+        return [ValidationReason(f'missing {key}', validator_id=validator_id)]
     if target == '.' and _type in ['HTTPS', 'MX', 'SVCB', 'SRV']:
         return []
     if '{' in target and '}' in target:
         return []
     target = idna_encode(target)
     if not FQDN(str(target), allow_underscores=True).is_valid:
-        return [f'{_type} {key} "{target}" is not a valid FQDN']
+        return [
+            ValidationReason(
+                f'{_type} {key} "{target}" is not a valid FQDN',
+                validator_id=validator_id,
+            )
+        ]
     return []
 
 
-def _check_target_not_ip(target, _type, key='value'):
+def _check_target_not_ip(target, _type, key='value', validator_id=None):
     if not target or target == '.':
         return []
     if '{' in target and '}' in target:
@@ -32,13 +37,18 @@ def _check_target_not_ip(target, _type, key='value'):
     t = target.rstrip('.')
     try:
         ipaddress.ip_address(t)
-        return [f'{_type} {key} "{target}" is an IP address']
+        return [
+            ValidationReason(
+                f'{_type} {key} "{target}" is an IP address',
+                validator_id=validator_id,
+            )
+        ]
     except ValueError:
         pass
     return []
 
 
-def _check_target_trailing_dot(target, _type, key='value'):
+def _check_target_trailing_dot(target, _type, key='value', validator_id=None):
     if not target:
         return []
     if target == '.' and _type in ['HTTPS', 'MX', 'SVCB', 'SRV']:
@@ -47,7 +57,12 @@ def _check_target_trailing_dot(target, _type, key='value'):
         return []
     target = idna_encode(target)
     if not target.endswith('.'):
-        return [f'{_type} {key} "{target}" missing trailing .']
+        return [
+            ValidationReason(
+                f'{_type} {key} "{target}" missing trailing .',
+                validator_id=validator_id,
+            )
+        ]
     return []
 
 
@@ -57,7 +72,7 @@ class TargetValueValidator(ValueValidator):
     '''
 
     def validate(self, value_cls, data, _type):
-        return _check_target_format(data, _type)
+        return _check_target_format(data, _type, validator_id=self.id)
 
 
 class TargetsValueValidator(ValueValidator):
@@ -67,11 +82,11 @@ class TargetsValueValidator(ValueValidator):
 
     def validate(self, value_cls, data, _type):
         if not data:
-            return ['missing value(s)']
+            return [ValidationReason('missing value(s)', validator_id=self.id)]
 
         reasons = []
         for value in data:
-            reasons += _check_target_format(value, _type)
+            reasons += _check_target_format(value, _type, validator_id=self.id)
 
         return reasons
 
@@ -82,7 +97,7 @@ class TargetValueNotIpValidator(ValueValidator):
     '''
 
     def validate(self, value_cls, data, _type):
-        return _check_target_not_ip(data, _type)
+        return _check_target_not_ip(data, _type, validator_id=self.id)
 
 
 class TargetsValueNotIpValidator(ValueValidator):
@@ -94,7 +109,9 @@ class TargetsValueNotIpValidator(ValueValidator):
         reasons = []
         if data:
             for value in data:
-                reasons += _check_target_not_ip(value, _type)
+                reasons += _check_target_not_ip(
+                    value, _type, validator_id=self.id
+                )
         return reasons
 
 
@@ -112,7 +129,7 @@ class TargetValueBestPracticeValidator(ValueValidator):
     '''
 
     def validate(self, value_cls, data, _type):
-        return _check_target_trailing_dot(data, _type)
+        return _check_target_trailing_dot(data, _type, validator_id=self.id)
 
 
 class TargetsValueBestPracticeValidator(ValueValidator):
@@ -130,7 +147,9 @@ class TargetsValueBestPracticeValidator(ValueValidator):
     def validate(self, value_cls, data, _type):
         reasons = []
         for value in data:
-            reasons += _check_target_trailing_dot(value, _type)
+            reasons += _check_target_trailing_dot(
+                value, _type, validator_id=self.id
+            )
         return reasons
 
 

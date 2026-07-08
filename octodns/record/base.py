@@ -12,7 +12,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
-from .validator import RecordValidator, ValidatorRegistry
+from .validator import RecordValidator, ValidationReason, ValidatorRegistry
 
 
 def unquote(s):
@@ -31,21 +31,36 @@ class NameValidator(RecordValidator):
     def validate(self, record_cls, name, fqdn, data):
         reasons = []
         if name == '@':
-            reasons.append('invalid name "@", use "" instead')
+            reasons.append(
+                ValidationReason(
+                    'invalid name "@", use "" instead', validator_id=self.id
+                )
+            )
         n = len(fqdn)
         if n > 253:
             reasons.append(
-                f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} chars, max is 253'
+                ValidationReason(
+                    f'invalid fqdn, "{idna_decode(fqdn)}" is too long at {n} chars, max is 253',
+                    validator_id=self.id,
+                )
             )
         for label in name.split('.'):
             n = len(label)
             if n > 63:
                 reasons.append(
-                    f'invalid label, "{label}" is too long at {n} chars, max is 63'
+                    ValidationReason(
+                        f'invalid label, "{label}" is too long at {n} chars, max is 63',
+                        validator_id=self.id,
+                    )
                 )
         # in the case of endswith there's an implicit second . from the Zone
         if '..' in name or name.endswith('.'):
-            reasons.append(f'invalid name, double `.` in "{idna_decode(fqdn)}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid name, double `.` in "{idna_decode(fqdn)}"',
+                    validator_id=self.id,
+                )
+            )
         # TODO: look at the idna lib for a lot more potential validations...
         return reasons
 
@@ -61,9 +76,13 @@ class TtlValidator(RecordValidator):
         try:
             ttl = int(data['ttl'])
             if ttl < 0:
-                reasons.append('invalid ttl')
+                reasons.append(
+                    ValidationReason('invalid ttl', validator_id=self.id)
+                )
         except KeyError:
-            reasons.append('missing ttl')
+            reasons.append(
+                ValidationReason('missing ttl', validator_id=self.id)
+            )
         return reasons
 
 
@@ -83,7 +102,11 @@ class HealthcheckValidator(RecordValidator):
                 'TCP',
                 'UDP',
             ):
-                reasons.append('invalid healthcheck protocol')
+                reasons.append(
+                    ValidationReason(
+                        'invalid healthcheck protocol', validator_id=self.id
+                    )
+                )
         except KeyError:
             pass
         return reasons

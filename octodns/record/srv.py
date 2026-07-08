@@ -13,7 +13,7 @@ from .target import (
     _check_target_not_ip,
     _check_target_trailing_dot,
 )
-from .validator import RecordValidator, ValueValidator
+from .validator import RecordValidator, ValidationReason, ValueValidator
 
 
 class SrvNameValidator(RecordValidator):
@@ -27,7 +27,11 @@ class SrvNameValidator(RecordValidator):
 
     def validate(self, record_cls, name, fqdn, data):
         if not self._name_re.match(name):
-            return ['invalid name for SRV record']
+            return [
+                ValidationReason(
+                    'invalid name for SRV record', validator_id=self.id
+                )
+            ]
         return []
 
 
@@ -44,26 +48,50 @@ class SrvValueValidator(ValueValidator):
             try:
                 int(value['priority'])
             except KeyError:
-                reasons.append('missing priority')
+                reasons.append(
+                    ValidationReason('missing priority', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid priority "{value["priority"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid priority "{value["priority"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 int(value['weight'])
             except KeyError:
-                reasons.append('missing weight')
+                reasons.append(
+                    ValidationReason('missing weight', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid weight "{value["weight"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid weight "{value["weight"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 int(value['port'])
             except KeyError:
-                reasons.append('missing port')
+                reasons.append(
+                    ValidationReason('missing port', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid port "{value["port"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid port "{value["port"]}"', validator_id=self.id
+                    )
+                )
             try:
                 target = value['target']
-                reasons += _check_target_format(target, _type, 'target')
+                reasons += _check_target_format(
+                    target, _type, 'target', validator_id=self.id
+                )
             except KeyError:
-                reasons.append('missing target')
+                reasons.append(
+                    ValidationReason('missing target', validator_id=self.id)
+                )
         return reasons
 
 
@@ -103,18 +131,32 @@ class SrvNameRfcValidator(RecordValidator):
     def validate(self, record_cls, name, fqdn, data):
         labels = name.split('.') if name else []
         if len(labels) < 2:
-            return ['SRV name must have at least two labels (_service._proto)']
+            return [
+                ValidationReason(
+                    'SRV name must have at least two labels (_service._proto)',
+                    validator_id=self.id,
+                )
+            ]
 
         reasons = []
         service, proto = labels[0], labels[1]
         if service != '*' and not (
             service.startswith('_') and self._is_valid_service_name(service[1:])
         ):
-            reasons.append(f'invalid SRV service label "{service}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid SRV service label "{service}"',
+                    validator_id=self.id,
+                )
+            )
         if not (
             proto.startswith('_') and self._is_valid_service_name(proto[1:])
         ):
-            reasons.append(f'invalid SRV proto label "{proto}"')
+            reasons.append(
+                ValidationReason(
+                    f'invalid SRV proto label "{proto}"', validator_id=self.id
+                )
+            )
         return reasons
 
 
@@ -156,15 +198,28 @@ class SrvValueRfcValidator(ValueValidator):
             }
             for name, v in fields.items():
                 if v is not None and not 0 <= v <= 65535:
-                    reasons.append(f'{name} "{v}" out of range 0-65535')
+                    reasons.append(
+                        ValidationReason(
+                            f'{name} "{v}" out of range 0-65535',
+                            validator_id=self.id,
+                        )
+                    )
             target = value.get('target')
             if target == '.':
                 for name, v in fields.items():
                     if v is not None and v != 0:
-                        reasons.append(f'{name} must be 0 when target is "."')
+                        reasons.append(
+                            ValidationReason(
+                                f'{name} must be 0 when target is "."',
+                                validator_id=self.id,
+                            )
+                        )
             elif target and fields['port'] == 0:
                 reasons.append(
-                    'port 0 is reserved; must be > 0 when target is not "."'
+                    ValidationReason(
+                        'port 0 is reserved; must be > 0 when target is not "."',
+                        validator_id=self.id,
+                    )
                 )
         return reasons
 
@@ -186,7 +241,9 @@ class SrvValueBestPracticeValidator(ValueValidator):
         for value in data:
             target = value.get('target')
             if target:
-                reasons += _check_target_trailing_dot(target, _type, 'target')
+                reasons += _check_target_trailing_dot(
+                    target, _type, 'target', validator_id=self.id
+                )
         return reasons
 
 
@@ -200,7 +257,9 @@ class SrvValueNotIpValidator(ValueValidator):
         for value in data:
             target = value.get('target')
             if target:
-                reasons += _check_target_not_ip(target, _type, 'target')
+                reasons += _check_target_not_ip(
+                    target, _type, 'target', validator_id=self.id
+                )
         return reasons
 
 

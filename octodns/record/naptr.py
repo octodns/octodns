@@ -6,7 +6,7 @@ from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import _check_target_trailing_dot
-from .validator import ValueValidator
+from .validator import ValidationReason, ValueValidator
 
 
 class NaptrValueValidator(ValueValidator):
@@ -22,26 +22,49 @@ class NaptrValueValidator(ValueValidator):
             try:
                 int(value['order'])
             except KeyError:
-                reasons.append('missing order')
+                reasons.append(
+                    ValidationReason('missing order', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid order "{value["order"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid order "{value["order"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 int(value['preference'])
             except KeyError:
-                reasons.append('missing preference')
+                reasons.append(
+                    ValidationReason('missing preference', validator_id=self.id)
+                )
             except ValueError:
-                reasons.append(f'invalid preference "{value["preference"]}"')
+                reasons.append(
+                    ValidationReason(
+                        f'invalid preference "{value["preference"]}"',
+                        validator_id=self.id,
+                    )
+                )
             try:
                 flags = value['flags']
                 if flags not in value_cls.VALID_FLAGS:
-                    reasons.append(f'unrecognized flags "{flags}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized flags "{flags}"',
+                            validator_id=self.id,
+                        )
+                    )
             except KeyError:
-                reasons.append('missing flags')
+                reasons.append(
+                    ValidationReason('missing flags', validator_id=self.id)
+                )
 
             # TODO: validate these... they're non-trivial
             for k in ('service', 'regexp', 'replacement'):
                 if k not in value:
-                    reasons.append(f'missing {k}')
+                    reasons.append(
+                        ValidationReason(f'missing {k}', validator_id=self.id)
+                    )
 
         return reasons
 
@@ -70,30 +93,55 @@ class NaptrValueRfcValidator(ValueValidator):
         for value in data:
             for field in ('order', 'preference'):
                 if field not in value:
-                    reasons.append(f'missing {field}')
+                    reasons.append(
+                        ValidationReason(
+                            f'missing {field}', validator_id=self.id
+                        )
+                    )
                 else:
                     try:
                         int_val = int(value[field])
                         if not 0 <= int_val <= 65535:
                             reasons.append(
-                                f'invalid {field} "{int_val}"; must be 0-65535'
+                                ValidationReason(
+                                    f'invalid {field} "{int_val}"; must be 0-65535',
+                                    validator_id=self.id,
+                                )
                             )
                     except (ValueError, TypeError):
-                        reasons.append(f'invalid {field} "{value[field]}"')
+                        reasons.append(
+                            ValidationReason(
+                                f'invalid {field} "{value[field]}"',
+                                validator_id=self.id,
+                            )
+                        )
 
             if 'flags' not in value:
-                reasons.append('missing flags')
+                reasons.append(
+                    ValidationReason('missing flags', validator_id=self.id)
+                )
             else:
                 flags = value['flags']
                 if flags and flags.upper() not in self._valid_flags:
-                    reasons.append(f'unrecognized flags "{flags}"')
+                    reasons.append(
+                        ValidationReason(
+                            f'unrecognized flags "{flags}"',
+                            validator_id=self.id,
+                        )
+                    )
 
             for k in ('service', 'regexp'):
                 if k not in value:
-                    reasons.append(f'missing {k}')
+                    reasons.append(
+                        ValidationReason(f'missing {k}', validator_id=self.id)
+                    )
 
             if 'replacement' not in value:
-                reasons.append('missing replacement')
+                reasons.append(
+                    ValidationReason(
+                        'missing replacement', validator_id=self.id
+                    )
+                )
 
         return reasons
 
@@ -117,7 +165,7 @@ class NaptrValueBestPracticeValidator(ValueValidator):
             replacement = value.get('replacement')
             if replacement:
                 reasons += _check_target_trailing_dot(
-                    replacement, _type, 'replacement'
+                    replacement, _type, 'replacement', validator_id=self.id
                 )
         return reasons
 
