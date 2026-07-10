@@ -52,7 +52,7 @@ jobs:
             .coverage
             coverage.xml
             htmlcov
-  setup-py:
+  package:
     needs: config
     runs-on: ubuntu-latest
     steps:
@@ -63,6 +63,6 @@ jobs:
           # Most recent release from https://devguide.python.org/versions/#versions
           python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
           architecture: x64
-      - name: CI setup.py
+      - name: CI package build
         run: |
-          ./script/cibuild-setup-py
+          ./script/cibuild-package

@@ -779,8 +779,9 @@ class TestConfigSchema(TestCase):
 
     def test_cmd_schema_kind_config_stdout(self):
         buf = StringIO()
-        with patch('sys.argv', ['octodns-schema', '--kind', 'config']), patch(
-            'sys.stdout', buf
+        with (
+            patch('sys.argv', ['octodns-schema', '--kind', 'config']),
+            patch('sys.stdout', buf),
         ):
             schema_main()
         schema = json.loads(buf.getvalue())
