@@ -28,7 +28,13 @@ cd $TMP_DIR
 git clone "https://github.com/${module}.git"
 cd $(basename $module)
 echo "## install module dev requirements #############################################"
-if [ -e setup.py ]; then
+# setuptools/PEP 621 modules (a setup.py, or a pyproject.toml with a [project]
+# table) install cleanly with pip and, because octodns was built and installed
+# above, keep our local octodns rather than pulling it from PyPI. Legacy poetry
+# modules (deps only under [tool.poetry]) need special handling to avoid clobbering
+# that local octodns.
+if [ -e setup.py ] || grep -q '^\[project\]' pyproject.toml 2>/dev/null; then
+  pip_module=1
   pip install -e .[dev] pytest-network
 elif [ -f pyproject.toml ]; then
   # install poetry
@@ -38,16 +44,16 @@ elif [ -f pyproject.toml ]; then
   # now install all the deps
   poetry install --no-root -v
 else
-  echo "Unrecognized module management. Supports setup.py and poetry"
+  echo "Unrecognized module management. Supports setup.py, PEP 621, and poetry"
   exit 1
 fi
 echo "## installed modules ###########################################################"
 pip freeze
 echo "## run module tests ############################################################"
 export PYTHONPATH=.:$PYTHONPATH
-if [ -e setup.py ]; then
+if [ -n "$pip_module" ]; then
   pytest --disable-network
 elif [ -f poetry.toml ]; then
-  poetry run pytest []
+  poetry run pytest
 fi
 echo "## complete ####################################################################"
