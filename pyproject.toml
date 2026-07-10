@@ -9,7 +9,7 @@ authors = [{name = "Ross McFarland", email = "rwmcfa1@gmail.com"}]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dynamic = ["version"]
 keywords = ["dns", "octodns", "dns-as-code"]
 classifiers = [
