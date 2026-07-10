@@ -155,3 +155,45 @@ class TestZoneValidatorBase(TestCase):
         registry.register(replacement, replace=True)
         self.assertIs(replacement, registry.available['replace-test'])
         self.assertIsNot(original, registry.available['replace-test'])
+
+    def test_process_zone_disabled_skips_by_id(self):
+        class Flagged(ZoneValidator):
+            def validate(self, zone):
+                return [ValidationReason('flagged', [])]
+
+        registry = ZoneValidatorRegistry()
+        registry.register(Flagged('test-flagged'))
+        registry.enable('test-flagged')
+
+        # Not disabled: reason fires.
+        zone = _make_zone()
+        reasons = registry.process_zone(zone)
+        self.assertEqual(['flagged'], [str(r) for r in reasons])
+
+        # Disabled for this zone: skipped.
+        disabled_zone = Zone(
+            'unit.tests.',
+            [],
+            validators={'zone': {'disable_validators': ['test-flagged']}},
+        )
+        self.assertEqual([], registry.process_zone(disabled_zone))
+
+    def test_process_zone_disabled_never_skips_bridge(self):
+        class Bridge(ZoneValidator):
+            def __init__(self):
+                super().__init__(id='_test-bridge-zone')
+
+            def validate(self, zone):
+                return [ValidationReason('bridge', [])]
+
+        registry = ZoneValidatorRegistry()
+        registry.register(Bridge())
+        registry.enable('_test-bridge-zone')
+
+        # A bridge id can't even be listed via config (Zone.__init__ raises),
+        # so simulate a zone whose disabled set somehow contains one anyway
+        # and confirm process_zone's own guard still refuses to skip it.
+        zone = _make_zone()
+        zone.disabled_zone_validators = frozenset({'_test-bridge-zone'})
+        reasons = registry.process_zone(zone)
+        self.assertEqual(['bridge'], [str(r) for r in reasons])

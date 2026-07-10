@@ -952,3 +952,72 @@ class TestValidators(TestCase):
             and 'LegacyRecord.validate' in str(w.message)
         ]
         self.assertTrue(matched)
+
+    def test_legacy_record_validate_new_still_works(self):
+        # A 3rd-party Record subclass whose overridden `validate` classmethod
+        # predates the `disabled` param must still be usable via Record.new
+        # (falls back to calling it without `disabled`, with a deprecation
+        # warning) rather than raising a TypeError.
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter('ignore')
+
+            class LegacyValidateRecord(ValuesMixin, Record):
+                _type = 'LEGACY-VALIDATE-TEST'
+                _value_type = NsValue
+
+                @classmethod
+                def validate(cls, name, fqdn, data):
+                    return []
+
+        Record.register_type(LegacyValidateRecord)
+
+        zone = Zone('unit.tests.', [])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            record = Record.new(
+                zone,
+                'www',
+                {
+                    'type': 'LEGACY-VALIDATE-TEST',
+                    'ttl': 300,
+                    'value': 'does.not.matter.',
+                },
+            )
+        self.assertEqual('www', record.name)
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'disabled' in str(w.message)
+            and 'LegacyValidateRecord' in str(w.message)
+        ]
+        self.assertTrue(matched)
+
+    def test_record_new_reraises_unrelated_typeerror(self):
+        # A TypeError raised by validate() for a reason unrelated to the
+        # `disabled` param must propagate rather than being misidentified
+        # as an old-signature validator and silently retried.
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter('ignore')
+
+            class BuggyValidateRecord(ValuesMixin, Record):
+                _type = 'BUGGY-VALIDATE-TEST'
+                _value_type = NsValue
+
+                @classmethod
+                def validate(cls, name, fqdn, data, disabled=None):
+                    return 'not-a-list' + 5
+
+        Record.register_type(BuggyValidateRecord)
+
+        zone = Zone('unit.tests.', [])
+        with self.assertRaises(TypeError):
+            Record.new(
+                zone,
+                'www',
+                {
+                    'type': 'BUGGY-VALIDATE-TEST',
+                    'ttl': 300,
+                    'value': 'does.not.matter.',
+                },
+            )

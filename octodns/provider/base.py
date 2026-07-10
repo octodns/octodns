@@ -429,7 +429,11 @@ class BaseProvider(BaseSource):
         '''
         self.log.info('plan: desired=%s', desired.decoded_name)
 
-        existing = Zone(desired.name, desired.sub_zones)
+        existing = Zone(
+            desired.name,
+            desired.sub_zones,
+            validators=desired.validators_config,
+        )
         exists = self.populate(existing, target=True, lenient=True)
         if exists is None:
             # If your code gets this warning see Source.populate for more

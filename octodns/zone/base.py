@@ -9,7 +9,7 @@ from logging import getLogger
 from ..deprecation import deprecated
 from ..idna import idna_decode, idna_encode
 from ..record import Create, Delete
-from .exception import ValidationError
+from .exception import ValidationError, ZoneException
 from .validator import ZoneValidatorRegistry
 
 
@@ -142,6 +142,7 @@ class Zone(object):
         delete_pcent_threshold=None,
         ignore_subzone_adds=False,
         context=None,
+        validators=None,
     ):
         '''
         Initialize a DNS zone.
@@ -170,9 +171,28 @@ class Zone(object):
         :param context: The context in which the zone was defined (e.g. the
                         filename and line number it was found at).
         :type context: str or None
+        :param validators: Per-zone validator configuration, additive to any
+                    globally-disabled validators. Mirrors the shape of the
+                    global ``manager.validators`` config::
+
+                      {
+                          'record': {'disable_validators': {'MX': ['mx-value']}},
+                          'zone': {'disable_validators': ['dname-coexistence']},
+                      }
+
+                    Only ``disable_validators`` is currently honored (record
+                    ids cover both record and value validators for the
+                    type); other keys are accepted but ignored so config can
+                    stay forward-compatible as more per-zone validator
+                    controls are added. Framework bridge validators (ids
+                    starting with ``_``) cannot be disabled and raise
+                    ``ZoneException`` if listed.
+        :type validators: dict or None
 
         :raises InvalidNameError: If the zone name is invalid (missing trailing
                                   dot, contains double dots, or has whitespace).
+        :raises ZoneException: If ``validators`` lists a bridge validator id
+                               (starting with ``_``) to disable.
 
         .. important::
            - Zone names must end with a dot (.)
@@ -213,12 +233,47 @@ class Zone(object):
         self.ignore_subzone_adds = ignore_subzone_adds
         self.context = context
 
+        # Kept raw (not named `validators` to avoid shadowing the
+        # class-level `validators` registry, see below) so `copy()` can
+        # forward it unchanged and any future per-zone validator knobs only
+        # need to be understood here, not by every caller that constructs a
+        # Zone.
+        self.validators_config = validators or {}
+        self.disabled_record_validators, self.disabled_zone_validators = (
+            self._parse_validators_config(self.validators_config)
+        )
+
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
         # this property will be set to None
         self._origin = None
 
         self.log.debug('__init__: zone=%s, sub_zones=%s', self, sub_zones)
+
+    def _parse_validators_config(self, validators_config):
+        record_config = validators_config.get('record') or {}
+        disabled_record_validators = {}
+        for record_type, ids in (
+            record_config.get('disable_validators') or {}
+        ).items():
+            ids = set(ids)
+            for validator_id in ids:
+                if validator_id.startswith('_'):
+                    raise ZoneException(
+                        f'Cannot disable bridge validator "{validator_id}" in zone {self.decoded_name}'
+                    )
+            disabled_record_validators[record_type] = frozenset(ids)
+
+        zone_config = validators_config.get('zone') or {}
+        disabled_zone_validators = set()
+        for validator_id in zone_config.get('disable_validators') or []:
+            if validator_id.startswith('_'):
+                raise ZoneException(
+                    f'Cannot disable bridge zone validator "{validator_id}" in zone {self.decoded_name}'
+                )
+            disabled_zone_validators.add(validator_id)
+
+        return disabled_record_validators, frozenset(disabled_zone_validators)
 
     @property
     def records(self):
@@ -752,6 +807,7 @@ class Zone(object):
             self.delete_pcent_threshold,
             ignore_subzone_adds=self.ignore_subzone_adds,
             context=self.context,
+            validators=self.validators_config,
         )
         copy._origin = self
         return copy

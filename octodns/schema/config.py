@@ -316,6 +316,29 @@ def _manager_def():
     }
 
 
+def _zone_validators_def():
+    # Per-zone validator config. Additive to the global
+    # `manager.validators` config; only disabling is currently supported
+    # (enabling/sets are global-only), so this intentionally exposes a
+    # subset of `_manager_def()`'s `validators` shape.
+    return {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'record': {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {'disable_validators': _TYPE_TO_NAMES_MAP},
+            },
+            'zone': {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {'disable_validators': _STRING_ARRAY},
+            },
+        },
+    }
+
+
 def _zone_def():
     return {
         'oneOf': [
@@ -335,6 +358,7 @@ def _zone_def():
                     'lenient': {'type': 'boolean'},
                     'glob': {'type': 'string'},
                     'regex': {'type': 'string'},
+                    'validators': _zone_validators_def(),
                 },
                 'additionalProperties': False,
             },

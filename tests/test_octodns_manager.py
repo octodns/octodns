@@ -33,11 +33,12 @@ from octodns.manager import (
 from octodns.processor.base import BaseProcessor
 from octodns.provider.yaml import YamlProvider
 from octodns.record import Create, Delete, Record, Update
+from octodns.record.exception import ValidationError as RecordValidationError
 from octodns.record.validator import RecordValidator
 from octodns.secret.environ import EnvironSecretsException
 from octodns.yaml import safe_load
 from octodns.zone import Zone
-from octodns.zone.exception import ValidationError
+from octodns.zone.exception import ValidationError, ZoneException
 
 config_dir = join(dirname(__file__), 'config')
 
@@ -2142,6 +2143,61 @@ class TestManager(TestCase):
 
             zone_with_defaults = manager.get_zone('defaultignore.tests.')
             self.assertFalse(zone_with_defaults.ignore_subzone_adds)
+
+    def test_zone_disable_validators(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(
+                get_config_filename('zone-disable-validators.yaml')
+            )
+
+            zone_a = manager.get_zone('zone-disable-validators-a.tests.')
+            self.assertEqual(
+                {'*': frozenset({'healthcheck'})},
+                zone_a.disabled_record_validators,
+            )
+            zone_b = manager.get_zone('zone-disable-validators-b.tests.')
+            self.assertEqual({}, zone_b.disabled_record_validators)
+
+            # Zone A has the healthcheck validator disabled for this zone
+            # only: it syncs cleanly despite the (deliberately) invalid
+            # `octodns.healthcheck.protocol` value.
+            manager.sync(eligible_zones=['zone-disable-validators-a.tests.'])
+
+            # Zone B has no per-zone override: the same style of invalid
+            # healthcheck protocol is still caught by the global validator.
+            with self.assertRaises(RecordValidationError) as ctx:
+                manager.sync(
+                    eligible_zones=['zone-disable-validators-b.tests.']
+                )
+            self.assertIn('invalid healthcheck protocol', str(ctx.exception))
+            self.assertIn(
+                'zone-disable-validators-b.tests.', str(ctx.exception)
+            )
+
+            # Running both zones together (through the thread pool
+            # executor) proves the per-zone disable doesn't leak across
+            # zones in either direction: A still succeeds, B still raises.
+            with self.assertRaises(RecordValidationError) as ctx:
+                manager.sync()
+            self.assertIn(
+                'zone-disable-validators-b.tests.', str(ctx.exception)
+            )
+
+    def test_zone_disable_validators_bridge(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+
+            manager = Manager(
+                get_config_filename('zone-disable-validators-bridge.yaml')
+            )
+            with self.assertRaises(ZoneException) as ctx:
+                manager.get_zone('zone-disable-validators-a.tests.')
+            self.assertIn(
+                'Cannot disable bridge validator "_values-type"',
+                str(ctx.exception),
+            )
 
     def test_preprocess_zones_original(self):
         # these will be unused

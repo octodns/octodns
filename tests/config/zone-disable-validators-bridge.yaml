@@ -1,0 +1,23 @@
+manager:
+  max_workers: 2
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config/zone-disable-validators
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+    strict_supports: False
+zones:
+  zone-disable-validators-a.tests.:
+    validators:
+      record:
+        disable_validators:
+          MX:
+            - _values-type
+    sources:
+      - in
+    targets:
+      - dump

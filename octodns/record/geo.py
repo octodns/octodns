@@ -159,7 +159,7 @@ class GeoValidator(RecordValidator):
     passes the record's value-type validation.
     '''
 
-    def validate(self, record_cls, name, fqdn, data):
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
         reasons = []
         try:
             geo = dict(data['geo'])
@@ -173,7 +173,10 @@ class GeoValidator(RecordValidator):
                 )
                 reasons.extend(
                     _process_value_validators(
-                        record_cls._value_type, values, record_cls._type
+                        record_cls._value_type,
+                        values,
+                        record_cls._type,
+                        disabled=disabled,
                     )
                 )
         except KeyError:

@@ -149,7 +149,9 @@ incrementally.
 Use ``disable_validators`` (see `Disabling built-in validators`_ below) when
 you want to permanently skip a *specific check* across all records of a given
 type — for example if a validator conflicts with your provider's requirements or
-your organisation's conventions.
+your organisation's conventions. Use a zone's own ``validators`` key (see
+`Disabling validators for a single zone`_ below) when that check should only be
+skipped for one zone rather than globally.
 
 .. _Lenience: records.rst#lenience
 
@@ -476,6 +478,46 @@ Individual built-in validators can be turned off under
 ``'*'`` removes the validator from every record type; a type string removes it
 only for that type. Bridge validators (``_``-prefixed ids) cannot be disabled
 and will raise a config error if listed here.
+
+Zone validators are disabled the same way, under
+``manager.validators.zone.disable_validators``, as a plain list of ids::
+
+  manager:
+    validators:
+      zone:
+        disable_validators:
+          - dname-coexistence
+
+Disabling validators for a single zone
+.......................................
+
+Everything above is global — it applies to every zone octoDNS manages. To
+relax a check for just one zone (e.g. a legacy zone that can't yet meet a
+stricter rule), give that zone its own ``validators`` key using the same
+shape, under the zone's entry in ``zones:``::
+
+  zones:
+    legacy.example.com.:
+      sources:
+        - config
+      targets:
+        - route53
+      validators:
+        record:
+          disable_validators:
+            '*':
+              - healthcheck
+            MX:
+              - mx-value
+        zone:
+          disable_validators:
+            - dname-coexistence
+
+A per-zone ``disable_validators`` is *additive* to the global config — it can
+only disable additional validators for that zone, not re-enable one disabled
+globally, and it has no effect on any other zone. As with the global form,
+bridge (``_``-prefixed) validator ids cannot be disabled and raise a config
+error if listed.
 
 Attaching validators programmatically
 ......................................
