@@ -1,10 +1,13 @@
 #!/bin/bash
 
-echo "## bootstrap ###################################################################"
-script/bootstrap
+set -e
 
 # Get current script path
 SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
+
+echo "## bootstrap ###################################################################"
+"${SCRIPT_PATH}/bootstrap"
+
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
@@ -19,9 +22,9 @@ rm -f *.pyc
 echo "## begin #######################################################################"
 # For now it's just lint...
 echo "## lint ########################################################################"
-script/lint
+"${SCRIPT_PATH}/lint"
 echo "## formatting ##################################################################"
-script/format --check || (echo "Formatting check failed, run ./script/format" && exit 1)
+"${SCRIPT_PATH}/format" --check || (echo "Formatting check failed, run ./script/format" && exit 1)
 echo "## tests/coverage ##############################################################"
-script/coverage
+"${SCRIPT_PATH}/coverage"
 echo "## complete ####################################################################"

@@ -4,7 +4,7 @@
 
 set -e
 
-cd "$(dirname "$0")"/..
+cd "$(dirname -- "$(readlink -f -- "$0")")"/..
 ROOT=$(pwd)
 
 if [ -z "$VENV_NAME" ]; then
@@ -25,16 +25,26 @@ fi
 python -m pip install -U 'pip>=10.0.1'
 python -m pip install -r requirements.txt
 
-if [ -d ".git" ]; then
+# Use git itself, rather than testing for a ".git" directory, so this works
+# from a linked `git worktree` too (there ".git" is a file, not a directory).
+if git rev-parse --git-dir >/dev/null 2>&1; then
     if [ -f ".git-blame-ignore-revs" ]; then
         echo ""
         echo "Setting blame.ignoreRevsFile to .git-blame-ingore-revs"
         git config --local blame.ignoreRevsFile .git-blame-ignore-revs
     fi
-    if [ ! -L ".git/hooks/pre-commit" ]; then
+
+    # git-path hooks resolves to the *common* hooks dir, so this installs once
+    # for the primary checkout and every worktree that shares it.
+    HOOKS_DIR="$(git rev-parse --git-path hooks)"
+    # Anchor the symlink to the primary checkout, not $ROOT -- in a worktree
+    # $ROOT is the worktree itself, and the hooks dir is shared, so pointing
+    # at $ROOT would leave a dangling symlink once that worktree is removed.
+    PRIMARY_ROOT="$(cd "$(dirname -- "$(git rev-parse --git-common-dir)")" && pwd)"
+    if [ ! -e "${HOOKS_DIR}/pre-commit" ]; then
         echo ""
         echo "Installing pre-commit hook"
-        ln -s "$ROOT/.git_hooks_pre-commit" ".git/hooks/pre-commit"
+        ln -sf "${PRIMARY_ROOT}/.git_hooks_pre-commit" "${HOOKS_DIR}/pre-commit"
     fi
 fi
 
