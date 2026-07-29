@@ -212,7 +212,8 @@ class CaaValue(EqualityTupleMixin, dict):
 
     @property
     def rdata_text(self):
-        return f'{self.flags} {self.tag} {self.value}'
+        # RFC 8659 §4.1.1 requires value to be a quoted character-string
+        return f'{self.flags} {self.tag} "{self.value}"'
 
     def template(self, params):
         if '{' not in self.value:
