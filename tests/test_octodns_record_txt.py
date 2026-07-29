@@ -6,6 +6,7 @@ from unittest import TestCase
 
 from octodns.record import Record
 from octodns.record.exception import ValidationError
+from octodns.record.rr import Rr
 from octodns.record.txt import TxtRecord
 from octodns.zone import Zone
 
@@ -178,3 +179,25 @@ class TestRecordTxt(TestCase):
             '"z after"',
         ]
         self.assertEqual(('txt.unit.tests.', 42, 'TXT', vals), record.rrs)
+
+    def test_rrs_round_trip(self):
+        # values that should survive a full rrs -> from_rrs round-trip,
+        # including the ; and " cases that used to get corrupted
+        zone = Zone('unit.tests.', [])
+        for value in (
+            'foo bar',
+            'a' * 300,
+            'has \\; semi',
+            'has "quote" in it',
+            'v=spf1 include:_spf.example.com ~all',
+            'a' * 254 + '\\;' + 'b' * 10,
+        ):
+            record = Record.new(
+                zone, 'txt', {'ttl': 32, 'type': 'TXT', 'value': value}
+            )
+            fqdn, ttl, _type, rdatas = record.rrs
+            rrs = [Rr(fqdn, _type, ttl, rdata) for rdata in rdatas]
+            (roundtripped,) = Record.from_rrs(zone, rrs)
+            self.assertEqual(
+                record.values, roundtripped.values, msg=repr(value)
+            )

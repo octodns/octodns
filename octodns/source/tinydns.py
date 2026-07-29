@@ -10,6 +10,7 @@ from os import listdir
 from os.path import join
 
 from ..record import Record
+from ..record.chunked import _ChunkedValuesMixin, _escape_unescaped_semicolons
 from .base import BaseSource
 
 
@@ -340,7 +341,15 @@ class TinyDnsBaseSource(BaseSource):
             ttl = self._ttl_for(lines, 3)
 
             rdatas = [l[2] for l in lines]
-            yield _type, name, ttl, _class.parse_rdata_texts(rdatas)
+            if issubclass(_class, _ChunkedValuesMixin):
+                # tinydns rdata isn't RFC 1035 presentation format, e.g. it
+                # isn't quoted, so it can't go through the strict
+                # parse_rdata_text, just escape any unescaped ; and use it
+                # as-is
+                values = [_escape_unescaped_semicolons(r) for r in rdatas]
+            else:
+                values = _class.parse_rdata_texts(rdatas)
+            yield _type, name, ttl, values
 
     def _records_for_six(self, zone, name, lines, arpa=False):
         # 6fqdn:ip:ttl:timestamp:lo

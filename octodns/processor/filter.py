@@ -232,9 +232,13 @@ class _ValueBaseFilter(_FilterProcessor):
         for record in zone.records:
             values = []
             if hasattr(record, 'values'):
-                values = [value.rdata_text for value in record.values]
+                values = [
+                    v if isinstance(v, str) else v.rdata_text
+                    for v in record.values
+                ]
             elif record.value is not None:
-                values = [record.value.rdata_text]
+                value = record.value
+                values = [value if isinstance(value, str) else value.rdata_text]
             else:
                 self.log.warning(
                     'value for %s is NoneType, ignoring', record.fqdn

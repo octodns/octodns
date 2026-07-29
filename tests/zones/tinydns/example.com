@@ -78,5 +78,8 @@ S_b._tcp.example.com:56.57.58.59:target.srv.example.com.:9999
 :arbitrary-sshfp.example.com:SSHFP:1 1 000000000000000000000000000000000047b270:45
 # does not make sense to do an A this way, but it'll work
 :arbitrary-a.example.com:a:80.81.82.83
+# tinydns rdata isn't RFC 1035 presentation format (unquoted), unescaped ;
+# should get escaped rather than parsed as RFC character-strings
+:arbitrary-txt.example.com:TXT:v=DKIM1; k=rsa; p=blah
 # this should just be inored b/c the type is unknown
 :arbitrary-invalid.example.com:invalid:does not matter:99
