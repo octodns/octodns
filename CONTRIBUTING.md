@@ -51,6 +51,13 @@ source env/bin/activate
 
 See the [`script/`](/script) if you'd like to run tests and coverage ([`script/coverage`](/script/coverage)) and coverage ([`script/lint`](/script/lint)). After bootstrapping and sourcing the `env/` commands in the [`octodns/cmds/`](/octodns/cmds) directory can be run with `PYTHONPATH=. ./octodns/cmds/sync.py ...`
 
+### Working in a `git worktree`
+
+Each `git worktree` needs its own `./script/bootstrap` run, since each gets its own
+`env/` virtualenv. The pre-commit hook, on the other hand, is installed once into the
+shared hooks directory and applies to the primary checkout and every worktree; running
+`./script/bootstrap` again from a worktree won't install a second copy.
+
 ## Documentation and Read the Docs
 
 ### Build docs locally

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Scripts path
-SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )/script"
+# Scripts path -- resolve the worktree being committed, not the checkout this
+# hook symlink happens to live in (see `git worktree`)
+SCRIPT_PATH="$( git rev-parse --show-toplevel; )/script"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
