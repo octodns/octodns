@@ -139,11 +139,21 @@ class TestRecordCaa(TestCase):
         self.assertEqual(1, a.values[0].flags)
         self.assertEqual('tag1', a.values[0].tag)
         self.assertEqual('99148c81', a.values[0].value)
-        self.assertEqual('1 tag1 99148c81', a.values[0].rdata_text)
+        self.assertEqual('1 tag1 "99148c81"', a.values[0].rdata_text)
         self.assertEqual(2, a.values[1].flags)
         self.assertEqual('tag2', a.values[1].tag)
         self.assertEqual('99148c44', a.values[1].value)
-        self.assertEqual('2 tag2 99148c44', a.values[1].rdata_text)
+        self.assertEqual('2 tag2 "99148c44"', a.values[1].rdata_text)
+
+        # value with whitespace/`;` round-trips through rdata_text and
+        # parse_rdata_text (the motivating case from #1447)
+        value = CaaValue(
+            {'flags': 0, 'tag': 'issue', 'value': 'ca.unit.tests; account=1'}
+        )
+        self.assertEqual('0 issue "ca.unit.tests; account=1"', value.rdata_text)
+        self.assertEqual(
+            dict(value.data), CaaValue.parse_rdata_text(value.rdata_text)
+        )
 
     def test_caa_value(self):
         a = CaaValue({'flags': 0, 'tag': 'a', 'value': 'v'})
