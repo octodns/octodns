@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -110,9 +111,9 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(cls, rdata):
         try:
-            path, target, code, masking, query = value.split(' ')
+            path, target, code, masking, query = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -136,6 +137,14 @@ class UrlfwdValue(EqualityTupleMixin, dict):
             'masking': masking,
             'query': query,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -192,9 +201,16 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     def query(self, value):
         self['query'] = value
 
+    def to_rrs(self):
+        return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
+
     @property
     def rdata_text(self):
-        return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.path and '{' not in self.target:

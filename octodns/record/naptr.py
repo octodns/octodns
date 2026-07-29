@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -208,10 +209,10 @@ class NaptrValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         try:
             order, preference, flags, service, regexp, replacement = (
-                value.split(' ')
+                rdata.split(' ')
             )
         except ValueError:
             raise RrParseError()
@@ -232,6 +233,14 @@ class NaptrValue(EqualityTupleMixin, dict):
             'regexp': regexp,
             'replacement': replacement,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -301,13 +310,20 @@ class NaptrValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         # RFC 3403 requires flags, service, and regexp to be quoted character-strings
         flags = self.flags or ''
         service = self.service or ''
         regexp = self.regexp or ''
         return f'{self.order} {self.preference} "{flags}" "{service}" "{regexp}" {self.replacement}'
+
+    @property
+    def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if (

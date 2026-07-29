@@ -6,6 +6,7 @@ import ipaddress
 
 from fqdn import FQDN
 
+from ..deprecation import deprecated
 from ..idna import idna_encode
 from .validator import ValidationReason, ValueValidator
 
@@ -163,8 +164,16 @@ class _TargetValue(str):
     ]
 
     @classmethod
-    def parse_rdata_text(self, value):
-        return value
+    def from_rrs(cls, rdata):
+        return rdata
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def _schema(cls):
@@ -180,9 +189,16 @@ class _TargetValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    def to_rrs(self):
+        return self
+
     @property
     def rdata_text(self):
-        return self
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self:
@@ -202,8 +218,16 @@ class _TargetsValue(str):
     ]
 
     @classmethod
+    def from_rrs(cls, rdata):
+        return rdata
+
+    @classmethod
     def parse_rdata_text(cls, value):
-        return value
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def _schema(cls):
@@ -217,9 +241,16 @@ class _TargetsValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    def to_rrs(self):
+        return self
+
     @property
     def rdata_text(self):
-        return self
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self:

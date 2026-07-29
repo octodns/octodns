@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -209,9 +210,9 @@ class LocValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         try:
-            value = value.replace('m', '')
+            value = rdata.replace('m', '')
             (
                 lat_degrees,
                 lat_minutes,
@@ -284,6 +285,14 @@ class LocValue(EqualityTupleMixin, dict):
             'precision_horz': precision_horz,
             'precision_vert': precision_vert,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -407,9 +416,16 @@ class LocValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    def to_rrs(self):
+        return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
+
     @property
     def rdata_text(self):
-        return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         return self

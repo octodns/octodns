@@ -4,6 +4,7 @@
 
 import re
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -233,9 +234,9 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(cls, rdata):
         try:
-            algorithm, fingerprint_type, fingerprint = value.split(' ')
+            algorithm, fingerprint_type, fingerprint = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -252,6 +253,14 @@ class SshfpValue(EqualityTupleMixin, dict):
             'fingerprint_type': fingerprint_type,
             'fingerprint': fingerprint,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -294,9 +303,16 @@ class SshfpValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    def to_rrs(self):
+        return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
+
     @property
     def rdata_text(self):
-        return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.fingerprint:

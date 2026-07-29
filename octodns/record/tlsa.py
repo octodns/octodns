@@ -4,6 +4,7 @@
 
 import re
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from .base import Record, ValuesMixin, unquote
 from .rr import RrParseError
@@ -248,14 +249,14 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(cls, rdata):
         try:
             (
                 certificate_usage,
                 selector,
                 matching_type,
                 certificate_association_data,
-            ) = value.split(' ')
+            ) = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -277,6 +278,14 @@ class TlsaValue(EqualityTupleMixin, dict):
             'matching_type': matching_type,
             'certificate_association_data': certificate_association_data,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -328,9 +337,16 @@ class TlsaValue(EqualityTupleMixin, dict):
     def certificate_association_data(self, value):
         self['certificate_association_data'] = value
 
+    def to_rrs(self):
+        return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
+
     @property
     def rdata_text(self):
-        return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.certificate_association_data:

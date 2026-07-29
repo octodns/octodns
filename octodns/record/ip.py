@@ -2,7 +2,7 @@
 #
 #
 
-
+from ..deprecation import deprecated
 from .validator import ValidationReason, ValueValidator
 
 
@@ -46,8 +46,16 @@ class _IpValue(str):
     VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
 
     @classmethod
+    def from_rrs(cls, rdata):
+        return rdata
+
+    @classmethod
     def parse_rdata_text(cls, value):
-        return value
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def _schema(cls):
@@ -66,9 +74,16 @@ class _IpValue(str):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
 
+    def to_rrs(self):
+        return self
+
     @property
     def rdata_text(self):
-        return self
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         return self

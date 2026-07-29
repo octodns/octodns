@@ -910,6 +910,11 @@ class TestRecordValidation(TestCase):
     def test_records_have_rdata_methods(self):
         for _type, cls in Record.registered_types().items():
             attr = 'parse_rdata_texts'
+            if not cls.__module__.startswith('octodns.record.'):
+                # 3rd-party/test-only record types are allowed to implement
+                # only the legacy rdata_text/parse_rdata_text API; the
+                # to_rrs/from_rrs checks below are for core types only
+                continue
             method = getattr(cls, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             self.assertTrue(
@@ -930,6 +935,20 @@ class TestRecordValidation(TestCase):
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             # this one is a @property so not callable
+
+            attr = 'from_rrs'
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
+
+            attr = 'to_rrs'
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
 
 
 class TestValidators(TestCase):

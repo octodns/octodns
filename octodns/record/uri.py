@@ -4,6 +4,7 @@
 
 import re
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
@@ -151,9 +152,9 @@ class UriValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(cls, rdata):
         try:
-            priority, weight, target = value.split(' ')
+            priority, weight, target = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -166,6 +167,14 @@ class UriValue(EqualityTupleMixin, dict):
             pass
         target = unquote(target)
         return {'priority': priority, 'weight': weight, 'target': target}
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -208,9 +217,16 @@ class UriValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    def to_rrs(self):
+        return f'{self.priority} {self.weight} "{self.target}"'
+
     @property
     def rdata_text(self):
-        return f'{self.priority} {self.weight} "{self.target}"'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.target:

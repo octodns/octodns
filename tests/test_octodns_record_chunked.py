@@ -2,10 +2,12 @@
 #
 #
 
+import warnings
 from unittest import TestCase
 
 from octodns.record.base import _process_value_validators
 from octodns.record.chunked import _ChunkedValue, _ChunkedValuesMixin
+from octodns.record.rr import RrParseError
 from octodns.record.spf import SpfRecord
 from octodns.record.txt import TxtValue
 from octodns.zone import Zone
@@ -38,7 +40,94 @@ class TestRecordChunked(TestCase):
 
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
-        self.assertEqual('some.target.', a.values[0].rdata_text)
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter('ignore')
+            self.assertEqual('some.target.', a.values[0].rdata_text)
+
+    def test_rdata_text_deprecated(self):
+        value = TxtValue('some.target.')
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual('some.target.', value.rdata_text)
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and 'TxtValue.rdata_text' in str(w.message)
+            and 'to_rrs' in str(w.message)
+        ]
+        self.assertTrue(matched)
+
+    def test_parse_rdata_text_deprecated(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual(
+                'Hello\\; World!',
+                _ChunkedValue.parse_rdata_text('Hello; World!'),
+            )
+        matched = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and '_ChunkedValue.parse_rdata_text' in str(w.message)
+            and 'from_rrs' in str(w.message)
+        ]
+        self.assertTrue(matched)
+
+
+class TestChunkedValueToRrs(TestCase):
+    def test_to_rrs(self):
+        for value, expected in (
+            ('hello world', '"hello world"'),
+            # quotes are escaped
+            ('has "quotes"', '"has \\"quotes\\""'),
+            # backslashes are escaped
+            ('back\\slash', '"back\\\\slash"'),
+            # octoDNS's internal `\;` escaping is unescaped to a bare `;`
+            # since it needs no escaping inside a quoted character-string
+            ('semi\\;colon', '"semi;colon"'),
+            # non-ASCII/control bytes are rendered as \DDD decimal escapes
+            ('Déjà vu', '"D\\195\\169j\\195\\160 vu"'),
+            ('ctrl\x01byte', '"ctrl\\001byte"'),
+            # empty value
+            ('', '""'),
+            # exactly 255 bytes: single character-string
+            ('a' * 255, f'"{"a" * 255}"'),
+            # 256 bytes: splits into two character-strings
+            ('a' * 256, f'"{"a" * 255}" "a"'),
+        ):
+            self.assertEqual(expected, TxtValue(value).to_rrs())
+
+    def test_from_rrs(self):
+        for rdata, expected in (
+            ('"hello world"', 'hello world'),
+            ('"has \\"quotes\\""', 'has "quotes"'),
+            ('"back\\\\slash"', 'back\\slash'),
+            # a literal `;` in presentation text is restored to octoDNS's
+            # internal `\;` escaping
+            ('"semi;colon"', 'semi\\;colon'),
+            ('"D\\195\\169j\\195\\160 vu"', 'Déjà vu'),
+            ('"ctrl\\001byte"', 'ctrl\x01byte'),
+            ('""', ''),
+            # multiple character-strings concatenate into one raw value
+            ('"foo" "bar"', 'foobar'),
+        ):
+            self.assertEqual(expected, _ChunkedValue.from_rrs(rdata))
+
+    def test_from_rrs_invalid(self):
+        with self.assertRaises(RrParseError):
+            _ChunkedValue.from_rrs('not a valid txt "')
+
+    def test_round_trip(self):
+        for value in (
+            'hello world',
+            'semi\\;colon',
+            'has "quotes" and back\\\\slash',
+            'a' * 500,
+            '',
+        ):
+            v = TxtValue(value)
+            self.assertEqual(value, _ChunkedValue.from_rrs(v.to_rrs()))
 
 
 class TestChunkedValue(TestCase):

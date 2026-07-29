@@ -21,6 +21,32 @@ def unquote(s):
     return s
 
 
+def _value_from_rrs(value_type, rdata):
+    # prefer the new value-level API, falling back to the deprecated one for
+    # 3rd-party value types that haven't migrated yet
+    from_rrs = getattr(value_type, 'from_rrs', None)
+    if from_rrs is not None:
+        return from_rrs(rdata)
+    deprecated(
+        f'`{value_type.__name__}` does not implement `from_rrs()`, falling back to DEPRECATED `parse_rdata_text()`. Will be removed in 2.0',
+        stacklevel=3,
+    )
+    return value_type.parse_rdata_text(rdata)
+
+
+def _value_to_rrs(value):
+    # prefer the new value-level API, falling back to the deprecated one for
+    # 3rd-party value types that haven't migrated yet
+    to_rrs = getattr(value, 'to_rrs', None)
+    if to_rrs is not None:
+        return to_rrs()
+    deprecated(
+        f'`{value.__class__.__name__}` does not implement `to_rrs()`, falling back to DEPRECATED `rdata_text`. Will be removed in 2.0',
+        stacklevel=3,
+    )
+    return value.rdata_text
+
+
 class NameValidator(RecordValidator):
     '''
     Validates record name and FQDN shape: rejects the legacy ``@`` alias,
@@ -315,7 +341,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def parse_rdata_texts(cls, rdatas):
-        return [cls._value_type.parse_rdata_text(r) for r in rdatas]
+        return [_value_from_rrs(cls._value_type, r) for r in rdatas]
 
     def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone
@@ -487,7 +513,7 @@ class ValuesMixin(object):
         # type and TTL come from the first rr
         rr = rrs[0]
         # values come from parsing the rdata portion of all rrs
-        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
+        values = [_value_from_rrs(cls._value_type, rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -527,7 +553,7 @@ class ValuesMixin(object):
             self.fqdn,
             self.ttl,
             self._type,
-            [v.rdata_text for v in self.rr_values],
+            [_value_to_rrs(v) for v in self.rr_values],
         )
 
     def __repr__(self):
@@ -549,7 +575,7 @@ class ValueMixin(object):
         return {
             'ttl': rr.ttl,
             'type': rr._type,
-            'value': cls._value_type.parse_rdata_text(rr.rdata),
+            'value': _value_from_rrs(cls._value_type, rr.rdata),
         }
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -568,7 +594,7 @@ class ValueMixin(object):
 
     @property
     def rrs(self):
-        return self.fqdn, self.ttl, self._type, [self.value.rdata_text]
+        return self.fqdn, self.ttl, self._type, [_value_to_rrs(self.value)]
 
     def __repr__(self):
         klass = self.__class__.__name__

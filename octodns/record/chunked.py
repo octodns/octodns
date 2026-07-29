@@ -4,8 +4,19 @@
 
 import re
 
+import dns.exception
+import dns.rdata
+import dns.rdataclass
+import dns.rdatatype
+from dns.rdtypes.ANY.TXT import TXT
+
+from ..deprecation import deprecated
 from .base import ValuesMixin
+from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
+
+# byte length of a single TXT character-string, per RFC 1035 §3.3
+_CHARACTER_STRING_LENGTH = 255
 
 
 class ChunkedValueValidator(ValueValidator):
@@ -87,16 +98,31 @@ class _ChunkedValuesMixin(ValuesMixin):
             values.append(self.chunked_value(v))
         return values
 
-    @property
-    def rr_values(self):
-        return self.chunked_values
-
 
 class _ChunkedValue(str):
     VALIDATORS = [chunked_value_validator]
 
     @classmethod
+    def from_rrs(cls, rdata):
+        # strict RFC presentation-format parsing: dnspython handles quoting,
+        # escaping, and concatenating multiple character-strings into the
+        # single logical value they represent
+        try:
+            parsed = dns.rdata.from_text(
+                dns.rdataclass.IN, dns.rdatatype.TXT, rdata
+            )
+        except dns.exception.DNSException as e:
+            raise RrParseError() from e
+        raw = b''.join(parsed.strings).decode('utf-8')
+        # restore octoDNS's internal semicolon representation
+        return raw.replace(';', '\\;')
+
+    @classmethod
     def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
         try:
             return value.replace(';', '\\;')
         except AttributeError:
@@ -115,8 +141,26 @@ class _ChunkedValue(str):
             ret.append(cls(v.replace('" "', '')))
         return ret
 
+    def to_rrs(self):
+        # strict RFC presentation-format rendering: unescape octoDNS's
+        # internal semicolon representation back to a literal `;` (it needs
+        # no escaping inside a quoted character-string) and let dnspython
+        # handle quoting, escaping, and byte-based 255-octet chunking
+        raw = str(self).replace('\\;', ';')
+        data = raw.encode('utf-8')
+        chunks = [
+            data[i : i + _CHARACTER_STRING_LENGTH]
+            for i in range(0, len(data), _CHARACTER_STRING_LENGTH)
+        ] or [b'']
+        rdata = TXT(dns.rdataclass.IN, dns.rdatatype.TXT, chunks)
+        return rdata.to_text()
+
     @property
     def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
         return self
 
     def template(self, params):

@@ -171,10 +171,24 @@ class TestRecordTxt(TestCase):
                 ],
             },
         )
+        # record.rrs performs strict RFC presentation-format rendering: the
+        # internal `\;` escaping is octoDNS-only bookkeeping and is not
+        # meaningful (or needed) inside an RFC 1035 quoted character-string,
+        # so it comes out as a plain `;` and the byte-based chunk boundary
+        # shifts accordingly
         vals = [
             '"before"',
-            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH" '
-            '"2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
+            '"v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH2s9" '
+            '"a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
             '"z after"',
         ]
         self.assertEqual(('txt.unit.tests.', 42, 'TXT', vals), record.rrs)
+
+        # round trips back through from_rrs to the original raw value, with
+        # octoDNS's internal semicolon escaping restored
+        from octodns.record.rr import Rr
+
+        roundtripped = Record.from_rrs(
+            zone, [Rr('txt.unit.tests.', 'TXT', 42, v) for v in vals]
+        )[0]
+        self.assertEqual(record.values, roundtripped.values)

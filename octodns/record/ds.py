@@ -317,9 +317,9 @@ class DsValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         try:
-            key_tag, algorithm, digest_type, digest = value.split(' ')
+            key_tag, algorithm, digest_type, digest = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -340,6 +340,14 @@ class DsValue(EqualityTupleMixin, dict):
             'digest_type': digest_type,
             'digest': digest,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -400,11 +408,18 @@ class DsValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return (
             f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )
+
+    @property
+    def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.digest:

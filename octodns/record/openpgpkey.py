@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from .base import Record, ValuesMixin
 from .validator import ValidationReason, ValueValidator
 
@@ -36,18 +37,33 @@ class OpenpgpkeyValue(str):
         return {'type': 'string'}
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         # Strip whitespace that may appear in zone files (base64 data may be
         # split across lines)
-        return value.replace(' ', '')
+        return rdata.replace(' ', '')
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
 
+    def to_rrs(self):
+        return self
+
     @property
     def rdata_text(self):
-        return self
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self:

@@ -2,6 +2,7 @@
 #
 #
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
@@ -200,9 +201,9 @@ class MxValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         try:
-            preference, exchange = value.split(' ')
+            preference, exchange = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -211,6 +212,14 @@ class MxValue(EqualityTupleMixin, dict):
             pass
         exchange = unquote(exchange)
         return {'preference': preference, 'exchange': exchange}
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -251,9 +260,16 @@ class MxValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    def to_rrs(self):
+        return f'{self.preference} {self.exchange}'
+
     @property
     def rdata_text(self):
-        return f'{self.preference} {self.exchange}'
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.exchange:

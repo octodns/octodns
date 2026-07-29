@@ -7,6 +7,7 @@ from base64 import b64decode
 from binascii import Error as binascii_error
 from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import Record, ValuesMixin, unquote
@@ -287,9 +288,9 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, rdata):
         try:
-            svcpriority, targetname, *svcparams = value.split(' ')
+            svcpriority, targetname, *svcparams = rdata.split(' ')
         except ValueError:
             raise RrParseError()
         try:
@@ -320,6 +321,14 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
             'targetname': targetname,
             'svcparams': params,
         }
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use `{cls.__name__}.from_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return cls.from_rrs(value)
 
     @classmethod
     def process(cls, values):
@@ -358,8 +367,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
     def svcparams(self, value):
         self['svcparams'] = value
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         params = ''
         sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
         for svcparamkey in sorted_svcparamkeys:
@@ -371,6 +379,14 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
                 else:
                     params += f'={svcparamvalue}'
         return f'{self.svcpriority} {self.targetname}{params}'
+
+    @property
+    def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use `{self.__class__.__name__}.to_rrs()` instead. Will be removed in 2.0',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
     def template(self, params):
         if '{' not in self.targetname:
@@ -396,7 +412,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         return (self.svcpriority, self.targetname, params)
 
     def __repr__(self):
-        return f"'{self.rdata_text}'"
+        return f"'{self.to_rrs()}'"
 
 
 class SvcbValueBestPracticeValidator(ValueValidator):
