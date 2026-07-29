@@ -174,8 +174,8 @@ class TestRecordTxt(TestCase):
         )
         vals = [
             '"before"',
-            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH" '
-            '"2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
+            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH2s9" '
+            '"a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
             '"z after"',
         ]
         self.assertEqual(('txt.unit.tests.', 42, 'TXT', vals), record.rrs)
@@ -191,6 +191,14 @@ class TestRecordTxt(TestCase):
             'has "quote" in it',
             'v=spf1 include:_spf.example.com ~all',
             'a' * 254 + '\\;' + 'b' * 10,
+            # a literal backslash -- used to raise or get doubled depending
+            # on where it fell relative to a chunk/quote boundary
+            'a\\b',
+            'a\\',
+            # control characters -- used to be left completely unescaped,
+            # which real RFC consumers (dnspython/BIND) can't parse back
+            'a\tb',
+            'a\nb',
         ):
             record = Record.new(
                 zone, 'txt', {'ttl': 32, 'type': 'TXT', 'value': value}
