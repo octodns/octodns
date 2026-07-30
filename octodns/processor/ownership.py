@@ -133,7 +133,7 @@ class OwnershipProcessor(BaseProcessor):
 
             if (
                 not self._is_ownership(record)
-                and record._type not in owned[record.name]
+                and record._type.upper() not in owned[record.name]
                 and record.name != 'octodns-meta'
             ):
                 # It's not an ownership TXT, it's not owned, and it's not
