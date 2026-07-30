@@ -236,7 +236,9 @@ class TestValueAllowListFilter(TestCase):
     zone.add_record(empty_val)
 
     def test_exact(self):
-        allows = ValueAllowlistFilter('exact', ('matches.example.com.',))
+        allows = ValueAllowlistFilter(
+            'exact', ('matches.example.com.', '"matches.example.com."')
+        )
 
         self.assertEqual(7, len(self.zone.records))
         filtered = allows.process_source_zone(self.zone.copy(), None)
@@ -313,7 +315,9 @@ class TestValueRejectListFilter(TestCase):
     zone.add_record(empty_val)
 
     def test_exact(self):
-        rejects = ValueRejectlistFilter('exact', ('matches.example.com.',))
+        rejects = ValueRejectlistFilter(
+            'exact', ('matches.example.com.', '"matches.example.com."')
+        )
 
         self.assertEqual(7, len(self.zone.records))
         filtered = rejects.process_source_zone(self.zone.copy(), None)

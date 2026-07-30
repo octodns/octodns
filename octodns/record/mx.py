@@ -4,7 +4,7 @@
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, RrValueMixin, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import (
     _check_target_format,
@@ -155,7 +155,7 @@ class MxValueNotIpValidator(ValueValidator):
         return reasons
 
 
-class MxValue(EqualityTupleMixin, dict):
+class MxValue(RrValueMixin, EqualityTupleMixin, dict):
     VALIDATORS = [
         MxValueValidator('mx-value', sets={'legacy'}),
         MxValueRfcValidator('mx-value-rfc', sets={'strict'}),
@@ -200,7 +200,7 @@ class MxValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         try:
             preference, exchange = value.split(' ')
         except ValueError:
@@ -251,8 +251,7 @@ class MxValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f'{self.preference} {self.exchange}'
 
     def template(self, params):

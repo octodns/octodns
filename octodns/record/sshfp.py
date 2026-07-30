@@ -5,7 +5,7 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, RrValueMixin, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -206,7 +206,7 @@ class SshfpValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class SshfpValue(EqualityTupleMixin, dict):
+class SshfpValue(RrValueMixin, EqualityTupleMixin, dict):
     VALID_ALGORITHMS = (1, 2, 3, 4)
     VALID_FINGERPRINT_TYPES = (1, 2)
 
@@ -233,7 +233,7 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         try:
             algorithm, fingerprint_type, fingerprint = value.split(' ')
         except ValueError:
@@ -294,8 +294,7 @@ class SshfpValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
 
     def template(self, params):

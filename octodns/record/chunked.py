@@ -4,7 +4,12 @@
 
 import re
 
-from .base import ValuesMixin
+import dns.rdata
+import dns.rdataclass
+import dns.rdatatype
+
+from ..deprecation import deprecated
+from .base import ValuesMixin, _value_to_rrs
 from .validator import ValidationReason, ValueValidator
 
 
@@ -91,16 +96,40 @@ class _ChunkedValuesMixin(ValuesMixin):
     def rr_values(self):
         return self.chunked_values
 
+    @property
+    def rrs(self):
+        return (
+            self.fqdn,
+            self.ttl,
+            self._type,
+            [_value_to_rrs(v) for v in self.values],
+        )
+
 
 class _ChunkedValue(str):
     VALIDATORS = [chunked_value_validator]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_raw(cls, value):
         try:
             return value.replace(';', '\\;')
         except AttributeError:
             return value
+
+    @classmethod
+    def from_rrs(cls, value):
+        rdata = dns.rdata.from_text(dns.rdataclass.IN, dns.rdatatype.TXT, value)
+        raw = b''.join(rdata.strings).decode('ascii')
+        return raw.replace(';', '\\;')
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use '
+            f'`{cls.__name__}.from_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=3,
+        )
+        return cls.from_raw(value)
 
     @classmethod
     def _schema(cls):
@@ -115,8 +144,36 @@ class _ChunkedValue(str):
             ret.append(cls(v.replace('" "', '')))
         return ret
 
+    def to_rrs(self):
+        raw = self.replace('\\;', ';').encode('ascii')
+        chunks = [raw[i : i + 255] for i in range(0, len(raw), 255)]
+        if not chunks:
+            chunks = [b'']
+
+        rendered = []
+        for chunk in chunks:
+            escaped = ''
+            for octet in chunk:
+                if octet in (34, 92):
+                    escaped += f'\\{chr(octet)}'
+                elif octet < 32 or octet >= 127:
+                    escaped += f'\\{octet:03d}'
+                else:
+                    escaped += chr(octet)
+            rendered.append(f'"{escaped}"')
+        value = ' '.join(rendered)
+        return dns.rdata.from_text(
+            dns.rdataclass.IN, dns.rdatatype.TXT, value
+        ).to_text()
+
     @property
     def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. Use '
+            f'`{self.__class__.__name__}.to_rrs()` instead. Will be removed '
+            'in 2.0.',
+            stacklevel=3,
+        )
         return self
 
     def template(self, params):

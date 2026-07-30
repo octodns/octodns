@@ -5,7 +5,7 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import Record, RrValueMixin, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -212,7 +212,7 @@ class TlsaValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class TlsaValue(EqualityTupleMixin, dict):
+class TlsaValue(RrValueMixin, EqualityTupleMixin, dict):
     VALIDATORS = [
         TlsaValueValidator('tlsa-value', sets={'legacy'}),
         TlsaValueRfcValidator('tlsa-value-rfc', sets={'strict'}),
@@ -248,7 +248,7 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         try:
             (
                 certificate_usage,
@@ -328,8 +328,7 @@ class TlsaValue(EqualityTupleMixin, dict):
     def certificate_association_data(self, value):
         self['certificate_association_data'] = value
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def template(self, params):

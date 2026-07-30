@@ -7,6 +7,7 @@ import ipaddress
 from fqdn import FQDN
 
 from ..idna import idna_encode
+from .base import RrValueMixin
 from .validator import ValidationReason, ValueValidator
 
 
@@ -153,7 +154,7 @@ class TargetsValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class _TargetValue(str):
+class _TargetValue(RrValueMixin, str):
     VALIDATORS = [
         TargetValueValidator('target-value-rfc', sets={'legacy', 'strict'}),
         TargetValueNotIpValidator('target-value-not-ip', sets={'strict'}),
@@ -163,7 +164,7 @@ class _TargetValue(str):
     ]
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         return value
 
     @classmethod
@@ -180,8 +181,7 @@ class _TargetValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return self
 
     def template(self, params):
@@ -192,7 +192,7 @@ class _TargetValue(str):
 
 #
 # much like _TargetValue, but geared towards multiple values
-class _TargetsValue(str):
+class _TargetsValue(RrValueMixin, str):
     VALIDATORS = [
         TargetsValueValidator('targets-value-rfc', sets={'legacy', 'strict'}),
         TargetsValueNotIpValidator('targets-value-not-ip', sets={'strict'}),
@@ -202,7 +202,7 @@ class _TargetsValue(str):
     ]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         return value
 
     @classmethod
@@ -217,8 +217,7 @@ class _TargetsValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return self
 
     def template(self, params):

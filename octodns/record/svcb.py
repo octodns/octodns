@@ -9,7 +9,7 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, RrValueMixin, ValuesMixin, unquote
 from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
 from .target import _check_target_format, _check_target_trailing_dot
@@ -269,7 +269,7 @@ class SvcbValueValidator(ValueValidator):
         return reasons
 
 
-class _SvcbValueBase(EqualityTupleMixin, dict):
+class _SvcbValueBase(RrValueMixin, EqualityTupleMixin, dict):
     @classmethod
     def _schema(cls):
         return {
@@ -287,7 +287,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         try:
             svcpriority, targetname, *svcparams = value.split(' ')
         except ValueError:
@@ -358,8 +358,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
     def svcparams(self, value):
         self['svcparams'] = value
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         params = ''
         sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
         for svcparamkey in sorted_svcparamkeys:
@@ -396,7 +395,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         return (self.svcpriority, self.targetname, params)
 
     def __repr__(self):
-        return f"'{self.rdata_text}'"
+        return f"'{self.to_rrs()}'"
 
 
 class SvcbValueBestPracticeValidator(ValueValidator):

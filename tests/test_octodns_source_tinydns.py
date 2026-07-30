@@ -14,6 +14,19 @@ from octodns.zone import Zone
 class TestTinyDnsFileSource(TestCase):
     source = TinyDnsFileSource('test', './tests/zones/tinydns')
 
+    def test_arbitrary_chunked_values_are_raw(self):
+        zone = Zone('example.com.', [])
+        for _type in ('SPF', 'TXT'):
+            lines = [('raw.example.com', _type, 'raw; value', '42')]
+            self.assertEqual(
+                [(_type, 'raw.example.com', 42, ['raw\\; value'])],
+                list(
+                    self.source._records_for_colon(
+                        zone, 'raw.example.com', lines
+                    )
+                ),
+            )
+
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)

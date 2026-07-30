@@ -315,7 +315,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def parse_rdata_texts(cls, rdatas):
-        return [cls._value_type.parse_rdata_text(r) for r in rdatas]
+        return [_value_from_rrs(cls._value_type, r) for r in rdatas]
 
     def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone
@@ -479,6 +479,56 @@ def _process_value_validators(value_type, values, _type, disabled=None):
     )
 
 
+class RrValueMixin:
+    @property
+    def rdata_text(self):
+        name = self.__class__.__name__
+        deprecated(
+            f'`{name}.rdata_text` is DEPRECATED. Use `{name}.to_rrs()` '
+            'instead. Will be removed in 2.0.',
+            stacklevel=3,
+        )
+        return self.to_rrs()
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        name = cls.__name__
+        deprecated(
+            f'`{name}.parse_rdata_text` is DEPRECATED. Use '
+            f'`{name}.from_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=3,
+        )
+        return cls.from_rrs(value)
+
+
+def _value_to_rrs(value):
+    method = getattr(value, 'to_rrs', None)
+    if callable(method):
+        return method()
+
+    name = value.__class__.__name__
+    deprecated(
+        f'`{name}.rdata_text` is DEPRECATED. Third-party value types must '
+        f'implement `{name}.to_rrs()`. Will be removed in 2.0.',
+        stacklevel=3,
+    )
+    return value.rdata_text
+
+
+def _value_from_rrs(value_type, rdata):
+    method = getattr(value_type, 'from_rrs', None)
+    if callable(method):
+        return method(rdata)
+
+    name = value_type.__name__
+    deprecated(
+        f'`{name}.parse_rdata_text` is DEPRECATED. Third-party value types '
+        f'must implement `{name}.from_rrs()`. Will be removed in 2.0.',
+        stacklevel=3,
+    )
+    return value_type.parse_rdata_text(rdata)
+
+
 class ValuesMixin(object):
     VALIDATORS = [ValuesTypeValidator()]
 
@@ -487,7 +537,7 @@ class ValuesMixin(object):
         # type and TTL come from the first rr
         rr = rrs[0]
         # values come from parsing the rdata portion of all rrs
-        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
+        values = [_value_from_rrs(cls._value_type, rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -527,7 +577,7 @@ class ValuesMixin(object):
             self.fqdn,
             self.ttl,
             self._type,
-            [v.rdata_text for v in self.rr_values],
+            [_value_to_rrs(v) for v in self.rr_values],
         )
 
     def __repr__(self):
@@ -549,7 +599,7 @@ class ValueMixin(object):
         return {
             'ttl': rr.ttl,
             'type': rr._type,
-            'value': cls._value_type.parse_rdata_text(rr.rdata),
+            'value': _value_from_rrs(cls._value_type, rr.rdata),
         }
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -568,7 +618,7 @@ class ValueMixin(object):
 
     @property
     def rrs(self):
-        return self.fqdn, self.ttl, self._type, [self.value.rdata_text]
+        return self.fqdn, self.ttl, self._type, [_value_to_rrs(self.value)]
 
     def __repr__(self):
         klass = self.__class__.__name__

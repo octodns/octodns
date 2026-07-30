@@ -2,7 +2,7 @@
 #
 #
 
-from .base import Record, ValuesMixin
+from .base import Record, RrValueMixin, ValuesMixin
 from .validator import ValidationReason, ValueValidator
 
 
@@ -18,7 +18,7 @@ class OpenpgpkeyValueValidator(ValueValidator):
         return []
 
 
-class OpenpgpkeyValue(str):
+class OpenpgpkeyValue(RrValueMixin, str):
     '''
     OPENPGPKEY value - base64-encoded OpenPGP public key
 
@@ -36,7 +36,7 @@ class OpenpgpkeyValue(str):
         return {'type': 'string'}
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         # Strip whitespace that may appear in zone files (base64 data may be
         # split across lines)
         return value.replace(' ', '')
@@ -45,8 +45,7 @@ class OpenpgpkeyValue(str):
     def process(cls, values):
         return [cls(v) for v in values]
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return self
 
     def template(self, params):

@@ -6,7 +6,7 @@ import re
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import Record, RrValueMixin, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import RecordValidator, ValidationReason, ValueValidator
 
@@ -132,7 +132,7 @@ class UriValueRfcValidator(ValueValidator):
         return reasons
 
 
-class UriValue(EqualityTupleMixin, dict):
+class UriValue(RrValueMixin, EqualityTupleMixin, dict):
     VALIDATORS = [
         UriValueValidator('uri-value', sets={'legacy'}),
         UriValueRfcValidator('uri-value-rfc', sets={'strict'}),
@@ -151,7 +151,7 @@ class UriValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         try:
             priority, weight, target = value.split(' ')
         except ValueError:
@@ -208,8 +208,7 @@ class UriValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f'{self.priority} {self.weight} "{self.target}"'
 
     def template(self, params):

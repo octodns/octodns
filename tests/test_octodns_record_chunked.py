@@ -39,6 +39,44 @@ class TestRecordChunked(TestCase):
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
         self.assertEqual('some.target.', a.values[0].rdata_text)
+        self.assertEqual(a.chunked_values, a.rr_values)
+
+    def test_rrs_conversion(self):
+        values = (
+            ('hello world', '"hello world"'),
+            ('say "hello"', '"say \\"hello\\""'),
+            ('a\\path', '"a\\\\path"'),
+            ('one\\; two', '"one; two"'),
+            ('one\x01two', '"one\\001two"'),
+            ('', '""'),
+        )
+        for raw, rdata in values:
+            value = _ChunkedValue(raw)
+            self.assertEqual(rdata, value.to_rrs())
+            self.assertEqual(raw, _ChunkedValue.from_rrs(rdata))
+
+        self.assertEqual(
+            'onetwo\\;three', _ChunkedValue.from_rrs('"one" "two;three"')
+        )
+
+        for length in (254, 255):
+            raw = 'a' * length
+            self.assertEqual(f'"{raw}"', _ChunkedValue(raw).to_rrs())
+        raw = 'a' * 256
+        self.assertEqual(f'"{"a" * 255}" "a"', _ChunkedValue(raw).to_rrs())
+
+    def test_legacy_rrs_conversion(self):
+        value = _ChunkedValue('one\\; two')
+        with self.assertWarnsRegex(
+            DeprecationWarning, '_ChunkedValue.rdata_text.*to_rrs'
+        ):
+            self.assertEqual(value, value.rdata_text)
+        with self.assertWarnsRegex(
+            DeprecationWarning, '_ChunkedValue.parse_rdata_text.*from_rrs'
+        ):
+            self.assertEqual(
+                'one\\; two', _ChunkedValue.parse_rdata_text('one; two')
+            )
 
 
 class TestChunkedValue(TestCase):

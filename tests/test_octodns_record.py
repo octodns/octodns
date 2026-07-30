@@ -21,6 +21,7 @@ from octodns.record import (
     TxtRecord,
     Update,
     ValidationError,
+    ValueMixin,
     ValuesMixin,
 )
 from octodns.record.base import unquote
@@ -930,6 +931,288 @@ class TestRecordValidation(TestCase):
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             # this one is a @property so not callable
+
+            if cls.__module__.startswith('octodns.record.'):
+                for attr in ('to_rrs', 'from_rrs'):
+                    method = getattr(value_type, attr)
+                    self.assertTrue(method, f'{_type}, {cls} has {attr}')
+                    self.assertTrue(
+                        callable(method), f'{_type}, {cls} {attr} is callable'
+                    )
+
+    def test_value_rrs_deprecations(self):
+        value_type = ARecord._value_type
+        value = value_type('1.2.3.4')
+        with self.assertWarnsRegex(
+            DeprecationWarning, 'Ipv4Value.rdata_text.*Ipv4Value.to_rrs'
+        ):
+            self.assertEqual('1.2.3.4', value.rdata_text)
+        with self.assertWarnsRegex(
+            DeprecationWarning, 'Ipv4Value.parse_rdata_text.*Ipv4Value.from_rrs'
+        ):
+            self.assertEqual('1.2.3.4', value_type.parse_rdata_text('1.2.3.4'))
+
+    def test_legacy_value_rrs_fallback(self):
+        class LegacyValue(str):
+            @classmethod
+            def process(cls, values):
+                if not isinstance(values, (list, tuple)):
+                    return cls(values)
+                return [cls(value) for value in values]
+
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return value.upper()
+
+            @property
+            def rdata_text(self):
+                return self.lower()
+
+        class LegacyRecord(ValuesMixin, Record):
+            _type = 'LEGACY'
+            _value_type = LegacyValue
+
+        record = LegacyRecord(
+            self.zone, 'legacy', {'ttl': 42, 'values': ['VALUE']}
+        )
+        with self.assertWarnsRegex(
+            DeprecationWarning, 'LegacyValue.rdata_text.*LegacyValue.to_rrs'
+        ):
+            self.assertEqual(
+                ('legacy.unit.tests.', 42, 'LEGACY', ['value']), record.rrs
+            )
+
+        rr = Rr('legacy.unit.tests.', 'LEGACY', 42, 'value')
+        with self.assertWarnsRegex(
+            DeprecationWarning,
+            'LegacyValue.parse_rdata_text.*LegacyValue.from_rrs',
+        ):
+            self.assertEqual(
+                {'ttl': 42, 'type': 'LEGACY', 'values': ['VALUE']},
+                LegacyRecord.data_from_rrs([rr]),
+            )
+
+        class LegacySingleRecord(ValueMixin, Record):
+            _type = 'LEGACY-SINGLE'
+            _value_type = LegacyValue
+
+        record = LegacySingleRecord(
+            self.zone, 'legacy-single', {'ttl': 42, 'value': 'VALUE'}
+        )
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(['value'], record.rrs[3])
+        with self.assertWarns(DeprecationWarning):
+            self.assertEqual(
+                'VALUE', LegacySingleRecord.data_from_rrs([rr])['value']
+            )
+
+    def test_new_value_attribute_errors_are_not_legacy_fallbacks(self):
+        class BrokenValue(str):
+            @classmethod
+            def process(cls, values):
+                return [cls(value) for value in values]
+
+            @classmethod
+            def from_rrs(cls, value):
+                raise AttributeError('from_rrs failed')
+
+            def to_rrs(self):
+                raise AttributeError('to_rrs failed')
+
+        class BrokenRecord(ValuesMixin, Record):
+            _type = 'BROKEN'
+            _value_type = BrokenValue
+
+        record = BrokenRecord(
+            self.zone, 'broken', {'ttl': 42, 'values': ['value']}
+        )
+        with self.assertRaisesRegex(AttributeError, 'to_rrs failed'):
+            record.rrs
+        rr = Rr('broken.unit.tests.', 'BROKEN', 42, 'value')
+        with self.assertRaisesRegex(AttributeError, 'from_rrs failed'):
+            BrokenRecord.data_from_rrs([rr])
+
+    def test_normal_rrs_paths_do_not_warn(self):
+        record = TxtRecord(
+            self.zone, 'txt', {'ttl': 42, 'value': 'hello world'}
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            fqdn, ttl, _type, rdatas = record.rrs
+            rrs = [Rr(fqdn, _type, ttl, rdata) for rdata in rdatas]
+            reparsed = TxtRecord.data_from_rrs(rrs)
+        self.assertEqual([], caught)
+        self.assertEqual(
+            {'ttl': 42, 'type': 'TXT', 'values': ['hello world']}, reparsed
+        )
+
+    def test_all_registered_types_round_trip_rrs(self):
+        values = {
+            'A': ('a', '1.2.3.4'),
+            'AAAA': ('aaaa', '2001:db8::1'),
+            'ALIAS': ('', 'target.unit.tests.'),
+            'CAA': (
+                'caa',
+                {'flags': 0, 'tag': 'issue', 'value': 'ca.unit.tests'},
+            ),
+            'CNAME': ('cname', 'target.unit.tests.'),
+            'DNAME': ('dname', 'target.unit.tests.'),
+            'DS': (
+                'ds',
+                {
+                    'key_tag': 12345,
+                    'algorithm': 8,
+                    'digest_type': 2,
+                    'digest': 'abcdef',
+                },
+            ),
+            'HTTPS': (
+                'https',
+                {
+                    'svcpriority': 1,
+                    'targetname': 'target.unit.tests.',
+                    'svcparams': {'alpn': ['h2'], 'port': '443'},
+                },
+            ),
+            'LOC': (
+                'loc',
+                {
+                    'lat_degrees': 37,
+                    'lat_minutes': 47,
+                    'lat_seconds': 0.0,
+                    'lat_direction': 'N',
+                    'long_degrees': 122,
+                    'long_minutes': 24,
+                    'long_seconds': 0.0,
+                    'long_direction': 'W',
+                    'altitude': 10.0,
+                    'size': 1.0,
+                    'precision_horz': 10000.0,
+                    'precision_vert': 10.0,
+                },
+            ),
+            'MX': ('mx', {'preference': 10, 'exchange': 'mail.unit.tests.'}),
+            'NAPTR': (
+                'naptr',
+                {
+                    'order': 10,
+                    'preference': 20,
+                    'flags': 'S',
+                    'service': 'SIP+D2U',
+                    'regexp': '',
+                    'replacement': '_sip._udp.unit.tests.',
+                },
+            ),
+            'NS': ('ns', 'ns1.unit.tests.'),
+            'OPENPGPKEY': ('openpgpkey', 'YWJjZA=='),
+            'PTR': ('ptr', 'target.unit.tests.'),
+            'SPF': ('spf', 'v=spf1 -all'),
+            'SRV': (
+                '_sip._tcp',
+                {
+                    'priority': 10,
+                    'weight': 20,
+                    'port': 5060,
+                    'target': 'sip.unit.tests.',
+                },
+            ),
+            'SSHFP': (
+                'sshfp',
+                {
+                    'algorithm': 1,
+                    'fingerprint_type': 2,
+                    'fingerprint': 'abcdef',
+                },
+            ),
+            'SVCB': (
+                'svcb',
+                {
+                    'svcpriority': 1,
+                    'targetname': 'target.unit.tests.',
+                    'svcparams': {'alpn': ['h2'], 'port': '443'},
+                },
+            ),
+            'TLSA': (
+                '_443._tcp',
+                {
+                    'certificate_usage': 3,
+                    'selector': 1,
+                    'matching_type': 1,
+                    'certificate_association_data': 'abcdef',
+                },
+            ),
+            'TXT': ('txt', 'hello\\; world'),
+            'URI': (
+                '_sip._tcp',
+                {
+                    'priority': 10,
+                    'weight': 20,
+                    'target': 'https://unit.tests/path',
+                },
+            ),
+            'URLFWD': (
+                'urlfwd',
+                {
+                    'path': '/',
+                    'target': 'https://unit.tests/',
+                    'code': 301,
+                    'masking': 0,
+                    'query': 0,
+                },
+            ),
+        }
+        core_types = {
+            _type
+            for _type, cls in Record.registered_types().items()
+            if cls.__module__.startswith('octodns.record.')
+        }
+        self.assertEqual(core_types, set(values))
+
+        for _type, (name, value) in values.items():
+            record = Record.new(
+                self.zone,
+                name,
+                {'ttl': 42, 'type': _type, 'value': value},
+                lenient=True,
+            )
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                fqdn, ttl, rr_type, rdatas = record.rrs
+                rrs = [Rr(fqdn, rr_type, ttl, rdata) for rdata in rdatas]
+                reparsed = Record.from_rrs(self.zone, rrs, lenient=True)[0]
+            value_warnings = [
+                warning
+                for warning in caught
+                if '.rdata_text' in str(warning.message)
+                or '.parse_rdata_text' in str(warning.message)
+            ]
+            self.assertEqual([], value_warnings, _type)
+            self.assertEqual(record.data, reparsed.data, _type)
+
+            record_values = getattr(
+                record, 'values', [getattr(record, 'value', None)]
+            )
+            for record_value in record_values:
+                value_type = record_value.__class__
+                with self.assertWarnsRegex(
+                    DeprecationWarning,
+                    f'{value_type.__name__}.rdata_text.*to_rrs',
+                ):
+                    legacy_rdata = record_value.rdata_text
+                if _type in ('SPF', 'TXT'):
+                    self.assertEqual(record_value, legacy_rdata, _type)
+                    legacy_input = str(record_value).replace('\\;', ';')
+                    expected = value_type.from_raw(legacy_input)
+                else:
+                    self.assertEqual(record_value.to_rrs(), legacy_rdata, _type)
+                    legacy_input = record_value.to_rrs()
+                    expected = value_type.from_rrs(legacy_input)
+                with self.assertWarnsRegex(
+                    DeprecationWarning,
+                    f'{value_type.__name__}.parse_rdata_text.*from_rrs',
+                ):
+                    actual = value_type.parse_rdata_text(legacy_input)
+                self.assertEqual(expected, actual, _type)
 
 
 class TestValidators(TestCase):
