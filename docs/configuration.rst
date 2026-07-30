@@ -212,42 +212,42 @@ bridge validators with ``sets=None`` — always active and cannot be disabled.
 
 Validators active in both ``legacy`` and ``strict``:
 
-+------------------------+------------------------------------------+
-| id                     | description                              |
-+========================+==========================================+
-| ``name-rfc``           | Record name format (RFC 1035/2181)       |
-+------------------------+------------------------------------------+
-| ``ttl-rfc``            | TTL range (positive integer)             |
-+------------------------+------------------------------------------+
-| ``healthcheck``        | octoDNS healthcheck config fields        |
-+------------------------+------------------------------------------+
-| ``cname-root-rfc``     | CNAME must not be at zone root           |
-+------------------------+------------------------------------------+
-| ``alias-root``         | ALIAS must not be at zone root           |
-+------------------------+------------------------------------------+
-| ``ip-value-rfc``       | A / AAAA value format                    |
-+------------------------+------------------------------------------+
-| ``target-value-rfc``   | CNAME/ALIAS/DNAME/PTR target format      |
-+------------------------+------------------------------------------+
-| ``targets-value-rfc``  | NS targets format                        |
-+------------------------+------------------------------------------+
-| ``loc-value-rfc``      | LOC rdata format (RFC 1876)              |
-+------------------------+------------------------------------------+
-| ``chunked-value-rfc``  | TXT/SPF chunk encoding                   |
-+------------------------+------------------------------------------+
-| ``svcb-value-rfc``     | SVCB rdata format (RFC 9460)             |
-+------------------------+------------------------------------------+
-| ``https-value-rfc``    | HTTPS rdata format (RFC 9460)            |
-+------------------------+------------------------------------------+
-| ``openpgpkey-value-rfc``| OPENPGPKEY rdata format (RFC 7929)      |
-+------------------------+------------------------------------------+
-| ``dynamic``            | Dynamic routing config (pools and rules) |
-+------------------------+------------------------------------------+
-| ``urlfwd-value``       | URLFWD rdata format                      |
-+------------------------+------------------------------------------+
-| ``cname-coexistence``  | CNAME and ALIAS cannot coexist with      |
-|                        | other records                            |
-+------------------------+------------------------------------------+
++--------------------------+------------------------------------------+
+| id                       | description                              |
++==========================+==========================================+
+| ``name-rfc``             | Record name format (RFC 1035/2181)       |
++--------------------------+------------------------------------------+
+| ``ttl-rfc``              | TTL range (positive integer)             |
++--------------------------+------------------------------------------+
+| ``healthcheck``          | octoDNS healthcheck config fields        |
++--------------------------+------------------------------------------+
+| ``cname-root-rfc``       | CNAME must not be at zone root           |
++--------------------------+------------------------------------------+
+| ``alias-root``           | ALIAS must not be at zone root           |
++--------------------------+------------------------------------------+
+| ``ip-value-rfc``         | A / AAAA value format                    |
++--------------------------+------------------------------------------+
+| ``target-value-rfc``     | CNAME/ALIAS/DNAME/PTR target format      |
++--------------------------+------------------------------------------+
+| ``targets-value-rfc``    | NS targets format                        |
++--------------------------+------------------------------------------+
+| ``loc-value-rfc``        | LOC rdata format (RFC 1876)              |
++--------------------------+------------------------------------------+
+| ``chunked-value-rfc``    | TXT/SPF chunk encoding                   |
++--------------------------+------------------------------------------+
+| ``svcb-value-rfc``       | SVCB rdata format (RFC 9460)             |
++--------------------------+------------------------------------------+
+| ``https-value-rfc``      | HTTPS rdata format (RFC 9460)            |
++--------------------------+------------------------------------------+
+| ``openpgpkey-value-rfc`` | OPENPGPKEY rdata format (RFC 7929)       |
++--------------------------+------------------------------------------+
+| ``dynamic``              | Dynamic routing config (pools and rules) |
++--------------------------+------------------------------------------+
+| ``urlfwd-value``         | URLFWD rdata format                      |
++--------------------------+------------------------------------------+
+| ``cname-coexistence``    | CNAME and ALIAS cannot coexist with      |
+|                          | other records                            |
++--------------------------+------------------------------------------+
 
 Validators active in ``legacy`` only (will be superseded in ``strict``):
 
@@ -376,6 +376,7 @@ Validators active in ``best-practice`` only:
 +---------------------------------------+-----------------------------------------------+
 | ``cname-target-resolvable-in-zone``   | In-zone CNAME targets must be resolvable      |
 +---------------------------------------+-----------------------------------------------+
+
 Validators active in ``best-practice`` only that check the entire zone:
 
 +----------------------------------+-----------------------------------------------+

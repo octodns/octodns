@@ -66,3 +66,20 @@ jobs:
       - name: CI package build
         run: |
           ./script/cibuild-package
+  docs:
+    needs: config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          # Most recent release from https://devguide.python.org/versions/#versions
+          python-version: ${{ fromJson(needs.config.outputs.json).python_version_current }}
+          architecture: x64
+      - name: Bootstrap
+        run: |
+          ./script/bootstrap
+      - name: Generate docs
+        run: |
+          ./script/generate-docs

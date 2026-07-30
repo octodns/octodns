@@ -33,4 +33,3 @@ by set name (e.g. ``legacy``, ``strict``, ``best-practice``).
    octodns.zone.mail
    octodns.zone.ns
    octodns.zone.srv
-   octodns.zone.subzone
