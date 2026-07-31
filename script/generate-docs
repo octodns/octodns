@@ -12,6 +12,6 @@ if [ -z "$BUILDER" ]; then
 fi
 
 build="_build/${BUILDER}"
-rm -rf "$build" api/records/ api/processors/
+rm -rf "$build" api/cmds/ api/helpers/ api/processors/ api/providers/ api/records/ api/secrets/ api/sources/ api/validators/
 
 sphinx-build --builder "$BUILDER" --conf-dir . --fail-on-warning "$@" "." "$build"

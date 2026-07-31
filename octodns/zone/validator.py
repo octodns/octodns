@@ -7,7 +7,11 @@ from logging import getLogger
 from ..record.validator import ValidationReason
 from .exception import ZoneException
 
-__all__ = ['ValidationReason', 'ZoneValidator', 'ZoneValidatorRegistry']
+# back-compat re-export, ValidationReason lived here before moving to
+# octodns.record.validator. No __all__ here (on purpose) so autodoc documents
+# it once, at its new home, rather than duplicating it on this module's page
+# too.
+ValidationReason
 
 
 class ZoneValidatorRegistry:
