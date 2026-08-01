@@ -3,7 +3,13 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import RdataValueMixin, Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -134,7 +140,7 @@ class LocValueValidator(ValueValidator):
         return reasons
 
 
-class LocValue(RdataValueMixin, EqualityTupleMixin, dict):
+class LocValue(EqualityTupleMixin, dict):
     # TODO: this does not really match the RFC, but it's stuck using the details
     # of how the type was impelemented. Would be nice to rework things to match
     # while maintaining backwards compatibility.
@@ -406,6 +412,16 @@ class LocValue(RdataValueMixin, EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'

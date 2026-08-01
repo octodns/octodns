@@ -5,7 +5,13 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import RdataValueMixin, Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -131,7 +137,7 @@ class CaaValueBestPracticeValidator(ValueValidator):
         return []
 
 
-class CaaValue(RdataValueMixin, EqualityTupleMixin, dict):
+class CaaValue(EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc8659
 
     VALIDATORS = [
@@ -209,6 +215,16 @@ class CaaValue(RdataValueMixin, EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         # RFC 8659 §4.1.1 requires value to be a quoted character-string

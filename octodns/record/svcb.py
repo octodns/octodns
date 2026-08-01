@@ -9,7 +9,13 @@ from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import RdataValueMixin, Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .chunked import _ChunkedValue, chunked_value_validator
 from .rr import RrParseError
 from .target import _check_target_format, _check_target_trailing_dot
@@ -269,7 +275,7 @@ class SvcbValueValidator(ValueValidator):
         return reasons
 
 
-class _SvcbValueBase(RdataValueMixin, EqualityTupleMixin, dict):
+class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
     def _schema(cls):
         return {
@@ -357,6 +363,16 @@ class _SvcbValueBase(RdataValueMixin, EqualityTupleMixin, dict):
     @svcparams.setter
     def svcparams(self, value):
         self['svcparams'] = value
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         params = ''

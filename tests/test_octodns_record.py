@@ -66,14 +66,17 @@ class TestRecord(TestCase):
                 )[0].data,
             )
         self.assertEqual(
-            2,
-            len(
-                [
-                    warning
-                    for warning in caught
-                    if 'LegacyValue' in str(warning.message)
-                ]
-            ),
+            [
+                '`LegacyValue.rdata_text` is DEPRECATED. Implement '
+                '`to_rrs()` instead. Will be removed in 2.0.',
+                '`LegacyValue.parse_rdata_text` is DEPRECATED. Implement '
+                '`from_rrs()` instead. Will be removed in 2.0.',
+            ],
+            [
+                str(warning.message)
+                for warning in caught
+                if 'LegacyValue' in str(warning.message)
+            ],
         )
 
     def test_registration(self):
@@ -661,19 +664,38 @@ class TestRecord(TestCase):
                         value_type.from_rrs(rdata),
                         value_type.parse_rdata_text(rdata),
                     )
-            self.assertEqual(2, len(caught), _type)
-            _, _, _, rdatas = record.rrs
+            value_type_name = value_type.__name__
             self.assertEqual(
-                record.data,
-                Record.from_rrs(
+                [
+                    f'`{value_type_name}.rdata_text` is DEPRECATED. Use '
+                    f'`{value_type_name}.to_rrs()` instead. Will be removed in 2.0.',
+                    f'`{value_type_name}.parse_rdata_text` is DEPRECATED. Use '
+                    f'`{value_type_name}.from_rrs()` instead. Will be removed in 2.0.',
+                ],
+                [str(warning.message) for warning in caught],
+                _type,
+            )
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                _, _, _, rdatas = record.rrs
+                round_trip = Record.from_rrs(
                     self.zone,
                     [
                         Rr(record.fqdn, _type, record.ttl, rdata)
                         for rdata in rdatas
                     ],
-                )[0].data,
+                )[0]
+            self.assertEqual(
+                [],
+                [
+                    warning
+                    for warning in caught
+                    if '.rdata_text' in str(warning.message)
+                    or '.parse_rdata_text' in str(warning.message)
+                ],
                 _type,
             )
+            self.assertEqual(record.data, round_trip.data, _type)
 
     def test_unquote(self):
         s = 'Hello "\'"World!'

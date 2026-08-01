@@ -4,7 +4,13 @@
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import RdataValueMixin, Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .rr import RrParseError
 from .target import (
     _check_target_format,
@@ -155,7 +161,7 @@ class MxValueNotIpValidator(ValueValidator):
         return reasons
 
 
-class MxValue(RdataValueMixin, EqualityTupleMixin, dict):
+class MxValue(EqualityTupleMixin, dict):
     VALIDATORS = [
         MxValueValidator('mx-value', sets={'legacy'}),
         MxValueRfcValidator('mx-value-rfc', sets={'strict'}),
@@ -250,6 +256,16 @@ class MxValue(RdataValueMixin, EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return f'{self.preference} {self.exchange}'

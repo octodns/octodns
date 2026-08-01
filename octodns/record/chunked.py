@@ -5,9 +5,15 @@
 import re
 
 import dns.rdata
+import dns.rdataclass
+import dns.rdatatype
+from dns.rdtypes.ANY.TXT import TXT
 
-from ..deprecation import deprecated
-from .base import ValuesMixin
+from .base import (
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+)
 from .validator import ValidationReason, ValueValidator
 
 
@@ -119,11 +125,7 @@ class _ChunkedValue(str):
 
     @classmethod
     def parse_rdata_text(cls, value):
-        deprecated(
-            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. '
-            'Use `from_rrs()` instead. Will be removed in 2.0.',
-            stacklevel=2,
-        )
+        _deprecated_parse_rdata_text(cls)
         return cls.from_raw(value)
 
     @classmethod
@@ -146,29 +148,15 @@ class _ChunkedValue(str):
 
     @property
     def rdata_text(self):
-        deprecated(
-            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. '
-            'Use `to_rrs()` instead. Will be removed in 2.0.',
-            stacklevel=2,
-        )
+        _deprecated_rdata_text(self)
         return self
 
     def to_rrs(self):
-        value = self.replace('\\;', ';')
-        chunks = [value[i : i + 255] for i in range(0, len(value), 255)] or ['']
-
-        def escape(chunk):
-            return ''.join(
-                (
-                    f'\\{ord(c):03d}'
-                    if ord(c) < 32 or ord(c) > 126
-                    else f'\\{c}' if c in ('"', '\\') else c
-                )
-                for c in chunk
-            )
-
-        rdata = ' '.join(f'"{escape(chunk)}"' for chunk in chunks)
-        return dns.rdata.from_text('IN', 'TXT', rdata).to_text()
+        value = self.replace('\\;', ';').encode('ascii')
+        chunks = [value[i : i + 255] for i in range(0, len(value), 255)] or [
+            b''
+        ]
+        return TXT(dns.rdataclass.IN, dns.rdatatype.TXT, chunks).to_text()
 
     def template(self, params):
         if '{' not in self:

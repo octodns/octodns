@@ -21,28 +21,25 @@ def unquote(s):
     return s
 
 
-class RdataValueMixin(object):
-    @classmethod
-    def parse_rdata_text(cls, rdata):
-        deprecated(
-            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use '
-            f'`{cls.__name__}.from_rrs()` instead. Will be removed in 2.0.',
-            stacklevel=2,
-        )
-        return cls.from_rrs(rdata)
+def _deprecated_parse_rdata_text(value_type):
+    deprecated(
+        f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. Use '
+        f'`{value_type.__name__}.from_rrs()` instead. Will be removed in 2.0.',
+        stacklevel=3,
+    )
 
-    @property
-    def rdata_text(self):
-        cls = self.__class__
-        deprecated(
-            f'`{cls.__name__}.rdata_text` is DEPRECATED. Use '
-            f'`{cls.__name__}.to_rrs()` instead. Will be removed in 2.0.',
-            stacklevel=2,
-        )
-        return self.to_rrs()
+
+def _deprecated_rdata_text(value):
+    value_type = value.__class__
+    deprecated(
+        f'`{value_type.__name__}.rdata_text` is DEPRECATED. Use '
+        f'`{value_type.__name__}.to_rrs()` instead. Will be removed in 2.0.',
+        stacklevel=3,
+    )
 
 
 def value_from_rrs(value_type, rdata):
+    '''Convert one presentation-format RDATA string to raw value data.'''
     method = getattr(value_type, 'from_rrs', None)
     if method:
         return method(rdata)
@@ -55,6 +52,7 @@ def value_from_rrs(value_type, rdata):
 
 
 def value_to_rrs(value):
+    '''Render one logical value as one presentation-format RDATA string.'''
     method = getattr(value, 'to_rrs', None)
     if method:
         return method()

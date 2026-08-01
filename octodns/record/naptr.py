@@ -3,7 +3,13 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import RdataValueMixin, Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .rr import RrParseError
 from .target import _check_target_trailing_dot
 from .validator import ValidationReason, ValueValidator
@@ -170,7 +176,7 @@ class NaptrValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class NaptrValue(RdataValueMixin, EqualityTupleMixin, dict):
+class NaptrValue(EqualityTupleMixin, dict):
     VALID_FLAGS = ('S', 'A', 'U', 'P', 's', 'a', 'u', 'p')
 
     VALIDATORS = [
@@ -300,6 +306,16 @@ class NaptrValue(RdataValueMixin, EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         # RFC 3403 requires flags, service, and regexp to be quoted character-strings

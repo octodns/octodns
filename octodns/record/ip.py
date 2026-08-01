@@ -3,7 +3,7 @@
 #
 
 
-from .base import RdataValueMixin
+from .base import _deprecated_parse_rdata_text, _deprecated_rdata_text
 from .validator import ValidationReason, ValueValidator
 
 
@@ -43,7 +43,7 @@ class IpValueValidator(ValueValidator):
         return reasons
 
 
-class _IpValue(RdataValueMixin, str):
+class _IpValue(str):
     VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
 
     @classmethod
@@ -66,6 +66,16 @@ class _IpValue(RdataValueMixin, str):
     def __new__(cls, v):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return self

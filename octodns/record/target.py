@@ -7,7 +7,7 @@ import ipaddress
 from fqdn import FQDN
 
 from ..idna import idna_encode
-from .base import RdataValueMixin
+from .base import _deprecated_parse_rdata_text, _deprecated_rdata_text
 from .validator import ValidationReason, ValueValidator
 
 
@@ -154,7 +154,7 @@ class TargetsValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class _TargetValue(RdataValueMixin, str):
+class _TargetValue(str):
     VALIDATORS = [
         TargetValueValidator('target-value-rfc', sets={'legacy', 'strict'}),
         TargetValueNotIpValidator('target-value-not-ip', sets={'strict'}),
@@ -164,7 +164,7 @@ class _TargetValue(RdataValueMixin, str):
     ]
 
     @classmethod
-    def from_rrs(self, value):
+    def from_rrs(cls, value):
         return value
 
     @classmethod
@@ -181,6 +181,16 @@ class _TargetValue(RdataValueMixin, str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
+
     def to_rrs(self):
         return self
 
@@ -192,7 +202,7 @@ class _TargetValue(RdataValueMixin, str):
 
 #
 # much like _TargetValue, but geared towards multiple values
-class _TargetsValue(RdataValueMixin, str):
+class _TargetsValue(str):
     VALIDATORS = [
         TargetsValueValidator('targets-value-rfc', sets={'legacy', 'strict'}),
         TargetsValueNotIpValidator('targets-value-not-ip', sets={'strict'}),
@@ -216,6 +226,16 @@ class _TargetsValue(RdataValueMixin, str):
     def __new__(cls, v):
         v = idna_encode(v)
         return super().__new__(cls, v)
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return self

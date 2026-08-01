@@ -2,7 +2,12 @@
 #
 #
 
-from .base import RdataValueMixin, Record, ValuesMixin
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+)
 from .validator import ValidationReason, ValueValidator
 
 
@@ -18,7 +23,7 @@ class OpenpgpkeyValueValidator(ValueValidator):
         return []
 
 
-class OpenpgpkeyValue(RdataValueMixin, str):
+class OpenpgpkeyValue(str):
     '''
     OPENPGPKEY value - base64-encoded OpenPGP public key
 
@@ -44,6 +49,16 @@ class OpenpgpkeyValue(RdataValueMixin, str):
     @classmethod
     def process(cls, values):
         return [cls(v) for v in values]
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return self

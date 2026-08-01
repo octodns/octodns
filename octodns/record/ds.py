@@ -7,7 +7,12 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import RdataValueMixin, Record, ValuesMixin
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+)
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -280,7 +285,7 @@ class DsValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class DsValue(RdataValueMixin, EqualityTupleMixin, dict):
+class DsValue(EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
@@ -399,6 +404,16 @@ class DsValue(RdataValueMixin, EqualityTupleMixin, dict):
     @property
     def data(self):
         return self
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rrs(value)
+
+    @property
+    def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rrs()
 
     def to_rrs(self):
         return (
