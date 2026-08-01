@@ -5,6 +5,7 @@
 import warnings
 from inspect import currentframe
 from unittest import TestCase
+from unittest.mock import patch
 
 from octodns.idna import idna_encode
 from octodns.record import (
@@ -28,6 +29,7 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
+from octodns.record import base as record_base
 from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
@@ -212,6 +214,69 @@ class TestRecord(TestCase):
             [],
             [warning for warning in caught if 'Value.' in str(warning.message)],
         )
+
+    def test_value_rdata_mro_dispatch_caching(self):
+        class LegacyValue(Ipv4Value):
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return '192.0.2.2'
+
+            @property
+            def rdata_text(self):
+                return '192.0.2.3'
+
+        class NewValue(Ipv4Value):
+            pass
+
+        parse_uses_legacy = record_base._value_from_rdata_text_uses_legacy
+        render_uses_legacy = record_base._value_to_rdata_text_uses_legacy
+        parse_uses_legacy.cache_clear()
+        render_uses_legacy.cache_clear()
+        try:
+            with patch.object(
+                record_base, '_mro_owner', wraps=record_base._mro_owner
+            ) as mro_owner:
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter('always')
+                    for _ in range(2):
+                        self.assertEqual(
+                            '192.0.2.2',
+                            record_base.value_from_rdata_text(
+                                LegacyValue, '192.0.2.1'
+                            ),
+                        )
+                        self.assertEqual(
+                            '192.0.2.3',
+                            record_base.value_to_rdata_text(
+                                LegacyValue('192.0.2.1')
+                            ),
+                        )
+
+                self.assertEqual(4, mro_owner.call_count)
+                self.assertEqual(
+                    [
+                        '`LegacyValue.parse_rdata_text` is DEPRECATED. '
+                        'Implement `from_rdata_text()` instead. Will be '
+                        'removed in 2.0.',
+                        '`LegacyValue.rdata_text` is DEPRECATED. Implement '
+                        '`to_rdata_text()` instead. Will be removed in 2.0.',
+                    ]
+                    * 2,
+                    [str(warning.message) for warning in caught],
+                )
+
+                self.assertEqual(
+                    '192.0.2.1',
+                    record_base.value_from_rdata_text(NewValue, '192.0.2.1'),
+                )
+                self.assertEqual(
+                    '192.0.2.1',
+                    record_base.value_to_rdata_text(NewValue('192.0.2.1')),
+                )
+                self.assertEqual(8, mro_owner.call_count)
+        finally:
+            parse_uses_legacy.cache_clear()
+            render_uses_legacy.cache_clear()
 
     def test_registration(self):
         with self.assertRaises(RecordException) as ctx:

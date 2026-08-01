@@ -4,6 +4,7 @@
 
 from collections import defaultdict
 from copy import deepcopy
+from functools import cache
 from logging import getLogger
 
 from ..context import ContextDict
@@ -48,13 +49,18 @@ def _mro_owner(value_type, name):
     return None
 
 
-def value_from_rdata_text(value_type, rdata):
-    '''Convert one presentation-format RDATA string to internal value data.'''
+@cache
+def _value_from_rdata_text_uses_legacy(value_type):
     new_owner = _mro_owner(value_type, 'from_rdata_text')
     legacy_owner = _mro_owner(value_type, 'parse_rdata_text')
-    if new_owner is not None and (
-        legacy_owner is None or new_owner <= legacy_owner
-    ):
+    return new_owner is None or (
+        legacy_owner is not None and legacy_owner < new_owner
+    )
+
+
+def value_from_rdata_text(value_type, rdata):
+    '''Convert one presentation-format RDATA string to internal value data.'''
+    if not _value_from_rdata_text_uses_legacy(value_type):
         return value_type.from_rdata_text(rdata)
     deprecated(
         f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. '
@@ -64,6 +70,7 @@ def value_from_rdata_text(value_type, rdata):
     return value_type.parse_rdata_text(rdata)
 
 
+@cache
 def _value_to_rdata_text_uses_legacy(value_type):
     new_owner = _mro_owner(value_type, 'to_rdata_text')
     legacy_owner = _mro_owner(value_type, 'rdata_text')
