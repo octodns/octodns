@@ -3,7 +3,7 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import RdataValueMixin, Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -86,7 +86,7 @@ class UrlfwdValueValidator(ValueValidator):
         return reasons
 
 
-class UrlfwdValue(EqualityTupleMixin, dict):
+class UrlfwdValue(RdataValueMixin, EqualityTupleMixin, dict):
     VALID_CODES = (301, 302)
     VALID_MASKS = (0, 1, 2)
     VALID_QUERY = (0, 1)
@@ -110,7 +110,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         try:
             path, target, code, masking, query = value.split(' ')
         except ValueError:
@@ -192,8 +192,7 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     def query(self, value):
         self['query'] = value
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 
     def template(self, params):

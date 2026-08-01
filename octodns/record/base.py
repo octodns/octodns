@@ -21,47 +21,25 @@ def unquote(s):
     return s
 
 
-def _legacy_value_api(value_type, method):
-    replacement = 'to_rrs' if method == 'rdata_text' else 'from_rrs'
-    deprecated(
-        f'`{value_type.__name__}.{method}` is DEPRECATED. Use '
-        f'`{value_type.__name__}.{replacement}()` instead. Will be removed in 2.0.',
-        stacklevel=3,
-    )
-
-
-def _add_rdata_apis(value_type):
-    '''Add the 1.x RDATA API compatibility layer to a built-in value type.'''
-    if getattr(value_type, '_rdata_apis_added', False):
-        return
-
-    parser = value_type.parse_rdata_text
-    renderer = value_type.rdata_text
-
-    def legacy_to_rrs(self):
-        return renderer.__get__(self, value_type)
-
-    def legacy_from_rrs(cls, rdata):
-        return parser(rdata)
-
+class RdataValueMixin(object):
     @classmethod
     def parse_rdata_text(cls, rdata):
-        _legacy_value_api(cls, 'parse_rdata_text')
-        return legacy_from_rrs(cls, rdata)
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. Use '
+            f'`{cls.__name__}.from_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=2,
+        )
+        return cls.from_rrs(rdata)
 
     @property
     def rdata_text(self):
-        _legacy_value_api(self.__class__, 'rdata_text')
-        return legacy_to_rrs(self)
-
-    if not hasattr(value_type, 'to_rrs'):
-        value_type.to_rrs = legacy_to_rrs
-    if not hasattr(value_type, 'from_rrs'):
-        value_type.from_rrs = classmethod(legacy_from_rrs)
-    value_type.parse_rdata_text = parse_rdata_text
-    value_type.rdata_text = rdata_text
-    value_type._legacy_parse_rdata_text = parser
-    value_type._rdata_apis_added = True
+        cls = self.__class__
+        deprecated(
+            f'`{cls.__name__}.rdata_text` is DEPRECATED. Use '
+            f'`{cls.__name__}.to_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=2,
+        )
+        return self.to_rrs()
 
 
 def value_from_rrs(value_type, rdata):
@@ -264,12 +242,6 @@ class Record(EqualityTupleMixin):
         # resolution so a value subclass can override its parent's
         # VALIDATORS rather than registering both
         vt = getattr(_class, '_value_type', None)
-        # Built-in value types retain their old public APIs during 1.x while
-        # exposing the uniform RDATA conversion APIs. Third-party types are
-        # deliberately left alone so the conversion helpers can warn and use
-        # their compatibility fallback.
-        if vt and vt.__module__.startswith('octodns.'):
-            _add_rdata_apis(vt)
         for validator in getattr(vt, 'VALIDATORS', ()):
             cls.register_validator(validator, types=[_type])
 
@@ -389,13 +361,7 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def parse_rdata_texts(cls, rdatas):
-        # TinyDNS and other raw-format sources use this legacy entry point.
-        parser = getattr(
-            cls._value_type,
-            '_legacy_parse_rdata_text',
-            cls._value_type.parse_rdata_text,
-        )
-        return [parser(r) for r in rdatas]
+        return [value_from_rrs(cls._value_type, r) for r in rdatas]
 
     def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone

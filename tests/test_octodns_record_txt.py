@@ -4,6 +4,8 @@
 
 from unittest import TestCase
 
+import dns.rdata
+
 from octodns.record import Record, Rr
 from octodns.record.exception import ValidationError
 from octodns.record.txt import TxtRecord
@@ -174,6 +176,15 @@ class TestRecordTxt(TestCase):
         self.assertEqual(('txt.unit.tests.', 42, 'TXT'), record.rrs[:3])
         self.assertEqual('"before"', record.rrs[3][0])
         self.assertEqual('"z after"', record.rrs[3][2])
+        middle = dns.rdata.from_text('IN', 'TXT', record.rrs[3][1])
+        self.assertEqual(
+            [255, len(record.values[1].replace('\\;', ';')) - 255],
+            [len(chunk) for chunk in middle.strings],
+        )
+        self.assertEqual(
+            record.values[1].replace('\\;', ';'),
+            b''.join(middle.strings).decode('ascii'),
+        )
         self.assertEqual(
             record.data,
             Record.from_rrs(

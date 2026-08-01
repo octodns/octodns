@@ -23,7 +23,7 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
-from octodns.record.base import unquote, value_from_rrs, value_to_rrs
+from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
@@ -34,6 +34,10 @@ class TestRecord(TestCase):
     def test_legacy_value_rr_api_fallback(self):
         class LegacyValue(str):
             @classmethod
+            def process(cls, values):
+                return [cls(value) for value in values]
+
+            @classmethod
             def parse_rdata_text(cls, value):
                 return value.upper()
 
@@ -41,11 +45,36 @@ class TestRecord(TestCase):
             def rdata_text(self):
                 return self.lower()
 
+        class LegacyRecord(ValuesMixin, Record):
+            _type = 'LEGACYRR'
+            _value_type = LegacyValue
+
+        Record.register_type(LegacyRecord)
+        record = LegacyRecord(
+            self.zone, 'legacy', {'ttl': 30, 'values': ['VALUE']}
+        )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter('always')
-            self.assertEqual('VALUE', value_from_rrs(LegacyValue, 'value'))
-            self.assertEqual('value', value_to_rrs(LegacyValue('VALUE')))
-        self.assertEqual(2, len(caught))
+            self.assertEqual(
+                ('legacy.unit.tests.', 30, 'LEGACYRR', ['value']), record.rrs
+            )
+            self.assertEqual(
+                record.data,
+                Record.from_rrs(
+                    self.zone,
+                    [Rr('legacy.unit.tests.', 'LEGACYRR', 30, 'value')],
+                )[0].data,
+            )
+        self.assertEqual(
+            2,
+            len(
+                [
+                    warning
+                    for warning in caught
+                    if 'LegacyValue' in str(warning.message)
+                ]
+            ),
+        )
 
     def test_registration(self):
         with self.assertRaises(RecordException) as ctx:
@@ -523,6 +552,128 @@ class TestRecord(TestCase):
             ('cname.unit.tests.', 43, 'CNAME', ['target.unit.tests.']),
             record.rrs,
         )
+
+    def test_rrs_round_trip_all_core_types(self):
+        values = {
+            'A': '192.0.2.1',
+            'AAAA': '2001:db8::1',
+            'ALIAS': 'target.unit.tests.',
+            'CAA': {'flags': 0, 'tag': 'issue', 'value': 'ca.example'},
+            'CNAME': 'target.unit.tests.',
+            'DNAME': 'target.unit.tests.',
+            'DS': {
+                'key_tag': 1,
+                'algorithm': 2,
+                'digest_type': 3,
+                'digest': 'ABCD',
+            },
+            'HTTPS': {
+                'svcpriority': 1,
+                'targetname': 'target.unit.tests.',
+                'svcparams': {'port': 443},
+            },
+            'LOC': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 52.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            },
+            'MX': {'preference': 10, 'exchange': 'mx.unit.tests.'},
+            'NAPTR': {
+                'order': 1,
+                'preference': 2,
+                'flags': 'U',
+                'service': 'E2U+sip',
+                'regexp': '!^.*$!sip:info@example.com!',
+                'replacement': '.',
+            },
+            'NS': 'ns.unit.tests.',
+            'OPENPGPKEY': 'abc123',
+            'PTR': 'target.unit.tests.',
+            'SPF': 'v=spf1 \\;all',
+            'SRV': {
+                'priority': 1,
+                'weight': 2,
+                'port': 443,
+                'target': 'target.unit.tests.',
+            },
+            'SSHFP': {
+                'algorithm': 1,
+                'fingerprint_type': 2,
+                'fingerprint': 'A' * 64,
+            },
+            'SVCB': {
+                'svcpriority': 1,
+                'targetname': 'target.unit.tests.',
+                'svcparams': {'port': 443},
+            },
+            'TLSA': {
+                'certificate_usage': 1,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABCD',
+            },
+            'TXT': 'value \\;with semicolon',
+            'URI': {
+                'priority': 1,
+                'weight': 2,
+                'target': 'https://target.unit.tests/',
+            },
+            'URLFWD': {
+                'path': '/',
+                'target': 'https://target.unit.tests/',
+                'code': 301,
+                'masking': 0,
+                'query': 0,
+            },
+        }
+        names = {'ALIAS': '', 'SRV': '_srv._tcp', 'URI': '_uri._tcp'}
+        for _type, value in values.items():
+            record = Record.new(
+                self.zone,
+                names.get(_type, _type.lower()),
+                {'ttl': 30, 'type': _type, 'value': value},
+            )
+            value_type = record._value_type
+            value_obj = (
+                record.values[0] if hasattr(record, 'values') else record.value
+            )
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                if _type in ('SPF', 'TXT'):
+                    self.assertEqual(value_obj, value_obj.rdata_text)
+                    self.assertEqual(
+                        value_obj.replace(';', '\\;'),
+                        value_type.parse_rdata_text(value_obj),
+                    )
+                else:
+                    rdata = value_obj.to_rrs()
+                    self.assertEqual(rdata, value_obj.rdata_text)
+                    self.assertEqual(
+                        value_type.from_rrs(rdata),
+                        value_type.parse_rdata_text(rdata),
+                    )
+            self.assertEqual(2, len(caught), _type)
+            _, _, _, rdatas = record.rrs
+            self.assertEqual(
+                record.data,
+                Record.from_rrs(
+                    self.zone,
+                    [
+                        Rr(record.fqdn, _type, record.ttl, rdata)
+                        for rdata in rdatas
+                    ],
+                )[0].data,
+                _type,
+            )
 
     def test_unquote(self):
         s = 'Hello "\'"World!'

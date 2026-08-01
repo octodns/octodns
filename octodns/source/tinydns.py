@@ -340,7 +340,13 @@ class TinyDnsBaseSource(BaseSource):
             ttl = self._ttl_for(lines, 3)
 
             rdatas = [l[2] for l in lines]
-            yield _type, name, ttl, _class.parse_rdata_texts(rdatas)
+            if _type in ('SPF', 'TXT'):
+                # TinyDNS stores TXT/SPF values in octoDNS's raw format, not
+                # presentation-format RDATA.
+                values = [_class._value_type.from_raw(r) for r in rdatas]
+            else:
+                values = _class.parse_rdata_texts(rdatas)
+            yield _type, name, ttl, values
 
     def _records_for_six(self, zone, name, lines, arpa=False):
         # 6fqdn:ip:ttl:timestamp:lo

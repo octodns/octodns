@@ -6,7 +6,7 @@ import re
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import RdataValueMixin, Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .target import (
     _check_target_format,
@@ -263,7 +263,7 @@ class SrvValueNotIpValidator(ValueValidator):
         return reasons
 
 
-class SrvValue(EqualityTupleMixin, dict):
+class SrvValue(RdataValueMixin, EqualityTupleMixin, dict):
     VALIDATORS = [
         SrvValueValidator('srv-value', sets={'legacy'}),
         SrvValueRfcValidator('srv-value-rfc', sets={'strict'}),
@@ -289,7 +289,7 @@ class SrvValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rrs(self, value):
         try:
             priority, weight, port, target = value.split(' ')
         except ValueError:
@@ -364,8 +364,7 @@ class SrvValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return f"{self.priority} {self.weight} {self.port} {self.target}"
 
     def template(self, params):

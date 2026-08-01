@@ -6,6 +6,7 @@ import re
 
 import dns.rdata
 
+from ..deprecation import deprecated
 from .base import ValuesMixin
 from .validator import ValidationReason, ValueValidator
 
@@ -110,11 +111,20 @@ class _ChunkedValue(str):
     VALIDATORS = [chunked_value_validator]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_raw(cls, value):
         try:
             return value.replace(';', '\\;')
         except AttributeError:
             return value
+
+    @classmethod
+    def parse_rdata_text(cls, value):
+        deprecated(
+            f'`{cls.__name__}.parse_rdata_text` is DEPRECATED. '
+            'Use `from_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=2,
+        )
+        return cls.from_raw(value)
 
     @classmethod
     def from_rrs(cls, rdata):
@@ -136,6 +146,11 @@ class _ChunkedValue(str):
 
     @property
     def rdata_text(self):
+        deprecated(
+            f'`{self.__class__.__name__}.rdata_text` is DEPRECATED. '
+            'Use `to_rrs()` instead. Will be removed in 2.0.',
+            stacklevel=2,
+        )
         return self
 
     def to_rrs(self):

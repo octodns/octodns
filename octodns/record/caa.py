@@ -5,7 +5,7 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
+from .base import RdataValueMixin, Record, ValuesMixin, unquote
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -131,7 +131,7 @@ class CaaValueBestPracticeValidator(ValueValidator):
         return []
 
 
-class CaaValue(EqualityTupleMixin, dict):
+class CaaValue(RdataValueMixin, EqualityTupleMixin, dict):
     # https://tools.ietf.org/html/rfc8659
 
     VALIDATORS = [
@@ -155,7 +155,7 @@ class CaaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         try:
             # value may contain whitepsace
             flags, tag, value = value.split(' ', 2)
@@ -210,8 +210,7 @@ class CaaValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         # RFC 8659 §4.1.1 requires value to be a quoted character-string
         return f'{self.flags} {self.tag} "{self.value}"'
 

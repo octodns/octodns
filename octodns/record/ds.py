@@ -7,7 +7,7 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
+from .base import RdataValueMixin, Record, ValuesMixin
 from .rr import RrParseError
 from .validator import ValidationReason, ValueValidator
 
@@ -280,7 +280,7 @@ class DsValueBestPracticeValidator(ValueValidator):
         return reasons
 
 
-class DsValue(EqualityTupleMixin, dict):
+class DsValue(RdataValueMixin, EqualityTupleMixin, dict):
     # https://www.rfc-editor.org/rfc/rfc4034.html#section-5.1
     log = getLogger('DsValue')
 
@@ -317,7 +317,7 @@ class DsValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         try:
             key_tag, algorithm, digest_type, digest = value.split(' ')
         except ValueError:
@@ -400,8 +400,7 @@ class DsValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return (
             f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )

@@ -3,6 +3,7 @@
 #
 
 
+from .base import RdataValueMixin
 from .validator import ValidationReason, ValueValidator
 
 
@@ -42,11 +43,11 @@ class IpValueValidator(ValueValidator):
         return reasons
 
 
-class _IpValue(str):
+class _IpValue(RdataValueMixin, str):
     VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rrs(cls, value):
         return value
 
     @classmethod
@@ -66,8 +67,7 @@ class _IpValue(str):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
 
-    @property
-    def rdata_text(self):
+    def to_rrs(self):
         return self
 
     def template(self, params):

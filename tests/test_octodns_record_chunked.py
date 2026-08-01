@@ -4,6 +4,8 @@
 
 from unittest import TestCase
 
+import dns.rdata
+
 from octodns.record.base import _process_value_validators
 from octodns.record.chunked import _ChunkedValue, _ChunkedValuesMixin
 from octodns.record.spf import SpfRecord
@@ -53,8 +55,17 @@ class TestRecordChunked(TestCase):
             rdata = TxtValue(value).to_rrs()
             self.assertEqual(value, TxtValue.from_rrs(rdata))
 
-        record = TxtValue('a "quote"')
-        self.assertEqual('"a \\"quote\\""', record.to_rrs())
+        value = TxtValue('a' * 256)
+        rdata = value.to_rrs()
+        self.assertEqual(
+            [255, 1],
+            [len(s) for s in dns.rdata.from_text('IN', 'TXT', rdata).strings],
+        )
+
+        zone = Zone('unit.tests.', [])
+        record = SpfRecord(zone, 'spf', {'ttl': 42, 'value': 'a "quote"'})
+        self.assertEqual('"a \\"quote\\""', record.rrs[3][0])
+        self.assertEqual('a "quote"', _ChunkedValue.from_rrs(record.rrs[3][0]))
 
 
 class TestChunkedValue(TestCase):
