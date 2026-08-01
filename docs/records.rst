@@ -72,7 +72,12 @@ one grouped :py:class:`octodns.record.rr.Rrset`. An ``Rrset`` has named
 ``name``, ``_type``, ``ttl``, and ``rdatas`` attributes. The owner name, type,
 and TTL apply to every element of ``rdatas``, and each element must be a
 Python ``str`` containing one RDATA value in presentation format. DNS class is
-not stored; octoDNS assumes the Internet (``IN``) class.
+not stored; octoDNS assumes the Internet (``IN``) class. Construction rejects
+a string or non-iterable ``rdatas`` container, an empty collection, and
+non-string elements with
+:py:class:`octodns.record.exception.RecordException`. ``Rrset`` objects
+support equality and ordering across their name, type, TTL, and ordered RDATA
+values.
 
 :py:meth:`octodns.record.base.Record.from_rrset` performs the singular inverse
 and returns one :py:class:`octodns.record.base.Record`.
@@ -82,7 +87,9 @@ ordered deterministically by owner name and type. An empty iterable returns an
 empty list. Otherwise, bulk input may contain at most one ``Rrset`` for each
 owner-name/type pair; duplicates raise
 :py:class:`octodns.record.exception.RecordException`. An ``Rrset`` with no
-RDATA values is also rejected with ``RecordException``.
+RDATA values is also rejected with ``RecordException``. Single-value record
+types, such as CNAME, require exactly one RDATA value. Unregistered record
+types likewise raise ``RecordException`` rather than leaking ``KeyError``.
 
 Both inverse methods pass ``lenient`` through record construction and attach
 ``source`` to every record they create. The deprecated compatibility entry
@@ -151,9 +158,11 @@ Use named attributes on :py:class:`octodns.record.rr.Rrset`; do not apply the
 legacy tuple's positional access pattern to it. The singular
 :py:class:`octodns.record.rr.Rr` carrier and
 :py:meth:`octodns.record.base.Record.from_rrs` are likewise compatibility APIs
-scheduled for removal in octoDNS 2.0. The old
-:py:class:`octodns.record.rr.RrParseError` name remains as a deprecated,
-identity-preserving alias for
+scheduled for removal in octoDNS 2.0. Unlike the new RRset APIs,
+``Record.from_rrs()`` retains its legacy behavior of using the first RDATA
+value for a single-value record. The old
+:py:class:`octodns.record.rr.RrParseError` name remains as an
+identity-preserving compatibility alias for
 :py:class:`octodns.record.rr.RdataParseError` throughout 1.x and will also be
 removed in 2.0.
 

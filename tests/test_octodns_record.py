@@ -432,8 +432,8 @@ class TestRecord(TestCase):
         # make sure there's nothing extra
         self.assertEqual(5, len(records))
 
-        # The record-class compatibility helpers remain available even though
-        # Record.from_rrs now delegates through grouped Rrsets.
+        # The record-class compatibility helpers remain available and
+        # Record.from_rrs uses them directly.
         self.assertEqual(
             {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
             ARecord.data_from_rrs((rrs[0], rrs[3])),
@@ -468,8 +468,21 @@ class TestRecord(TestCase):
         self.assertEqual(records[0].data, Record.from_rrset(zone, rrset).data)
 
         self.assertEqual([], Record.from_rrsets(zone, []))
+
         with self.assertRaises(RecordException) as ctx:
-            Record.from_rrset(zone, Rrset('unit.tests.', 'A', 42, []))
+            Rrset('unit.tests.', 'A', 42, [])
+        self.assertEqual(
+            'Invalid Rrset unit.tests. A: at least one RDATA value is required',
+            str(ctx.exception),
+        )
+
+        class EmptyRrset:
+            name = 'unit.tests.'
+            _type = 'A'
+            rdatas = []
+
+        with self.assertRaises(RecordException) as ctx:
+            Record.from_rrset(zone, EmptyRrset())
         self.assertEqual(
             'Invalid Rrset unit.tests. A: at least one RDATA value is required',
             str(ctx.exception),
@@ -483,6 +496,34 @@ class TestRecord(TestCase):
                 ),
             )
         self.assertEqual('Duplicate Rrset unit.tests. A', str(ctx.exception))
+
+        cname = Rrset(
+            'cname.unit.tests.',
+            'CNAME',
+            42,
+            ['one.unit.tests.', 'two.unit.tests.'],
+        )
+        expected = (
+            'Invalid Rrset cname.unit.tests. CNAME: exactly one RDATA value '
+            'is required for a single-value record'
+        )
+        with self.assertRaises(RecordException) as ctx:
+            Record.from_rrset(zone, cname)
+        self.assertEqual(expected, str(ctx.exception))
+        with self.assertRaises(RecordException) as ctx:
+            Record.from_rrsets(zone, [cname])
+        self.assertEqual(expected, str(ctx.exception))
+
+        unknown = Rrset('unknown.unit.tests.', 'UNKNOWN', 42, ['value'])
+        for convert in (
+            lambda: Record.from_rrset(zone, unknown),
+            lambda: Record.from_rrsets(zone, [unknown]),
+        ):
+            with self.assertRaises(RecordException) as ctx:
+                convert()
+            self.assertEqual(
+                'Unknown record type: "UNKNOWN"', str(ctx.exception)
+            )
 
     def test_rrset_lenient_and_legacy_conversion(self):
         zone = Zone('unit.tests.', [])
@@ -516,6 +557,18 @@ class TestRecord(TestCase):
         )
         self.assertEqual(42, records[0].ttl)
         self.assertEqual(['1.2.3.4', '2.3.4.5'], records[0].values)
+        self.assertIs(source, records[0].source)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            legacy = [
+                Rr('cname.unit.tests.', 'CNAME', 42, 'one.unit.tests.'),
+                Rr('cname.unit.tests.', 'CNAME', 99, 'two.unit.tests.'),
+            ]
+            records = Record.from_rrs(zone, legacy, source=source)
+        self.assertEqual(1, len(records))
+        self.assertEqual(42, records[0].ttl)
+        self.assertEqual('one.unit.tests.', records[0].value)
         self.assertIs(source, records[0].source)
 
         with warnings.catch_warnings(record=True) as caught:
@@ -831,10 +884,12 @@ class TestRecord(TestCase):
     def test_rr(self):
         self.assertIs(RdataParseError, RrParseError)
         self.assertEqual(
-            'failed to parse string value as RR text', str(RdataParseError())
+            'failed to parse string value as RDATA presentation text',
+            str(RdataParseError()),
         )
         self.assertEqual(
-            'failed to parse string value as RR text', str(RrParseError())
+            'failed to parse string value as RDATA presentation text',
+            str(RrParseError()),
         )
         self.assertEqual(
             'custom message', str(RdataParseError('custom message'))
@@ -862,8 +917,29 @@ class TestRecord(TestCase):
         self.assertEqual(42, rrset.ttl)
         self.assertEqual(['one', 'two'], rrset.rdatas)
         self.assertEqual(
-            "Rrset<name, type, 42, ['one', 'two']", rrset.__repr__()
+            "Rrset<name, type, 42, ['one', 'two']>", rrset.__repr__()
         )
+
+        same = Rrset('name', 'type', 42, ('one', 'two'))
+        later = Rrset('name', 'type', 43, ('one', 'two'))
+        self.assertEqual(rrset, same)
+        self.assertNotEqual(rrset, later)
+        self.assertEqual([rrset, later], sorted((later, rrset)))
+        same.rdatas.append('three')
+        self.assertNotEqual(rrset, same)
+
+        invalid_rdatas = (
+            ('value', 'RDATA values must be a non-string iterable of strings'),
+            (None, 'RDATA values must be a non-string iterable of strings'),
+            (['value', 42], 'RDATA value at index 1 must be a string'),
+        )
+        for rdatas, message in invalid_rdatas:
+            with self.subTest(rdatas=rdatas):
+                with self.assertRaises(RecordException) as ctx:
+                    Rrset('name', 'type', 42, rdatas)
+                self.assertEqual(
+                    f'Invalid Rrset name type: {message}', str(ctx.exception)
+                )
 
         zone = Zone('unit.tests.', [])
         record = Record.new(

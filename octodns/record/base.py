@@ -371,11 +371,11 @@ class Record(EqualityTupleMixin):
     def from_rrs(cls, zone, rrs, lenient=False, source=None):
         '''Create records from deprecated, individual :class:`~octodns.record.rr.Rr` objects.
 
-        The flat input is grouped by owner name and type and converted through
-        :meth:`from_rrsets`. Input order is retained within each group and
-        output records are ordered deterministically by owner name and type.
-        ``lenient`` and ``source`` are passed unchanged to
-        :meth:`Record.new`.
+        The flat input is grouped by owner name and type and converted with
+        each record class's legacy ``data_from_rrs()`` implementation. Input
+        order is retained within each group and output records are ordered
+        deterministically by owner name and type. ``lenient`` and ``source``
+        are passed unchanged to :meth:`Record.new`.
 
         :param octodns.zone.Zone zone: zone containing the records
         :param collections.abc.Iterable rrs: individual
@@ -401,15 +401,16 @@ class Record(EqualityTupleMixin):
         for rr in rrs:
             grouped[(rr.name, rr._type)].append(rr)
 
-        rrsets = []
-        for rrs in grouped.values():
-            first = rrs[0]
-            rrsets.append(
-                Rrset(
-                    first.name, first._type, first.ttl, [rr.rdata for rr in rrs]
-                )
+        records = []
+        for _, grouped_rrs in sorted(grouped.items()):
+            first = grouped_rrs[0]
+            name = zone.hostname_from_fqdn(first.name)
+            record_class = cls._CLASSES[first._type]
+            data = record_class.data_from_rrs(grouped_rrs)
+            records.append(
+                Record.new(zone, name, data, lenient=lenient, source=source)
             )
-        return cls.from_rrsets(zone, rrsets, lenient=lenient, source=source)
+        return records
 
     @classmethod
     def _record_from_rrset(cls, zone, rrset, lenient=False, source=None):
@@ -418,8 +419,13 @@ class Record(EqualityTupleMixin):
                 f'Invalid Rrset {rrset.name} {rrset._type}: at least one '
                 'RDATA value is required'
             )
+        try:
+            record_class = cls._CLASSES[rrset._type]
+        except KeyError:
+            raise RecordException(
+                f'Unknown record type: "{rrset._type}"'
+            ) from None
         name = zone.hostname_from_fqdn(rrset.name)
-        record_class = cls._CLASSES[rrset._type]
         data = record_class.data_from_rrset(rrset)
         return Record.new(zone, name, data, lenient=lenient, source=source)
 
@@ -446,11 +452,11 @@ class Record(EqualityTupleMixin):
         :param object source: source assigned to the returned record
         :returns: exactly one octoDNS record
         :rtype: Record
-        :raises octodns.record.exception.RecordException: if ``rdatas`` is
-            empty
+        :raises octodns.record.exception.RecordException: if the RRset is
+            invalid, a single-value record contains multiple RDATA values, or
+            the type is not registered
         :raises octodns.record.exception.ValidationError: if the converted
             internal record data fails validation and ``lenient`` is false
-        :raises KeyError: if the RRset's type is not registered
         '''
         return cls._record_from_rrset(
             zone, rrset, lenient=lenient, source=source
@@ -474,11 +480,12 @@ class Record(EqualityTupleMixin):
         :param object source: source assigned to every returned record
         :returns: zero or more octoDNS records in owner-name/type order
         :rtype: list[Record]
-        :raises octodns.record.exception.RecordException: if an RRset has no
-            RDATA values or an owner-name/type pair occurs more than once
+        :raises octodns.record.exception.RecordException: if an RRset is
+            invalid, a single-value record contains multiple RDATA values, a
+            type is not registered, or an owner-name/type pair occurs more
+            than once
         :raises octodns.record.exception.ValidationError: if converted
             internal record data fails validation and ``lenient`` is false
-        :raises KeyError: if an RRset's type is not registered
         '''
         grouped = {}
         for rrset in rrsets:
@@ -785,6 +792,11 @@ class ValueMixin(object):
 
     @classmethod
     def data_from_rrset(cls, rrset):
+        if len(rrset.rdatas) != 1:
+            raise RecordException(
+                f'Invalid Rrset {rrset.name} {rrset._type}: exactly one '
+                'RDATA value is required for a single-value record'
+            )
         return {
             'ttl': rrset.ttl,
             'type': rrset._type,
