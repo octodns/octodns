@@ -16,6 +16,122 @@ Adding new record types to octoDNS is relatively straightforward, but will
 require careful evaluation of each provider to determine whether or not it will
 be supported and the addition of code in each to handle and test the new type.
 
+Internal and RDATA formats
+--------------------------
+
+octoDNS uses two distinct text representations at its configuration/provider
+boundary:
+
+* **octoDNS internal format** is the data accepted from configuration and
+  exposed by record and value objects. Text in this format is represented by
+  Python Unicode strings and may use octoDNS-specific normalization. For
+  example, TXT and SPF values internally escape semicolons.
+* **RDATA presentation format** is the master-file-style text for the RDATA
+  portion of one DNS resource record. Its quoting, escaping, field layout, and
+  chunking follow the RFC for that record type.
+
+RDATA presentation text is not a complete master-file record: it omits the
+owner name, TTL, class, and record type. It is also not the binary octets used
+by DNS wire format. For example, ``192.0.2.1`` is the RDATA presentation text
+within the complete master-file record
+``www.example.com. 300 IN A 192.0.2.1``.
+
+Value conversion
+................
+
+Each RDATA value type provides ``to_rdata_text()`` and
+``from_rdata_text()``. ``value.to_rdata_text()`` converts an octoDNS value
+object to one Python ``str`` containing one RDATA value in presentation
+format. ``ValueType.from_rdata_text(rdata)`` accepts one such ``str`` and
+returns octoDNS internal data suitable for constructing that value type.
+
+Record conversion
+.................
+
+:py:meth:`octodns.record.base.Record.to_rrset` converts one octoDNS record to
+one grouped :py:class:`octodns.record.rr.Rrset`. An ``Rrset`` has named
+``name``, ``_type``, ``ttl``, and ``rdatas`` attributes. The owner name, type,
+and TTL apply to every element of ``rdatas``, and each element must be a
+Python ``str`` containing one RDATA value in presentation format. DNS class is
+not stored; octoDNS assumes the Internet (``IN``) class.
+
+:py:meth:`octodns.record.base.Record.from_rrset` performs the singular inverse
+and returns one :py:class:`octodns.record.base.Record`.
+:py:meth:`octodns.record.base.Record.from_rrsets` accepts an iterable of
+grouped ``Rrset`` objects and returns multiple records. The bulk result is
+ordered deterministically by owner name and type. An empty iterable returns an
+empty list. Otherwise, bulk input may contain at most one ``Rrset`` for each
+owner-name/type pair; duplicates raise
+:py:class:`octodns.record.exception.RecordException`. An ``Rrset`` with no
+RDATA values is also rejected with ``RecordException``.
+
+Both inverse methods pass ``lenient`` through record construction and attach
+``source`` to every record they create. The deprecated compatibility entry
+points propagate these arguments in the same way.
+
+A provider reading RDATA presentation text can construct records as follows::
+
+  from octodns.record import Record, Rrset
+
+  rrset = Rrset(
+      'www.example.com.',
+      'A',
+      300,
+      ['192.0.2.1', '192.0.2.2'],
+  )
+  record = Record.from_rrset(
+      zone,
+      rrset,
+      lenient=lenient,
+      source=provider,
+  )
+
+A provider writing RDATA presentation text can consume the matching grouped
+carrier::
+
+  rrset = record.to_rrset()
+  provider.write(
+      name=rrset.name,
+      record_type=rrset._type,
+      ttl=rrset.ttl,
+      rdatas=rrset.rdatas,
+  )
+
+Lenient Unicode TXT and SPF values
+++++++++++++++++++++++++++++++++++
+
+Valid TXT and SPF values use ASCII bytes and are split into chunks of at most
+255 octets. When a non-ASCII internal value is deliberately accepted with
+``lenient=True``, octoDNS preserves its historical character-based chunking
+and quoting instead. This compatibility presentation text can be consumed by
+``from_rdata_text()``, which decodes its character-string bytes as UTF-8 so
+the Unicode internal value round-trips. Arbitrary non-UTF-8 character-string
+bytes are not supported because octoDNS's internal value contract is Unicode
+text.
+
+Migrating from ``rrs``
+......................
+
+The deprecated ``record.rrs`` property remains available throughout octoDNS
+1.x, but its plain tuple deliberately has a different positional order from
+the named ``Rrset`` carrier::
+
+  # Legacy tuple: (name, ttl, type, rdatas)
+  name, ttl, record_type, rdatas = record.rrs
+
+  # New carrier: Rrset(name, _type, ttl, rdatas)
+  rrset = record.to_rrset()
+  name = rrset.name
+  record_type = rrset._type
+  ttl = rrset.ttl
+  rdatas = rrset.rdatas
+
+Use named attributes on :py:class:`octodns.record.rr.Rrset`; do not apply the
+legacy tuple's positional access pattern to it. The singular
+:py:class:`octodns.record.rr.Rr` carrier and
+:py:meth:`octodns.record.base.Record.from_rrs` are likewise compatibility APIs
+scheduled for removal in octoDNS 2.0.
+
 Advanced Record Support
 -----------------------
 

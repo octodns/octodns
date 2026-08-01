@@ -12,6 +12,7 @@ from ..equality import EqualityTupleMixin
 from ..idna import IdnaError, idna_decode, idna_encode
 from .change import Update
 from .exception import RecordException, ValidationError
+from .rr import Rrset
 from .validator import RecordValidator, ValidationReason, ValidatorRegistry
 
 
@@ -21,48 +22,69 @@ def unquote(s):
     return s
 
 
-def _deprecated_parse_rdata_text(value_type):
+def _deprecated_parse_rdata_text(value_type, replacement=None):
+    replacement = replacement or f'{value_type.__name__}.from_rdata_text()'
     deprecated(
         f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. Use '
-        f'`{value_type.__name__}.from_rrs()` instead. Will be removed in 2.0.',
+        f'`{replacement}` instead. Will be removed in 2.0.',
         stacklevel=3,
     )
 
 
-def _deprecated_rdata_text(value):
+def _deprecated_rdata_text(value, replacement=None):
     value_type = value.__class__
+    replacement = replacement or f'{value_type.__name__}.to_rdata_text()'
     deprecated(
         f'`{value_type.__name__}.rdata_text` is DEPRECATED. Use '
-        f'`{value_type.__name__}.to_rrs()` instead. Will be removed in 2.0.',
+        f'`{replacement}` instead. Will be removed in 2.0.',
         stacklevel=3,
     )
 
 
-def value_from_rrs(value_type, rdata):
-    '''Convert one presentation-format RDATA string to raw value data.'''
-    method = getattr(value_type, 'from_rrs', None)
-    if method:
-        return method(rdata)
+def _mro_owner(value_type, name):
+    for index, owner in enumerate(value_type.__mro__):
+        if name in owner.__dict__:
+            return index
+    return None
+
+
+def value_from_rdata_text(value_type, rdata):
+    '''Convert one presentation-format RDATA string to internal value data.'''
+    new_owner = _mro_owner(value_type, 'from_rdata_text')
+    legacy_owner = _mro_owner(value_type, 'parse_rdata_text')
+    if new_owner is not None and (
+        legacy_owner is None or new_owner <= legacy_owner
+    ):
+        return value_type.from_rdata_text(rdata)
     deprecated(
         f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. '
-        'Implement `from_rrs()` instead. Will be removed in 2.0.',
+        'Implement `from_rdata_text()` instead. Will be removed in 2.0.',
         stacklevel=3,
     )
     return value_type.parse_rdata_text(rdata)
 
 
-def value_to_rrs(value):
+def _value_to_rdata_text_uses_legacy(value_type):
+    new_owner = _mro_owner(value_type, 'to_rdata_text')
+    legacy_owner = _mro_owner(value_type, 'rdata_text')
+    return new_owner is None or (
+        legacy_owner is not None and legacy_owner < new_owner
+    )
+
+
+def value_to_rdata_text(value, legacy_value=None):
     '''Render one logical value as one presentation-format RDATA string.'''
-    method = getattr(value, 'to_rrs', None)
-    if method:
-        return method()
     value_type = value.__class__
+    if not _value_to_rdata_text_uses_legacy(value_type):
+        return value.to_rdata_text()
+    if legacy_value is None:
+        legacy_value = value
     deprecated(
         f'`{value_type.__name__}.rdata_text` is DEPRECATED. '
-        'Implement `to_rrs()` instead. Will be removed in 2.0.',
+        'Implement `to_rdata_text()` instead. Will be removed in 2.0.',
         stacklevel=3,
     )
-    return value.rdata_text
+    return legacy_value.rdata_text
 
 
 class NameValidator(RecordValidator):
@@ -336,30 +358,135 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def from_rrs(cls, zone, rrs, lenient=False, source=None):
+        '''Create records from deprecated, individual :class:`~octodns.record.rr.Rr` objects.
+
+        The flat input is grouped by owner name and type and converted through
+        :meth:`from_rrsets`. Input order is retained within each group and
+        output records are ordered deterministically by owner name and type.
+        ``lenient`` and ``source`` are passed unchanged to
+        :meth:`Record.new`.
+
+        :param octodns.zone.Zone zone: zone containing the records
+        :param collections.abc.Iterable rrs: individual
+            :class:`~octodns.record.rr.Rr` objects whose ``rdata`` attributes
+            are RDATA presentation-format strings
+        :param bool lenient: allow records that fail validation
+        :param object source: source assigned to every returned record
+        :returns: zero or more octoDNS records
+        :rtype: list[Record]
+
+        .. deprecated:: 1.22.0
+           Use :meth:`from_rrsets`. ``Record.from_rrs`` will be removed in
+           2.0.
+        '''
+        deprecated(
+            '`Record.from_rrs` is DEPRECATED. Use `Record.from_rrsets()` '
+            'instead. Will be removed in 2.0.',
+            stacklevel=3,
+        )
         # group records by name & type so that multiple rdatas can be combined
         # into a single record when needed
         grouped = defaultdict(list)
         for rr in rrs:
             grouped[(rr.name, rr._type)].append(rr)
 
-        records = []
-        # walk the grouped rrs converting each one to data and then create a
-        # record with that data
-        for _, rrs in sorted(grouped.items()):
-            rr = rrs[0]
-            name = zone.hostname_from_fqdn(rr.name)
-            _class = cls._CLASSES[rr._type]
-            data = _class.data_from_rrs(rrs)
-            record = Record.new(
-                zone, name, data, lenient=lenient, source=source
+        rrsets = []
+        for rrs in grouped.values():
+            first = rrs[0]
+            rrsets.append(
+                Rrset(
+                    first.name, first._type, first.ttl, [rr.rdata for rr in rrs]
+                )
             )
-            records.append(record)
+        return cls.from_rrsets(zone, rrsets, lenient=lenient, source=source)
 
-        return records
+    @classmethod
+    def _record_from_rrset(cls, zone, rrset, lenient=False, source=None):
+        if not rrset.rdatas:
+            raise RecordException(
+                f'Invalid Rrset {rrset.name} {rrset._type}: at least one '
+                'RDATA value is required'
+            )
+        name = zone.hostname_from_fqdn(rrset.name)
+        record_class = cls._CLASSES[rrset._type]
+        data = record_class.data_from_rrset(rrset)
+        return Record.new(zone, name, data, lenient=lenient, source=source)
+
+    @classmethod
+    def from_rrset(cls, zone, rrset, lenient=False, source=None):
+        '''Create one octoDNS record from one grouped RRset.
+
+        ``rrset`` contains one owner, type, TTL, and one or more RDATA values
+        in DNS master-file presentation format. DNS class is implicitly
+        Internet (``IN``). The returned record exposes octoDNS internal-format
+        values. ``lenient`` and ``source`` are passed unchanged to
+        :meth:`Record.new`.
+
+        Provider example::
+
+            rrset = Rrset(
+                'www.example.com.', 'A', 300, ['192.0.2.1', '192.0.2.2']
+            )
+            record = Record.from_rrset(zone, rrset, source=provider)
+
+        :param octodns.zone.Zone zone: zone containing the record
+        :param octodns.record.rr.Rrset rrset: exactly one grouped RRset
+        :param bool lenient: allow a record that fails validation
+        :param object source: source assigned to the returned record
+        :returns: exactly one octoDNS record
+        :rtype: Record
+        :raises octodns.record.exception.RecordException: if ``rdatas`` is
+            empty
+        :raises octodns.record.exception.ValidationError: if the converted
+            internal record data fails validation and ``lenient`` is false
+        :raises KeyError: if the RRset's type is not registered
+        '''
+        return cls._record_from_rrset(
+            zone, rrset, lenient=lenient, source=source
+        )
+
+    @classmethod
+    def from_rrsets(cls, zone, rrsets, lenient=False, source=None):
+        '''Create records from grouped RRsets.
+
+        Each :class:`~octodns.record.rr.Rrset` contains RDATA
+        presentation-format strings and implicitly uses Internet (``IN``)
+        class. At most one RRset may occur for each owner-name/type pair.
+        Results are sorted deterministically by owner name and type. Empty
+        input returns an empty list. ``lenient`` and ``source`` are passed
+        unchanged to every :meth:`Record.new` call.
+
+        :param octodns.zone.Zone zone: zone containing the records
+        :param collections.abc.Iterable rrsets: grouped
+            :class:`~octodns.record.rr.Rrset` objects
+        :param bool lenient: allow records that fail validation
+        :param object source: source assigned to every returned record
+        :returns: zero or more octoDNS records in owner-name/type order
+        :rtype: list[Record]
+        :raises octodns.record.exception.RecordException: if an RRset has no
+            RDATA values or an owner-name/type pair occurs more than once
+        :raises octodns.record.exception.ValidationError: if converted
+            internal record data fails validation and ``lenient`` is false
+        :raises KeyError: if an RRset's type is not registered
+        '''
+        grouped = {}
+        for rrset in rrsets:
+            key = (rrset.name, rrset._type)
+            if key in grouped:
+                raise RecordException(
+                    f'Duplicate Rrset {rrset.name} {rrset._type}'
+                )
+            grouped[key] = rrset
+        return [
+            cls._record_from_rrset(
+                zone, grouped[key], lenient=lenient, source=source
+            )
+            for key in sorted(grouped)
+        ]
 
     @classmethod
     def parse_rdata_texts(cls, rdatas):
-        return [value_from_rrs(cls._value_type, r) for r in rdatas]
+        return [value_from_rdata_text(cls._value_type, r) for r in rdatas]
 
     def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone
@@ -423,6 +550,51 @@ class Record(EqualityTupleMixin):
         if self.decoded_name:
             return f'{self.decoded_name}.{self.zone.decoded_name}'
         return self.zone.decoded_name
+
+    def to_rrset(self):
+        '''Render this record as one grouped RRset.
+
+        Values exposed by this record in octoDNS internal format are converted
+        into deterministic RDATA presentation-format strings. The returned
+        :class:`~octodns.record.rr.Rrset` contains this record's fully-qualified
+        owner name, type, and TTL; DNS class is implicitly Internet (``IN``).
+
+        Provider example::
+
+            rrset = record.to_rrset()
+            provider_values = rrset.rdatas
+
+        :returns: exactly one grouped RRset
+        :rtype: octodns.record.rr.Rrset
+        '''
+        return self._to_rrset(self._rdatas())
+
+    def _to_rrset(self, rdatas):
+        return Rrset(self.fqdn, self._type, self.ttl, rdatas)
+
+    def _legacy_rdatas(self):
+        return self._rdatas()
+
+    @property
+    def rrs(self):
+        '''Return the deprecated legacy RRset tuple.
+
+        The plain tuple order remains ``(name, ttl, type, rdatas)`` and differs
+        from the named :class:`~octodns.record.rr.Rrset` constructor order.
+
+        :returns: owner name, TTL, type, and a list of RDATA presentation text
+        :rtype: tuple
+
+        .. deprecated:: 1.22.0
+           Use :meth:`to_rrset`. ``Record.rrs`` will be removed in 2.0.
+        '''
+        deprecated(
+            '`Record.rrs` is DEPRECATED. Use `Record.to_rrset()` instead. '
+            'Will be removed in 2.0.',
+            stacklevel=3,
+        )
+        rrset = self._to_rrset(self._legacy_rdatas())
+        return rrset.name, rrset.ttl, rrset._type, rrset.rdatas
 
     @property
     def ignored(self):
@@ -531,8 +703,18 @@ class ValuesMixin(object):
         # type and TTL come from the first rr
         rr = rrs[0]
         # values come from parsing the rdata portion of all rrs
-        values = [value_from_rrs(cls._value_type, rr.rdata) for rr in rrs]
+        values = [
+            value_from_rdata_text(cls._value_type, rr.rdata) for rr in rrs
+        ]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
+
+    @classmethod
+    def data_from_rrset(cls, rrset):
+        values = [
+            value_from_rdata_text(cls._value_type, rdata)
+            for rdata in rrset.rdatas
+        ]
+        return {'ttl': rrset.ttl, 'type': rrset._type, 'values': values}
 
     def __init__(self, zone, name, data, source=None, context=None):
         super().__init__(zone, name, data, source=source, context=context)
@@ -565,14 +747,8 @@ class ValuesMixin(object):
     def rr_values(self):
         return self.values
 
-    @property
-    def rrs(self):
-        return (
-            self.fqdn,
-            self.ttl,
-            self._type,
-            [value_to_rrs(v) for v in self.rr_values],
-        )
+    def _rdatas(self):
+        return [value_to_rdata_text(v) for v in self.rr_values]
 
     def __repr__(self):
         values = "', '".join([str(v) for v in self.values])
@@ -593,7 +769,15 @@ class ValueMixin(object):
         return {
             'ttl': rr.ttl,
             'type': rr._type,
-            'value': value_from_rrs(cls._value_type, rr.rdata),
+            'value': value_from_rdata_text(cls._value_type, rr.rdata),
+        }
+
+    @classmethod
+    def data_from_rrset(cls, rrset):
+        return {
+            'ttl': rrset.ttl,
+            'type': rrset._type,
+            'value': value_from_rdata_text(cls._value_type, rrset.rdatas[0]),
         }
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -610,9 +794,8 @@ class ValueMixin(object):
         ret['value'] = getattr(self.value, 'data', self.value)
         return ret
 
-    @property
-    def rrs(self):
-        return self.fqdn, self.ttl, self._type, [value_to_rrs(self.value)]
+    def _rdatas(self):
+        return [value_to_rdata_text(self.value)]
 
     def __repr__(self):
         klass = self.__class__.__name__

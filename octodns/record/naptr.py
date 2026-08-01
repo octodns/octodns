@@ -214,7 +214,14 @@ class NaptrValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def from_rrs(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one NAPTR RDATA presentation string into internal field data.
+
+        :param str value: NAPTR RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format NAPTR field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        '''
         try:
             order, preference, flags, service, regexp, replacement = (
                 value.split(' ')
@@ -310,14 +317,19 @@ class NaptrValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(cls)
-        return cls.from_rrs(value)
+        return cls.from_rdata_text(value)
 
     @property
     def rdata_text(self):
         _deprecated_rdata_text(self)
-        return self.to_rrs()
+        return self.to_rdata_text()
 
-    def to_rrs(self):
+    def to_rdata_text(self):
+        '''Render this internal NAPTR value as one RDATA presentation string.
+
+        :returns: NAPTR RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         # RFC 3403 requires flags, service, and regexp to be quoted character-strings
         flags = self.flags or ''
         service = self.service or ''

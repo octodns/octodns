@@ -161,7 +161,14 @@ class CaaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def from_rrs(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one CAA RDATA presentation string into internal field data.
+
+        :param str value: CAA RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format CAA field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        '''
         try:
             # value may contain whitepsace
             flags, tag, value = value.split(' ', 2)
@@ -219,14 +226,19 @@ class CaaValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(cls)
-        return cls.from_rrs(value)
+        return cls.from_rdata_text(value)
 
     @property
     def rdata_text(self):
         _deprecated_rdata_text(self)
-        return self.to_rrs()
+        return self.to_rdata_text()
 
-    def to_rrs(self):
+    def to_rdata_text(self):
+        '''Render this internal CAA value as one RDATA presentation string.
+
+        :returns: CAA RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         # RFC 8659 §4.1.1 requires value to be a quoted character-string
         return f'{self.flags} {self.tag} "{self.value}"'
 

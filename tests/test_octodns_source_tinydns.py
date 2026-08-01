@@ -50,18 +50,33 @@ class TestTinyDnsFileSource(TestCase):
         )
 
     def test_colon_txt_raw_value(self):
-        zone = Zone('example.com.', [])
-        records = list(
-            self.source._records_for_colon(
-                zone,
-                'txt.example.com.',
-                [['txt.example.com.', 'TXT', 'value; with semicolon', '30']],
+        for _type in ('SPF', 'TXT'):
+            zone = Zone('example.com.', [])
+            records = list(
+                self.source._records_for_colon(
+                    zone,
+                    f'{_type.lower()}.example.com.',
+                    [
+                        [
+                            f'{_type.lower()}.example.com.',
+                            _type,
+                            'value; with semicolon',
+                            '30',
+                        ]
+                    ],
+                )
             )
-        )
-        self.assertEqual(
-            [('TXT', 'txt.example.com.', 30, ['value\\; with semicolon'])],
-            records,
-        )
+            self.assertEqual(
+                [
+                    (
+                        _type,
+                        f'{_type.lower()}.example.com.',
+                        30,
+                        ['value\\; with semicolon'],
+                    )
+                ],
+                records,
+            )
 
     def test_populate_normal(self):
         got = Zone('example.com.', [])

@@ -254,7 +254,14 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def from_rrs(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one TLSA RDATA presentation string into internal field data.
+
+        :param str value: TLSA RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format TLSA field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        '''
         try:
             (
                 certificate_usage,
@@ -337,14 +344,19 @@ class TlsaValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(cls)
-        return cls.from_rrs(value)
+        return cls.from_rdata_text(value)
 
     @property
     def rdata_text(self):
         _deprecated_rdata_text(self)
-        return self.to_rrs()
+        return self.to_rdata_text()
 
-    def to_rrs(self):
+    def to_rdata_text(self):
+        '''Render this internal TLSA value as one RDATA presentation string.
+
+        :returns: TLSA RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def template(self, params):

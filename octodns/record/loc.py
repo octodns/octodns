@@ -215,7 +215,14 @@ class LocValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def from_rrs(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one LOC RDATA presentation string into internal field data.
+
+        :param str value: LOC RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format LOC field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        '''
         try:
             value = value.replace('m', '')
             (
@@ -416,14 +423,19 @@ class LocValue(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(cls)
-        return cls.from_rrs(value)
+        return cls.from_rdata_text(value)
 
     @property
     def rdata_text(self):
         _deprecated_rdata_text(self)
-        return self.to_rrs()
+        return self.to_rdata_text()
 
-    def to_rrs(self):
+    def to_rdata_text(self):
+        '''Render this internal LOC value as one RDATA presentation string.
+
+        :returns: LOC RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
 
     def template(self, params):

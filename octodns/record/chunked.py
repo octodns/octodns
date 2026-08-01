@@ -13,6 +13,8 @@ from .base import (
     ValuesMixin,
     _deprecated_parse_rdata_text,
     _deprecated_rdata_text,
+    _value_to_rdata_text_uses_legacy,
+    value_to_rdata_text,
 )
 from .validator import ValidationReason, ValueValidator
 
@@ -67,27 +69,26 @@ chunked_value_validator = ChunkedValueValidator(
 )
 
 
+def _legacy_chunked_value(value, value_type, chunk_size):
+    value = value.replace('"', '\\"')
+    chunks = []
+    i = 0
+    n = len(value)
+    while i < n:
+        c = min(chunk_size, n - i)
+        while value[i + c - 1] == '\\':
+            c -= 1
+        chunks.append(value[i : i + c])
+        i += c
+    joined = '" "'.join(chunks)
+    return value_type(f'"{joined}"')
+
+
 class _ChunkedValuesMixin(ValuesMixin):
     CHUNK_SIZE = 255
 
     def chunked_value(self, value):
-        value = value.replace('"', '\\"')
-        vs = []
-        i = 0
-        n = len(value)
-        # until we've processed the whole string
-        while i < n:
-            # start with a full chunk size
-            c = min(self.CHUNK_SIZE, n - i)
-            # make sure that we don't break on escape chars
-            while value[i + c - 1] == '\\':
-                c -= 1
-            # we have our chunk now
-            vs.append(value[i : i + c])
-            # and can step over if
-            i += c
-        vs = '" "'.join(vs)
-        return self._value_type(f'"{vs}"')
+        return _legacy_chunked_value(value, self._value_type, self.CHUNK_SIZE)
 
     @property
     def chunked_values(self):
@@ -100,17 +101,23 @@ class _ChunkedValuesMixin(ValuesMixin):
     def rr_values(self):
         return self.chunked_values
 
-    @property
-    def rrs(self):
+    def _rdatas(self):
         # ``rr_values`` is retained for backwards compatibility, but consists
         # of presentation-form values. Render from the raw values directly so
         # that RDATA is never quoted and escaped a second time.
-        return (
-            self.fqdn,
-            self.ttl,
-            self._type,
-            [value.to_rrs() for value in self.values],
-        )
+        return [
+            value_to_rdata_text(value, legacy_value=rr_value)
+            for value, rr_value in zip(self.values, self.rr_values)
+        ]
+
+    def _legacy_rdatas(self):
+        rdatas = []
+        for value, rr_value in zip(self.values, self.rr_values):
+            if _value_to_rdata_text_uses_legacy(value.__class__):
+                rdatas.append(value_to_rdata_text(value, legacy_value=rr_value))
+            else:
+                rdatas.append(str(rr_value))
+        return rdatas
 
 
 class _ChunkedValue(str):
@@ -125,13 +132,26 @@ class _ChunkedValue(str):
 
     @classmethod
     def parse_rdata_text(cls, value):
-        _deprecated_parse_rdata_text(cls)
+        _deprecated_parse_rdata_text(cls, f'{cls.__name__}.from_raw()')
         return cls.from_raw(value)
 
     @classmethod
-    def from_rrs(cls, rdata):
+    def from_rdata_text(cls, rdata):
+        '''Convert one RDATA presentation string to octoDNS internal text.
+
+        Character-string bytes are decoded as UTF-8 and semicolons are escaped
+        for octoDNS's TXT/SPF internal format.
+
+        :param str rdata: one TXT-style RDATA presentation-format value
+        :returns: octoDNS internal-format text
+        :rtype: str
+        :raises dns.exception.DNSException: if ``rdata`` is not valid TXT
+            RDATA presentation text
+        :raises UnicodeDecodeError: if parsed character-string bytes are not
+            valid UTF-8
+        '''
         parsed = dns.rdata.from_text('IN', 'TXT', rdata)
-        return b''.join(parsed.strings).decode('ascii').replace(';', '\\;')
+        return b''.join(parsed.strings).decode('utf-8').replace(';', '\\;')
 
     @classmethod
     def _schema(cls):
@@ -148,11 +168,25 @@ class _ChunkedValue(str):
 
     @property
     def rdata_text(self):
-        _deprecated_rdata_text(self)
+        _deprecated_rdata_text(self, 'str(value)')
         return self
 
-    def to_rrs(self):
-        value = self.replace('\\;', ';').encode('ascii')
+    def to_rdata_text(self):
+        '''Render this octoDNS internal value as RDATA presentation text.
+
+        Valid ASCII input is chunked by octet into character strings of at
+        most 255 bytes and rendered by dnspython. Lenient non-ASCII input uses
+        the legacy character-based quoting and chunking representation so it
+        remains round-trippable as UTF-8 text.
+
+        :returns: one TXT-style RDATA presentation-format string
+        :rtype: str
+        '''
+        raw = self.replace('\\;', ';')
+        try:
+            value = raw.encode('ascii')
+        except UnicodeEncodeError:
+            return str(_legacy_chunked_value(self, self.__class__, 255))
         chunks = [value[i : i + 255] for i in range(0, len(value), 255)] or [
             b''
         ]

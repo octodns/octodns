@@ -293,7 +293,14 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def from_rrs(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse SVCB/HTTPS RDATA presentation text into internal field data.
+
+        :param str value: RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format SVCB/HTTPS field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        '''
         try:
             svcpriority, targetname, *svcparams = value.split(' ')
         except ValueError:
@@ -367,14 +374,19 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(cls)
-        return cls.from_rrs(value)
+        return cls.from_rdata_text(value)
 
     @property
     def rdata_text(self):
         _deprecated_rdata_text(self)
-        return self.to_rrs()
+        return self.to_rdata_text()
 
-    def to_rrs(self):
+    def to_rdata_text(self):
+        '''Render this internal SVCB/HTTPS value as RDATA presentation text.
+
+        :returns: RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         params = ''
         sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
         for svcparamkey in sorted_svcparamkeys:
@@ -411,7 +423,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         return (self.svcpriority, self.targetname, params)
 
     def __repr__(self):
-        return f"'{self.to_rrs()}'"
+        return f"'{self.to_rdata_text()}'"
 
 
 class SvcbValueBestPracticeValidator(ValueValidator):

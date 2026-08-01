@@ -2,10 +2,13 @@
 #
 #
 
+import warnings
 from unittest import TestCase
 
 import dns.rdata
 
+from octodns.processor.filter import ValueAllowlistFilter
+from octodns.record import Record
 from octodns.record.base import _process_value_validators
 from octodns.record.chunked import _ChunkedValue, _ChunkedValuesMixin
 from octodns.record.spf import SpfRecord
@@ -52,11 +55,11 @@ class TestRecordChunked(TestCase):
             '\x01control',
             'a' * 256,
         ):
-            rdata = TxtValue(value).to_rrs()
-            self.assertEqual(value, TxtValue.from_rrs(rdata))
+            rdata = TxtValue(value).to_rdata_text()
+            self.assertEqual(value, TxtValue.from_rdata_text(rdata))
 
         value = TxtValue('a' * 256)
-        rdata = value.to_rrs()
+        rdata = value.to_rdata_text()
         self.assertEqual(
             [255, 1],
             [len(s) for s in dns.rdata.from_text('IN', 'TXT', rdata).strings],
@@ -64,8 +67,143 @@ class TestRecordChunked(TestCase):
 
         zone = Zone('unit.tests.', [])
         record = SpfRecord(zone, 'spf', {'ttl': 42, 'value': 'a "quote"'})
-        self.assertEqual('"a \\"quote\\""', record.rrs[3][0])
-        self.assertEqual('a "quote"', _ChunkedValue.from_rrs(record.rrs[3][0]))
+        rdata = record.to_rrset().rdatas[0]
+        self.assertEqual('"a \\"quote\\""', rdata)
+        self.assertEqual('a "quote"', _ChunkedValue.from_rdata_text(rdata))
+
+    def test_chunked_legacy_migration_guidance(self):
+        value = TxtValue('Hello \\; World')
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual(str(value), value.rdata_text)
+            self.assertEqual(
+                TxtValue.from_raw('Hello; World'),
+                TxtValue.parse_rdata_text('Hello; World'),
+            )
+        self.assertEqual(
+            [
+                '`TxtValue.rdata_text` is DEPRECATED. Use `str(value)` '
+                'instead. Will be removed in 2.0.',
+                '`TxtValue.parse_rdata_text` is DEPRECATED. Use '
+                '`TxtValue.from_raw()` instead. Will be removed in 2.0.',
+            ],
+            [str(warning.message) for warning in caught],
+        )
+
+    def test_chunked_record_rrs_preserves_legacy_rendering(self):
+        record = SpfRecord(
+            Zone('unit.tests.', []),
+            'spf',
+            {'ttl': 42, 'value': 'semi\\; quote " slash \\ middle'},
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            legacy = record.rrs
+        self.assertEqual(
+            (
+                'spf.unit.tests.',
+                42,
+                'SPF',
+                ['"semi\\; quote \\" slash \\ middle"'],
+            ),
+            legacy,
+        )
+        self.assertEqual(
+            '`Record.rrs` is DEPRECATED. Use `Record.to_rrset()` instead. '
+            'Will be removed in 2.0.',
+            str(caught[0].message),
+        )
+
+        rdata = record.to_rrset().rdatas[0]
+        self.assertNotEqual(legacy[3][0], rdata)
+        parsed = dns.rdata.from_text('IN', 'TXT', rdata)
+        self.assertEqual(
+            b'semi; quote " slash \\ middle', b''.join(parsed.strings)
+        )
+
+    def test_chunked_legacy_override_uses_historical_receiver(self):
+        class LegacyChunkedValue(_ChunkedValue):
+            receivers = []
+
+            @property
+            def rdata_text(self):
+                self.receivers.append(str(self))
+                return f'legacy:{self}'
+
+        class LegacyChunkedRecord(_ChunkedValuesMixin, Record):
+            _type = 'LEGACYCHUNKED'
+            _value_type = LegacyChunkedValue
+
+        Record.register_type(LegacyChunkedRecord)
+        record = LegacyChunkedRecord(
+            Zone('unit.tests.', []), 'legacy', {'ttl': 42, 'value': 'a "quote"'}
+        )
+        expected = 'legacy:"a \\"quote\\""'
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual([expected], record.to_rrset().rdatas)
+        self.assertEqual(
+            [
+                '`LegacyChunkedValue.rdata_text` is DEPRECATED. Implement '
+                '`to_rdata_text()` instead. Will be removed in 2.0.'
+            ],
+            [str(warning.message) for warning in caught],
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual(
+                ('legacy.unit.tests.', 42, 'LEGACYCHUNKED', [expected]),
+                record.rrs,
+            )
+        self.assertEqual(
+            [
+                '`Record.rrs` is DEPRECATED. Use `Record.to_rrset()` instead. '
+                'Will be removed in 2.0.',
+                '`LegacyChunkedValue.rdata_text` is DEPRECATED. Implement '
+                '`to_rdata_text()` instead. Will be removed in 2.0.',
+            ],
+            [str(warning.message) for warning in caught],
+        )
+        self.assertEqual(
+            ['"a \\"quote\\""', '"a \\"quote\\""'], LegacyChunkedValue.receivers
+        )
+
+    def test_lenient_unicode_presentation_round_trip(self):
+        for _type in ('SPF', 'TXT'):
+            zone = Zone('unit.tests.', [])
+            record = Record.new(
+                zone,
+                _type.lower(),
+                {'ttl': 42, 'type': _type, 'value': 'Déjà \\; vu'},
+                lenient=True,
+            )
+            rrset = record.to_rrset()
+            self.assertEqual(['"Déjà \\; vu"'], rrset.rdatas)
+            self.assertEqual(
+                record.data, Record.from_rrset(zone, rrset, lenient=True).data
+            )
+
+            zone.add_record(record)
+            filtered = ValueAllowlistFilter(
+                'unicode', ('"Déjà \\; vu"',)
+            ).process_source_zone(zone.copy(), None)
+            self.assertEqual([record], list(filtered.records))
+
+            ascii_record = Record.new(
+                Zone('unit.tests.', []),
+                'ascii',
+                {'ttl': 42, 'type': _type, 'value': 'a' * 256},
+            )
+            rdata = ascii_record.to_rrset().rdatas[0]
+            self.assertEqual(
+                [255, 1],
+                [
+                    len(chunk)
+                    for chunk in dns.rdata.from_text('IN', 'TXT', rdata).strings
+                ],
+            )
 
 
 class TestChunkedValue(TestCase):

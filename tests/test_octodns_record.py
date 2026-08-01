@@ -3,6 +3,7 @@
 #
 
 import warnings
+from inspect import currentframe
 from unittest import TestCase
 
 from octodns.idna import idna_encode
@@ -12,11 +13,13 @@ from octodns.record import (
     CnameRecord,
     Create,
     Delete,
+    Ipv4Value,
     MxValue,
     NsValue,
     Record,
     RecordException,
     Rr,
+    Rrset,
     SrvValue,
     TxtRecord,
     Update,
@@ -68,15 +71,144 @@ class TestRecord(TestCase):
         self.assertEqual(
             [
                 '`LegacyValue.rdata_text` is DEPRECATED. Implement '
-                '`to_rrs()` instead. Will be removed in 2.0.',
+                '`to_rdata_text()` instead. Will be removed in 2.0.',
                 '`LegacyValue.parse_rdata_text` is DEPRECATED. Implement '
-                '`from_rrs()` instead. Will be removed in 2.0.',
+                '`from_rdata_text()` instead. Will be removed in 2.0.',
             ],
             [
                 str(warning.message)
                 for warning in caught
                 if 'LegacyValue' in str(warning.message)
             ],
+        )
+
+    def test_value_rdata_mro_dispatch(self):
+        class ParseOnlyValue(Ipv4Value):
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return '192.0.2.2'
+
+        class ParseOnlyRecord(ValuesMixin, Record):
+            _type = 'PARSEONLY'
+            _value_type = ParseOnlyValue
+
+        class RenderOnlyValue(Ipv4Value):
+            @property
+            def rdata_text(self):
+                return '192.0.2.3'
+
+        class RenderOnlyRecord(ValuesMixin, Record):
+            _type = 'RENDERONLY'
+            _value_type = RenderOnlyValue
+
+        class IntermediateValue(Ipv4Value):
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return '192.0.2.4'
+
+        class InheritedValue(IntermediateValue):
+            pass
+
+        class InheritedRecord(ValuesMixin, Record):
+            _type = 'INHERITEDOLD'
+            _value_type = InheritedValue
+
+        class BothValue(Ipv4Value):
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return '192.0.2.5'
+
+            @classmethod
+            def from_rdata_text(cls, value):
+                return '192.0.2.6'
+
+            @property
+            def rdata_text(self):
+                return '192.0.2.7'
+
+            def to_rdata_text(self):
+                return '192.0.2.8'
+
+        class BothRecord(ValuesMixin, Record):
+            _type = 'BOTHAPIS'
+            _value_type = BothValue
+
+        class ExplicitNewValue(IntermediateValue):
+            @classmethod
+            def from_rdata_text(cls, value):
+                return '192.0.2.9'
+
+        class ExplicitNewRecord(ValuesMixin, Record):
+            _type = 'EXPLICITNEW'
+            _value_type = ExplicitNewValue
+
+        for record_class in (
+            ParseOnlyRecord,
+            RenderOnlyRecord,
+            InheritedRecord,
+            BothRecord,
+            ExplicitNewRecord,
+        ):
+            Record.register_type(record_class)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            record = Record.from_rrset(
+                self.zone,
+                Rrset('parse.unit.tests.', 'PARSEONLY', 30, ['192.0.2.1']),
+            )
+        self.assertEqual(['192.0.2.2'], record.values)
+        self.assertEqual(
+            '`ParseOnlyValue.parse_rdata_text` is DEPRECATED. Implement '
+            '`from_rdata_text()` instead. Will be removed in 2.0.',
+            str(caught[0].message),
+        )
+
+        record = RenderOnlyRecord(
+            self.zone, 'render', {'ttl': 30, 'values': ['192.0.2.1']}
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            rrset = record.to_rrset()
+        self.assertEqual(['192.0.2.3'], rrset.rdatas)
+        self.assertEqual(
+            '`RenderOnlyValue.rdata_text` is DEPRECATED. Implement '
+            '`to_rdata_text()` instead. Will be removed in 2.0.',
+            str(caught[0].message),
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            record = Record.from_rrset(
+                self.zone,
+                Rrset(
+                    'inherited.unit.tests.', 'INHERITEDOLD', 30, ['192.0.2.1']
+                ),
+            )
+        self.assertEqual(['192.0.2.4'], record.values)
+        self.assertEqual(
+            '`InheritedValue.parse_rdata_text` is DEPRECATED. Implement '
+            '`from_rdata_text()` instead. Will be removed in 2.0.',
+            str(caught[0].message),
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            both = Record.from_rrset(
+                self.zone,
+                Rrset('both.unit.tests.', 'BOTHAPIS', 30, ['192.0.2.1']),
+            )
+            both_rrset = both.to_rrset()
+            explicit = Record.from_rrset(
+                self.zone,
+                Rrset('new.unit.tests.', 'EXPLICITNEW', 30, ['192.0.2.1']),
+            )
+        self.assertEqual(['192.0.2.6'], both.values)
+        self.assertEqual(['192.0.2.8'], both_rrset.rdatas)
+        self.assertEqual(['192.0.2.9'], explicit.values)
+        self.assertEqual(
+            [],
+            [warning for warning in caught if 'Value.' in str(warning.message)],
         )
 
     def test_registration(self):
@@ -230,6 +362,101 @@ class TestRecord(TestCase):
         self.assertEqual('target.unit.tests.', record.value)
         # make sure there's nothing extra
         self.assertEqual(5, len(records))
+
+        # The record-class compatibility helpers remain available even though
+        # Record.from_rrs now delegates through grouped Rrsets.
+        self.assertEqual(
+            {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
+            ARecord.data_from_rrs((rrs[0], rrs[3])),
+        )
+        self.assertEqual(
+            {'ttl': 46, 'type': 'CNAME', 'value': 'target.unit.tests.'},
+            CnameRecord.data_from_rrs((rrs[4],)),
+        )
+
+    def test_rrset_conversion(self):
+        zone = Zone('unit.tests.', [])
+        source = object()
+        rrsets = (
+            Rrset('www.unit.tests.', 'AAAA', 45, ['fc00::3']),
+            Rrset('unit.tests.', 'A', 42, ['2.3.4.5', '1.2.3.4', '1.2.3.4']),
+            Rrset('www.unit.tests.', 'A', 44, ['3.4.5.6']),
+        )
+
+        records = Record.from_rrsets(zone, rrsets, source=source)
+        self.assertEqual(
+            [('', 'A'), ('www', 'A'), ('www', 'AAAA')],
+            [(record.name, record._type) for record in records],
+        )
+        self.assertEqual(['1.2.3.4', '1.2.3.4', '2.3.4.5'], records[0].values)
+        self.assertTrue(all(record.source is source for record in records))
+
+        rrset = records[0].to_rrset()
+        self.assertEqual('unit.tests.', rrset.name)
+        self.assertEqual('A', rrset._type)
+        self.assertEqual(42, rrset.ttl)
+        self.assertEqual(['1.2.3.4', '1.2.3.4', '2.3.4.5'], rrset.rdatas)
+        self.assertEqual(records[0].data, Record.from_rrset(zone, rrset).data)
+
+        self.assertEqual([], Record.from_rrsets(zone, []))
+        with self.assertRaises(RecordException) as ctx:
+            Record.from_rrset(zone, Rrset('unit.tests.', 'A', 42, []))
+        self.assertEqual(
+            'Invalid Rrset unit.tests. A: at least one RDATA value is required',
+            str(ctx.exception),
+        )
+        with self.assertRaises(RecordException) as ctx:
+            Record.from_rrsets(
+                zone,
+                (
+                    Rrset('unit.tests.', 'A', 42, ['1.2.3.4']),
+                    Rrset('unit.tests.', 'A', 43, ['2.3.4.5']),
+                ),
+            )
+        self.assertEqual('Duplicate Rrset unit.tests. A', str(ctx.exception))
+
+    def test_rrset_lenient_and_legacy_conversion(self):
+        zone = Zone('unit.tests.', [])
+        source = object()
+        rrset = Rrset('bad.unit.tests.', 'CNAME', 42, ['not a valid target'])
+        record = Record.from_rrset(zone, rrset, lenient=True, source=source)
+        self.assertEqual('not a valid target', record.value)
+        self.assertIs(source, record.source)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            legacy = [
+                Rr('unit.tests.', 'A', 42, '2.3.4.5'),
+                Rr('unit.tests.', 'A', 99, '1.2.3.4'),
+            ]
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            records = Record.from_rrs(
+                zone, iter(legacy), lenient=True, source=source
+            )
+        self.assertEqual(
+            [
+                '`Record.from_rrs` is DEPRECATED. Use '
+                '`Record.from_rrsets()` instead. Will be removed in 2.0.'
+            ],
+            [
+                str(warning.message)
+                for warning in caught
+                if 'Record.from_rrs' in str(warning.message)
+            ],
+        )
+        self.assertEqual(42, records[0].ttl)
+        self.assertEqual(['1.2.3.4', '2.3.4.5'], records[0].values)
+        self.assertIs(source, records[0].source)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual([], Record.from_rrs(zone, ()))
+        self.assertEqual(
+            '`Record.from_rrs` is DEPRECATED. Use `Record.from_rrsets()` '
+            'instead. Will be removed in 2.0.',
+            str(caught[0].message),
+        )
 
     def test_parse_rdata_texts(self):
         self.assertEqual(['2.3.4.5'], ARecord.parse_rdata_texts(['2.3.4.5']))
@@ -533,8 +760,30 @@ class TestRecord(TestCase):
         self.assertTrue(aaaa <= aaaa)
 
     def test_rr(self):
-        # nothing much to test, just make sure that things don't blow up
-        Rr('name', 'type', 42, 'Hello World!').__repr__()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            expected_line = currentframe().f_lineno + 1
+            rr = Rr('name', 'type', 42, 'Hello World!')
+        self.assertEqual(
+            '`Rr` is DEPRECATED. Use `Rrset` instead. Will be removed in 2.0.',
+            str(caught[0].message),
+        )
+        self.assertEqual(__file__, caught[0].filename)
+        self.assertEqual(expected_line, caught[0].lineno)
+        self.assertEqual('name', rr.name)
+        self.assertEqual('type', rr._type)
+        self.assertEqual(42, rr.ttl)
+        self.assertEqual('Hello World!', rr.rdata)
+        self.assertEqual('Rr<name, type, 42, Hello World!', rr.__repr__())
+
+        rrset = Rrset('name', 'type', 42, iter(('one', 'two')))
+        self.assertEqual('name', rrset.name)
+        self.assertEqual('type', rrset._type)
+        self.assertEqual(42, rrset.ttl)
+        self.assertEqual(['one', 'two'], rrset.rdatas)
+        self.assertEqual(
+            "Rrset<name, type, 42, ['one', 'two']", rrset.__repr__()
+        )
 
         zone = Zone('unit.tests.', [])
         record = Record.new(
@@ -542,8 +791,15 @@ class TestRecord(TestCase):
             'a',
             {'ttl': 42, 'type': 'A', 'values': ['1.2.3.4', '2.3.4.5']},
         )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual(
+                ('a.unit.tests.', 42, 'A', ['1.2.3.4', '2.3.4.5']), record.rrs
+            )
         self.assertEqual(
-            ('a.unit.tests.', 42, 'A', ['1.2.3.4', '2.3.4.5']), record.rrs
+            '`Record.rrs` is DEPRECATED. Use `Record.to_rrset()` instead. '
+            'Will be removed in 2.0.',
+            str(caught[0].message),
         )
 
         record = Record.new(
@@ -638,13 +894,97 @@ class TestRecord(TestCase):
                 'query': 0,
             },
         }
+        second_values = {
+            'A': '192.0.2.2',
+            'AAAA': '2001:db8::2',
+            'CAA': {'flags': 0, 'tag': 'iodef', 'value': 'other.example'},
+            'DS': {
+                'key_tag': 2,
+                'algorithm': 2,
+                'digest_type': 3,
+                'digest': 'EF01',
+            },
+            'HTTPS': {
+                'svcpriority': 2,
+                'targetname': 'other.unit.tests.',
+                'svcparams': {'port': 8443},
+            },
+            'LOC': {
+                'lat_degrees': 31,
+                'lat_minutes': 58,
+                'lat_seconds': 53.1,
+                'lat_direction': 'S',
+                'long_degrees': 115,
+                'long_minutes': 49,
+                'long_seconds': 11.7,
+                'long_direction': 'E',
+                'altitude': 20,
+                'size': 10,
+                'precision_horz': 10,
+                'precision_vert': 2,
+            },
+            'MX': {'preference': 20, 'exchange': 'mx2.unit.tests.'},
+            'NAPTR': {
+                'order': 2,
+                'preference': 2,
+                'flags': 'U',
+                'service': 'E2U+sip',
+                'regexp': '!^.*$!sip:other@example.com!',
+                'replacement': '.',
+            },
+            'NS': 'ns2.unit.tests.',
+            'OPENPGPKEY': 'def456',
+            'PTR': 'other.unit.tests.',
+            'SPF': 'v=spf1 include:other.unit.tests. \\;all',
+            'SRV': {
+                'priority': 2,
+                'weight': 2,
+                'port': 443,
+                'target': 'other.unit.tests.',
+            },
+            'SSHFP': {
+                'algorithm': 2,
+                'fingerprint_type': 2,
+                'fingerprint': 'B' * 64,
+            },
+            'SVCB': {
+                'svcpriority': 2,
+                'targetname': 'other.unit.tests.',
+                'svcparams': {'port': 8443},
+            },
+            'TLSA': {
+                'certificate_usage': 2,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'EF01',
+            },
+            'TXT': 'another \\;value',
+            'URI': {
+                'priority': 2,
+                'weight': 2,
+                'target': 'https://other.unit.tests/',
+            },
+            'URLFWD': {
+                'path': '/other',
+                'target': 'https://other.unit.tests/',
+                'code': 302,
+                'masking': 0,
+                'query': 0,
+            },
+        }
         names = {'ALIAS': '', 'SRV': '_srv._tcp', 'URI': '_uri._tcp'}
         for _type, value in values.items():
+            data = {'ttl': 30, 'type': _type}
+            if _type in second_values:
+                data['values'] = [value, second_values[_type]]
+            else:
+                data['value'] = value
             record = Record.new(
-                self.zone,
-                names.get(_type, _type.lower()),
-                {'ttl': 30, 'type': _type, 'value': value},
+                self.zone, names.get(_type, _type.lower()), data
             )
+            if _type in second_values:
+                self.assertEqual(2, len(record.values), _type)
+                self.assertNotEqual(record.values[0], record.values[1], _type)
             value_type = record._value_type
             value_obj = (
                 record.values[0] if hasattr(record, 'values') else record.value
@@ -658,43 +998,32 @@ class TestRecord(TestCase):
                         value_type.parse_rdata_text(value_obj),
                     )
                 else:
-                    rdata = value_obj.to_rrs()
+                    rdata = value_obj.to_rdata_text()
                     self.assertEqual(rdata, value_obj.rdata_text)
                     self.assertEqual(
-                        value_type.from_rrs(rdata),
+                        value_type.from_rdata_text(rdata),
                         value_type.parse_rdata_text(rdata),
                     )
             value_type_name = value_type.__name__
+            if _type in ('SPF', 'TXT'):
+                replacements = ('str(value)', f'{value_type_name}.from_raw()')
+            else:
+                replacements = (
+                    f'{value_type_name}.to_rdata_text()',
+                    f'{value_type_name}.from_rdata_text()',
+                )
             self.assertEqual(
                 [
                     f'`{value_type_name}.rdata_text` is DEPRECATED. Use '
-                    f'`{value_type_name}.to_rrs()` instead. Will be removed in 2.0.',
+                    f'`{replacements[0]}` instead. Will be removed in 2.0.',
                     f'`{value_type_name}.parse_rdata_text` is DEPRECATED. Use '
-                    f'`{value_type_name}.from_rrs()` instead. Will be removed in 2.0.',
+                    f'`{replacements[1]}` instead. Will be removed in 2.0.',
                 ],
                 [str(warning.message) for warning in caught],
                 _type,
             )
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter('always')
-                _, _, _, rdatas = record.rrs
-                round_trip = Record.from_rrs(
-                    self.zone,
-                    [
-                        Rr(record.fqdn, _type, record.ttl, rdata)
-                        for rdata in rdatas
-                    ],
-                )[0]
-            self.assertEqual(
-                [],
-                [
-                    warning
-                    for warning in caught
-                    if '.rdata_text' in str(warning.message)
-                    or '.parse_rdata_text' in str(warning.message)
-                ],
-                _type,
-            )
+            rrset = record.to_rrset()
+            round_trip = Record.from_rrset(self.zone, rrset)
             self.assertEqual(record.data, round_trip.data, _type)
 
     def test_unquote(self):
@@ -1111,14 +1440,14 @@ class TestRecordValidation(TestCase):
             if not value_type.__module__.startswith('octodns.'):
                 continue
 
-            attr = 'from_rrs'
+            attr = 'from_rdata_text'
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             self.assertTrue(
                 callable(method), f'{_type}, {cls} {attr} is callable'
             )
 
-            attr = 'to_rrs'
+            attr = 'to_rdata_text'
             method = getattr(value_type, attr)
             self.assertTrue(method, f'{_type}, {cls} has {attr}')
             self.assertTrue(

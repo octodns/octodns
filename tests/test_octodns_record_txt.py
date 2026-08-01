@@ -6,7 +6,7 @@ from unittest import TestCase
 
 import dns.rdata
 
-from octodns.record import Record, Rr
+from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.txt import TxtRecord
 from octodns.zone import Zone
@@ -154,10 +154,7 @@ class TestRecordTxt(TestCase):
             'txt',
             {'ttl': 42, 'type': 'TXT', 'values': ['short 1', 'short 2']},
         )
-        self.assertEqual(
-            ('txt.unit.tests.', 42, 'TXT', ['"short 1"', '"short 2"']),
-            record.rrs,
-        )
+        self.assertEqual(['"short 1"', '"short 2"'], record.to_rrset().rdatas)
 
         # long chunked text
         record = Record.new(
@@ -173,10 +170,13 @@ class TestRecordTxt(TestCase):
                 ],
             },
         )
-        self.assertEqual(('txt.unit.tests.', 42, 'TXT'), record.rrs[:3])
-        self.assertEqual('"before"', record.rrs[3][0])
-        self.assertEqual('"z after"', record.rrs[3][2])
-        middle = dns.rdata.from_text('IN', 'TXT', record.rrs[3][1])
+        rrset = record.to_rrset()
+        self.assertEqual(
+            ('txt.unit.tests.', 42, 'TXT'), (rrset.name, rrset.ttl, rrset._type)
+        )
+        self.assertEqual('"before"', rrset.rdatas[0])
+        self.assertEqual('"z after"', rrset.rdatas[2])
+        middle = dns.rdata.from_text('IN', 'TXT', rrset.rdatas[1])
         self.assertEqual(
             [255, len(record.values[1].replace('\\;', ';')) - 255],
             [len(chunk) for chunk in middle.strings],
@@ -185,13 +185,4 @@ class TestRecordTxt(TestCase):
             record.values[1].replace('\\;', ';'),
             b''.join(middle.strings).decode('ascii'),
         )
-        self.assertEqual(
-            record.data,
-            Record.from_rrs(
-                zone,
-                [
-                    Rr(record.fqdn, record._type, record.ttl, r)
-                    for r in record.rrs[3]
-                ],
-            )[0].data,
-        )
+        self.assertEqual(record.data, Record.from_rrset(zone, rrset).data)
