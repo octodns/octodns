@@ -28,7 +28,7 @@ def _deprecated_parse_rdata_text(value_type, replacement=None):
     deprecated(
         f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. Use '
         f'`{replacement}` instead. Will be removed in 2.0.',
-        stacklevel=3,
+        stacklevel=4,
     )
 
 
@@ -38,7 +38,7 @@ def _deprecated_rdata_text(value, replacement=None):
     deprecated(
         f'`{value_type.__name__}.rdata_text` is DEPRECATED. Use '
         f'`{replacement}` instead. Will be removed in 2.0.',
-        stacklevel=3,
+        stacklevel=4,
     )
 
 
@@ -62,6 +62,8 @@ def value_from_rdata_text(value_type, rdata):
     '''Convert one presentation-format RDATA string to internal value data.'''
     if not _value_from_rdata_text_uses_legacy(value_type):
         return value_type.from_rdata_text(rdata)
+    # Intentionally identify the octoDNS conversion path. This warning is
+    # about the legacy implementation on the value type, not its caller.
     deprecated(
         f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. '
         'Implement `from_rdata_text()` instead. Will be removed in 2.0.',
@@ -86,6 +88,8 @@ def value_to_rdata_text(value, legacy_value=None):
         return value.to_rdata_text()
     if legacy_value is None:
         legacy_value = value
+    # Intentionally identify the octoDNS conversion path. This warning is
+    # about the legacy implementation on the value type, not its caller.
     deprecated(
         f'`{value_type.__name__}.rdata_text` is DEPRECATED. '
         'Implement `to_rdata_text()` instead. Will be removed in 2.0.',

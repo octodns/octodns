@@ -167,6 +167,7 @@ class TestRecord(TestCase):
             '`from_rdata_text()` instead. Will be removed in 2.0.',
             str(caught[0].message),
         )
+        self.assertTrue(caught[0].filename.endswith('/octodns/record/base.py'))
 
         record = RenderOnlyRecord(
             self.zone, 'render', {'ttl': 30, 'values': ['192.0.2.1']}
@@ -238,7 +239,7 @@ class TestRecord(TestCase):
             ) as mro_owner:
                 with warnings.catch_warnings(record=True) as caught:
                     warnings.simplefilter('always')
-                    for _ in range(2):
+                    for legacy_value in (None, LegacyValue('192.0.2.4')):
                         self.assertEqual(
                             '192.0.2.2',
                             record_base.value_from_rdata_text(
@@ -248,7 +249,8 @@ class TestRecord(TestCase):
                         self.assertEqual(
                             '192.0.2.3',
                             record_base.value_to_rdata_text(
-                                LegacyValue('192.0.2.1')
+                                LegacyValue('192.0.2.1'),
+                                legacy_value=legacy_value,
                             ),
                         )
 

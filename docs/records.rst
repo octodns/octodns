@@ -44,6 +44,25 @@ Each RDATA value type provides ``to_rdata_text()`` and
 object to one Python ``str`` containing one RDATA value in presentation
 format. ``ValueType.from_rdata_text(rdata)`` accepts one such ``str`` and
 returns octoDNS internal data suitable for constructing that value type.
+Invalid presentation text raises
+:py:class:`octodns.record.rr.RdataParseError`, including TXT/SPF syntax and
+UTF-8 decoding failures.
+
+TXT and SPF need an additional compatibility rule because their legacy
+``parse_rdata_text()`` method accepted raw internal text. When
+``from_rdata_text()`` receives multiple wholly unquoted character-string
+tokens, it treats the original input as raw text and preserves its spaces.
+Quoted or mixed quoted/unquoted input follows DNS presentation semantics and
+its character-strings concatenate. Providers that already know they have raw
+TXT/SPF text should use ``ValueType.from_raw()`` explicitly.
+
+New-style TXT/SPF values always render with the value-level conversion's
+255-octet chunk limit. The record-level ``CHUNK_SIZE``, ``chunked_value()``,
+``chunked_values``, and ``rr_values`` hooks are retained only for the
+deprecated ``record.rrs`` path through octoDNS 1.x and will be removed in 2.0.
+They do not customize ``to_rrset()`` for value types implementing the new
+conversion API. The compatibility dispatcher may still consult ``rr_values``
+when a third-party value type implements only the legacy ``rdata_text`` API.
 
 Record conversion
 .................
@@ -105,9 +124,11 @@ Valid TXT and SPF values use ASCII bytes and are split into chunks of at most
 ``lenient=True``, octoDNS preserves its historical character-based chunking
 and quoting instead. This compatibility presentation text can be consumed by
 ``from_rdata_text()``, which decodes its character-string bytes as UTF-8 so
-the Unicode internal value round-trips. Arbitrary non-UTF-8 character-string
-bytes are not supported because octoDNS's internal value contract is Unicode
-text.
+the Unicode internal value round-trips when every emitted character-string's
+UTF-8 encoding fits within the DNS 255-octet limit. Longer values can retain a
+historical character chunk whose UTF-8 encoding exceeds that limit; conforming
+RDATA parsers reject such output. Arbitrary non-UTF-8 character-string bytes
+are not supported because octoDNS's internal value contract is Unicode text.
 
 Migrating from ``rrs``
 ......................
