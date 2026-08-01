@@ -12,7 +12,7 @@ from .base import (
     _deprecated_rdata_text,
     unquote,
 )
-from .rr import RrParseError
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -245,12 +245,12 @@ class SshfpValue(EqualityTupleMixin, dict):
         :param str value: SSHFP RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format SSHFP field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             algorithm, fingerprint_type, fingerprint = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             algorithm = int(algorithm)
         except ValueError:

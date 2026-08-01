@@ -16,7 +16,7 @@ from octodns.record.mx import (
     MxValueNotIpValidator,
     MxValueRfcValidator,
 )
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.zone import Zone
 
 
@@ -76,15 +76,15 @@ class TestRecordMx(TestCase):
 
     def test_mx_value_rdata_text(self):
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             MxValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             MxValue.parse_rdata_text('nope')
 
         # 3rd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             MxValue.parse_rdata_text('10 mx.unit.tests. another')
 
         # preference not an int

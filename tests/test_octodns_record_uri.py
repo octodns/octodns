@@ -8,7 +8,7 @@ from helpers import SimpleProvider
 
 from octodns.record import Record
 from octodns.record.exception import ValidationError
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.record.uri import (
     UriNameRfcValidator,
     UriRecord,
@@ -86,19 +86,19 @@ class TestRecordUri(TestCase):
 
     def test_uri_value_rdata_text(self):
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             UriValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             UriValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             UriValue.parse_rdata_text('1 2')
 
         # 4th word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             UriValue.parse_rdata_text('1 2 3 4')
 
         # priority and weight not ints

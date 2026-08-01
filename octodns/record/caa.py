@@ -12,7 +12,7 @@ from .base import (
     _deprecated_rdata_text,
     unquote,
 )
-from .rr import RrParseError
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -167,13 +167,13 @@ class CaaValue(EqualityTupleMixin, dict):
         :param str value: CAA RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format CAA field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             # value may contain whitepsace
             flags, tag, value = value.split(' ', 2)
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             flags = int(flags)
         except ValueError:

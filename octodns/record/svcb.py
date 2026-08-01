@@ -17,7 +17,7 @@ from .base import (
     unquote,
 )
 from .chunked import _ChunkedValue, chunked_value_validator
-from .rr import RrParseError
+from .rr import RdataParseError
 from .target import _check_target_format, _check_target_trailing_dot
 from .validator import ValidationReason, ValueValidator
 
@@ -299,12 +299,12 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         :param str value: RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format SVCB/HTTPS field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             svcpriority, targetname, *svcparams = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             svcpriority = int(svcpriority)
         except ValueError:
@@ -314,7 +314,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         for svcparam in svcparams:
             paramkey, *paramvalue = svcparam.split('=')
             if paramkey in params.keys():
-                raise RrParseError(f'{paramkey} is specified twice')
+                raise RdataParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
                 parse_rdata_text = SUPPORTED_PARAMS.get(paramkey, {}).get(
                     'parse_rdata_text', None

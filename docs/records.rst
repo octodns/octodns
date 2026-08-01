@@ -130,7 +130,11 @@ Use named attributes on :py:class:`octodns.record.rr.Rrset`; do not apply the
 legacy tuple's positional access pattern to it. The singular
 :py:class:`octodns.record.rr.Rr` carrier and
 :py:meth:`octodns.record.base.Record.from_rrs` are likewise compatibility APIs
-scheduled for removal in octoDNS 2.0.
+scheduled for removal in octoDNS 2.0. The old
+:py:class:`octodns.record.rr.RrParseError` name remains as a deprecated,
+identity-preserving alias for
+:py:class:`octodns.record.rr.RdataParseError` throughout 1.x and will also be
+removed in 2.0.
 
 Advanced Record Support
 -----------------------

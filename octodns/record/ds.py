@@ -13,7 +13,7 @@ from .base import (
     _deprecated_parse_rdata_text,
     _deprecated_rdata_text,
 )
-from .rr import RrParseError
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -328,12 +328,12 @@ class DsValue(EqualityTupleMixin, dict):
         :param str value: DS RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format DS field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             key_tag, algorithm, digest_type, digest = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             key_tag = int(key_tag)
         except ValueError:

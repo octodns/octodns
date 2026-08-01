@@ -15,7 +15,7 @@ from octodns.record.caa import (
     CaaValueRfcValidator,
 )
 from octodns.record.exception import ValidationError
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.zone import Zone
 
 
@@ -98,15 +98,15 @@ class TestRecordCaa(TestCase):
         self.assertEqual(2, len(caught))
 
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             CaaValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             CaaValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             CaaValue.parse_rdata_text('0 tag')
 
         # flags not an int, will parse

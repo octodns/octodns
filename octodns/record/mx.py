@@ -11,7 +11,7 @@ from .base import (
     _deprecated_rdata_text,
     unquote,
 )
-from .rr import RrParseError
+from .rr import RdataParseError
 from .target import (
     _check_target_format,
     _check_target_not_ip,
@@ -212,12 +212,12 @@ class MxValue(EqualityTupleMixin, dict):
         :param str value: MX RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format MX field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             preference, exchange = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             preference = int(preference)
         except ValueError:

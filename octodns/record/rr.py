@@ -6,9 +6,19 @@ from ..deprecation import deprecated
 from .exception import RecordException
 
 
-class RrParseError(RecordException):
+class RdataParseError(RecordException):
+    '''Raised when RDATA presentation text cannot be parsed.
+
+    :param str message: description of the parse failure
+    '''
+
     def __init__(self, message='failed to parse string value as RR text'):
         super().__init__(message)
+
+
+# ``RrParseError`` is retained as an identity-preserving compatibility alias
+# throughout 1.x. It will be removed in 2.0.
+RrParseError = RdataParseError
 
 
 class Rr(object):

@@ -16,9 +16,11 @@ from octodns.record import (
     Ipv4Value,
     MxValue,
     NsValue,
+    RdataParseError,
     Record,
     RecordException,
     Rr,
+    RrParseError,
     Rrset,
     SrvValue,
     TxtRecord,
@@ -760,6 +762,17 @@ class TestRecord(TestCase):
         self.assertTrue(aaaa <= aaaa)
 
     def test_rr(self):
+        self.assertIs(RdataParseError, RrParseError)
+        self.assertEqual(
+            'failed to parse string value as RR text', str(RdataParseError())
+        )
+        self.assertEqual(
+            'failed to parse string value as RR text', str(RrParseError())
+        )
+        self.assertEqual(
+            'custom message', str(RdataParseError('custom message'))
+        )
+
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter('always')
             expected_line = currentframe().f_lineno + 1

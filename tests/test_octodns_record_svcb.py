@@ -10,7 +10,7 @@ from octodns.processor.templating import Templating
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.https import HttpsValue
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.record.svcb import (
     SvcbRecord,
     SvcbValue,
@@ -109,15 +109,15 @@ class TestRecordSvcb(TestCase):
 
     def test_svcb_value_rdata_text(self):
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SvcbValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SvcbValue.parse_rdata_text('nope')
 
         # Double keys are not allowed
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SvcbValue.parse_rdata_text('1 foo.example.com port=8080 port=8084')
 
         # priority not int

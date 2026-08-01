@@ -21,7 +21,7 @@ from .naptr import NaptrRecord, NaptrValue
 from .ns import NsRecord, NsValue
 from .openpgpkey import OpenpgpkeyRecord, OpenpgpkeyValue
 from .ptr import PtrRecord, PtrValue
-from .rr import Rr, RrParseError, Rrset
+from .rr import RdataParseError, Rr, RrParseError, Rrset
 from .spf import SpfRecord
 from .srv import SrvRecord, SrvValue
 from .sshfp import SshfpRecord, SshfpValue
@@ -69,6 +69,7 @@ PtrRecord
 PtrValue
 Record
 RecordException
+RdataParseError
 Rr
 RrParseError
 Rrset

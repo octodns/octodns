@@ -10,7 +10,7 @@ from .base import (
     _deprecated_rdata_text,
     unquote,
 )
-from .rr import RrParseError
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -221,7 +221,7 @@ class LocValue(EqualityTupleMixin, dict):
         :param str value: LOC RDATA in DNS master-file presentation format
         :returns: octoDNS internal-format LOC field mapping
         :rtype: dict
-        :raises octodns.record.rr.RrParseError: if ``value`` is invalid
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
         '''
         try:
             value = value.replace('m', '')
@@ -240,7 +240,7 @@ class LocValue(EqualityTupleMixin, dict):
                 precision_vert,
             ) = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             lat_degrees = int(lat_degrees)
         except ValueError:
