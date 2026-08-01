@@ -7,7 +7,7 @@ from itertools import product
 from logging import getLogger
 from re import compile as re_compile
 
-from ..record.base import value_to_rdata_text
+from ..record import value_to_rdata_text
 from ..record.exception import ValidationError
 from .base import BaseProcessor
 

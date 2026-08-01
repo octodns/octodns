@@ -141,7 +141,13 @@ class _ChunkedValue(str):
     VALIDATORS = [chunked_value_validator]
 
     @classmethod
-    def from_raw(cls, value):
+    def normalize_raw_text(cls, value):
+        '''Normalize unescaped TXT/SPF provider text for octoDNS records.
+
+        :param object value: raw provider value, normally a string
+        :returns: octoDNS internal text with semicolons escaped, or a
+            non-string value unchanged for legacy compatibility
+        '''
         try:
             return value.replace(';', '\\;')
         except AttributeError:
@@ -149,8 +155,10 @@ class _ChunkedValue(str):
 
     @classmethod
     def parse_rdata_text(cls, value):
-        _deprecated_parse_rdata_text(cls, f'{cls.__name__}.from_raw()')
-        return cls.from_raw(value)
+        _deprecated_parse_rdata_text(
+            cls, f'{cls.__name__}.normalize_raw_text()'
+        )
+        return cls.normalize_raw_text(value)
 
     @classmethod
     def from_rdata_text(cls, rdata):
@@ -174,7 +182,7 @@ class _ChunkedValue(str):
             if len(tokens) > 1 and all(
                 token.is_identifier() for token in tokens
             ):
-                return cls.from_raw(rdata)
+                return cls.normalize_raw_text(rdata)
             parsed = dns.rdata.from_text('IN', 'TXT', rdata)
             return b''.join(parsed.strings).decode('utf-8').replace(';', '\\;')
         except (dns.exception.DNSException, UnicodeDecodeError) as error:

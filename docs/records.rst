@@ -54,7 +54,31 @@ TXT and SPF need an additional compatibility rule because their legacy
 tokens, it treats the original input as raw text and preserves its spaces.
 Quoted or mixed quoted/unquoted input follows DNS presentation semantics and
 its character-strings concatenate. Providers that already know they have raw
-TXT/SPF text should use ``ValueType.from_raw()`` explicitly.
+TXT/SPF text should use ``TxtValue.normalize_raw_text()`` explicitly. The
+method returns normalized internal text suitable for constructing either TXT
+or SPF records.
+
+Provider migration follows the input representation rather than a mechanical
+method rename:
+
+.. list-table:: Value parsing migration
+   :header-rows: 1
+
+   * - Existing input
+     - Replacement
+   * - Non-TXT/SPF ``ValueType.parse_rdata_text(rdata)``
+     - ``ValueType.from_rdata_text(rdata)``
+   * - Raw or unescaped TXT/SPF provider text
+     - ``TxtValue.normalize_raw_text(value)``
+   * - TXT/SPF RDATA presentation text
+     - ``TxtValue.from_rdata_text(rdata)``
+
+Generic processors and provider utilities should import
+``value_to_rdata_text()`` and ``value_from_rdata_text()`` from
+``octodns.record``. These public helpers select new or legacy value methods by
+their defining position in the value type's MRO, allowing callers to support
+third-party value types during the 1.x migration without implementing that
+dispatch themselves.
 
 New-style TXT/SPF values always render with the value-level conversion's
 255-octet chunk limit. The record-level ``CHUNK_SIZE``, ``chunked_value()``,

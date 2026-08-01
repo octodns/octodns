@@ -341,9 +341,11 @@ class TinyDnsBaseSource(BaseSource):
 
             rdatas = [l[2] for l in lines]
             if _type in ('SPF', 'TXT'):
-                # TinyDNS stores TXT/SPF values in octoDNS's raw format, not
-                # presentation-format RDATA.
-                values = [_class._value_type.from_raw(r) for r in rdatas]
+                # TinyDNS stores TXT/SPF values as raw, unescaped text rather
+                # than presentation-format RDATA.
+                values = [
+                    _class._value_type.normalize_raw_text(r) for r in rdatas
+                ]
             else:
                 values = _class.parse_rdata_texts(rdatas)
             yield _type, name, ttl, values

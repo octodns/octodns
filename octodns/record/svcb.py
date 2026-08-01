@@ -146,7 +146,7 @@ def validate_svckey_number(paramkey, validator_id=None):
     return []
 
 
-def parse_rdata_text_svcparamvalue_list(svcparamvalue):
+def _svcparamvalue_list_from_rdata_text(svcparamvalue):
     if svcparamvalue.startswith('"'):
         svcparamvalue = svcparamvalue[1:-1]
     return svcparamvalue.split(',')
@@ -164,23 +164,23 @@ SUPPORTED_PARAMS = {
     'alpn': {
         'key_num': 1,
         'validate': validate_svcparam_alpn,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'port': {'key_num': 3, 'validate': validate_svcparam_port},
     'ipv4hint': {
         'key_num': 4,
         'validate': validate_svcparam_ipv4hint,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'ipv6hint': {
         'key_num': 6,
         'validate': validate_svcparam_ipv6hint,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'mandatory': {
         'key_num': 0,
         'validate': validate_svcparam_mandatory,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'ech': {'key_num': 5, 'validate': validate_svcparam_ech},
 }
@@ -316,16 +316,16 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
             if paramkey in params.keys():
                 raise RdataParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
-                parse_rdata_text = SUPPORTED_PARAMS.get(paramkey, {}).get(
-                    'parse_rdata_text', None
+                param_parser = SUPPORTED_PARAMS.get(paramkey, {}).get(
+                    'from_rdata_text', None
                 )
-                if parse_rdata_text is None:
+                if param_parser is None:
                     v = paramvalue[0]
                     if v.startswith('"'):
                         v = v[1:-1]
                     params[paramkey] = v
                 else:
-                    params[paramkey] = parse_rdata_text(paramvalue[0])
+                    params[paramkey] = param_parser(paramvalue[0])
             else:
                 params[paramkey] = None
         return {

@@ -6,7 +6,13 @@
 from .a import ARecord, Ipv4Address, Ipv4Value
 from .aaaa import AaaaRecord, Ipv6Address, Ipv6Value
 from .alias import AliasRecord, AliasValue
-from .base import Record, ValueMixin, ValuesMixin
+from .base import (
+    Record,
+    ValueMixin,
+    ValuesMixin,
+    value_from_rdata_text,
+    value_to_rdata_text,
+)
 from .caa import CaaRecord, CaaValue
 from .change import Change, Create, Delete, Update
 from .cname import CnameRecord, CnameValue
@@ -67,9 +73,9 @@ OpenpgpkeyRecord
 OpenpgpkeyValue
 PtrRecord
 PtrValue
+RdataParseError
 Record
 RecordException
-RdataParseError
 Rr
 RrParseError
 Rrset
@@ -90,5 +96,7 @@ UriValue
 UrlfwdRecord
 UrlfwdValue
 ValidationError
+value_from_rdata_text
+value_to_rdata_text
 ValueMixin
 ValuesMixin

@@ -59,7 +59,15 @@ def _value_from_rdata_text_uses_legacy(value_type):
 
 
 def value_from_rdata_text(value_type, rdata):
-    '''Convert one presentation-format RDATA string to internal value data.'''
+    '''Convert one presentation-format RDATA string to internal value data.
+
+    Dispatch prefers ``from_rdata_text()`` while retaining compatibility with
+    third-party value types that only implement ``parse_rdata_text()``.
+
+    :param type value_type: record value type performing the conversion
+    :param str rdata: one RDATA value in presentation format
+    :returns: internal data suitable for constructing ``value_type``
+    '''
     if not _value_from_rdata_text_uses_legacy(value_type):
         return value_type.from_rdata_text(rdata)
     # Intentionally identify the octoDNS conversion path. This warning is
@@ -81,13 +89,19 @@ def _value_to_rdata_text_uses_legacy(value_type):
     )
 
 
-def value_to_rdata_text(value, legacy_value=None):
-    '''Render one logical value as one presentation-format RDATA string.'''
+def value_to_rdata_text(value):
+    '''Render one logical value as one presentation-format RDATA string.
+
+    Dispatch prefers ``to_rdata_text()`` while retaining compatibility with
+    third-party values that only implement the ``rdata_text`` property.
+
+    :param object value: one record value object
+    :returns: one RDATA value in presentation format
+    :rtype: str
+    '''
     value_type = value.__class__
     if not _value_to_rdata_text_uses_legacy(value_type):
         return value.to_rdata_text()
-    if legacy_value is None:
-        legacy_value = value
     # Intentionally identify the octoDNS conversion path. This warning is
     # about the legacy implementation on the value type, not its caller.
     deprecated(
@@ -95,7 +109,7 @@ def value_to_rdata_text(value, legacy_value=None):
         'Implement `to_rdata_text()` instead. Will be removed in 2.0.',
         stacklevel=3,
     )
-    return legacy_value.rdata_text
+    return value.rdata_text
 
 
 class NameValidator(RecordValidator):

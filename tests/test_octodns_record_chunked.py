@@ -78,7 +78,7 @@ class TestRecordChunked(TestCase):
             warnings.simplefilter('always')
             self.assertEqual(str(value), value.rdata_text)
             self.assertEqual(
-                TxtValue.from_raw('Hello; World'),
+                TxtValue.normalize_raw_text('Hello; World'),
                 TxtValue.parse_rdata_text('Hello; World'),
             )
         self.assertEqual(
@@ -86,7 +86,8 @@ class TestRecordChunked(TestCase):
                 '`TxtValue.rdata_text` is DEPRECATED. Use `str(value)` '
                 'instead. Will be removed in 2.0.',
                 '`TxtValue.parse_rdata_text` is DEPRECATED. Use '
-                '`TxtValue.from_raw()` instead. Will be removed in 2.0.',
+                '`TxtValue.normalize_raw_text()` instead. Will be removed in '
+                '2.0.',
             ],
             [str(warning.message) for warning in caught],
         )

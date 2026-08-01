@@ -30,6 +30,7 @@ from octodns.record import (
     ValuesMixin,
 )
 from octodns.record import base as record_base
+from octodns.record import value_from_rdata_text, value_to_rdata_text
 from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
@@ -234,12 +235,16 @@ class TestRecord(TestCase):
         parse_uses_legacy.cache_clear()
         render_uses_legacy.cache_clear()
         try:
+            self.assertIs(
+                record_base.value_from_rdata_text, value_from_rdata_text
+            )
+            self.assertIs(record_base.value_to_rdata_text, value_to_rdata_text)
             with patch.object(
                 record_base, '_mro_owner', wraps=record_base._mro_owner
             ) as mro_owner:
                 with warnings.catch_warnings(record=True) as caught:
                     warnings.simplefilter('always')
-                    for legacy_value in (None, LegacyValue('192.0.2.4')):
+                    for _ in range(2):
                         self.assertEqual(
                             '192.0.2.2',
                             record_base.value_from_rdata_text(
@@ -249,8 +254,7 @@ class TestRecord(TestCase):
                         self.assertEqual(
                             '192.0.2.3',
                             record_base.value_to_rdata_text(
-                                LegacyValue('192.0.2.1'),
-                                legacy_value=legacy_value,
+                                LegacyValue('192.0.2.1')
                             ),
                         )
 
@@ -1162,7 +1166,10 @@ class TestRecord(TestCase):
                     )
             value_type_name = value_type.__name__
             if _type in ('SPF', 'TXT'):
-                replacements = ('str(value)', f'{value_type_name}.from_raw()')
+                replacements = (
+                    'str(value)',
+                    f'{value_type_name}.normalize_raw_text()',
+                )
             else:
                 replacements = (
                     f'{value_type_name}.to_rdata_text()',
