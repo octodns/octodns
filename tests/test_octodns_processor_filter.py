@@ -240,10 +240,9 @@ class TestValueAllowListFilter(TestCase):
 
         self.assertEqual(7, len(self.zone.records))
         filtered = allows.process_source_zone(self.zone.copy(), None)
-        self.assertEqual(2, len(filtered.records))
+        self.assertEqual(1, len(filtered.records))
         self.assertEqual(
-            ['good.exact', 'good.values'],
-            sorted([r.name for r in filtered.records]),
+            ['good.exact'], sorted([r.name for r in filtered.records])
         )
 
     def test_regex(self):
@@ -317,12 +316,13 @@ class TestValueRejectListFilter(TestCase):
 
         self.assertEqual(7, len(self.zone.records))
         filtered = rejects.process_source_zone(self.zone.copy(), None)
-        self.assertEqual(5, len(filtered.records))
+        self.assertEqual(6, len(filtered.records))
         self.assertEqual(
             [
                 'bad.compare',
                 'bad.values',
                 'first.regex',
+                'good.values',
                 'no.values',
                 'second.regex',
             ],

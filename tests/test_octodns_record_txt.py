@@ -4,7 +4,7 @@
 
 from unittest import TestCase
 
-from octodns.record import Record
+from octodns.record import Record, Rr
 from octodns.record.exception import ValidationError
 from octodns.record.txt import TxtRecord
 from octodns.zone import Zone
@@ -171,10 +171,16 @@ class TestRecordTxt(TestCase):
                 ],
             },
         )
-        vals = [
-            '"before"',
-            '"v=DKIM1\\; h=sha256\\; k=rsa\\; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx78E7PtJvr8vpoNgHdIAe+llFKoy8WuTXDd6Z5mm3D4AUva9MBt5fFetxg/kcRy3KMDnMw6kDybwbpS/oPw1ylk6DL1xit7Cr5xeYYSWKukxXURAlHwT2K72oUsFKRUvN1X9lVysAeo+H8H/22Z9fJ0P30sOuRIRqCaiz+OiUYicxy4xrpfH" '
-            '"2s9a+o3yRwX3zhlp8GjRmmmyK5mf7CkQTCfjnKVsYtB7mabXXmClH9tlcymnBMoN9PeXxaS5JRRysVV8RBCC9/wmfp9y//cck8nvE/MavFpSUHvv+TfTTdVKDlsXPjKX8iZQv0nO3xhspgkqFquKjydiR8nf4meHhwIDAQAB"',
-            '"z after"',
-        ]
-        self.assertEqual(('txt.unit.tests.', 42, 'TXT', vals), record.rrs)
+        self.assertEqual(('txt.unit.tests.', 42, 'TXT'), record.rrs[:3])
+        self.assertEqual('"before"', record.rrs[3][0])
+        self.assertEqual('"z after"', record.rrs[3][2])
+        self.assertEqual(
+            record.data,
+            Record.from_rrs(
+                zone,
+                [
+                    Rr(record.fqdn, record._type, record.ttl, r)
+                    for r in record.rrs[3]
+                ],
+            )[0].data,
+        )

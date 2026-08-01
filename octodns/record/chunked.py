@@ -4,6 +4,8 @@
 
 import re
 
+import dns.rdata
+
 from .base import ValuesMixin
 from .validator import ValidationReason, ValueValidator
 
@@ -91,6 +93,18 @@ class _ChunkedValuesMixin(ValuesMixin):
     def rr_values(self):
         return self.chunked_values
 
+    @property
+    def rrs(self):
+        # ``rr_values`` is retained for backwards compatibility, but consists
+        # of presentation-form values. Render from the raw values directly so
+        # that RDATA is never quoted and escaped a second time.
+        return (
+            self.fqdn,
+            self.ttl,
+            self._type,
+            [value.to_rrs() for value in self.values],
+        )
+
 
 class _ChunkedValue(str):
     VALIDATORS = [chunked_value_validator]
@@ -101,6 +115,11 @@ class _ChunkedValue(str):
             return value.replace(';', '\\;')
         except AttributeError:
             return value
+
+    @classmethod
+    def from_rrs(cls, rdata):
+        parsed = dns.rdata.from_text('IN', 'TXT', rdata)
+        return b''.join(parsed.strings).decode('ascii').replace(';', '\\;')
 
     @classmethod
     def _schema(cls):
@@ -118,6 +137,23 @@ class _ChunkedValue(str):
     @property
     def rdata_text(self):
         return self
+
+    def to_rrs(self):
+        value = self.replace('\\;', ';')
+        chunks = [value[i : i + 255] for i in range(0, len(value), 255)] or ['']
+
+        def escape(chunk):
+            return ''.join(
+                (
+                    f'\\{ord(c):03d}'
+                    if ord(c) < 32 or ord(c) > 126
+                    else f'\\{c}' if c in ('"', '\\') else c
+                )
+                for c in chunk
+            )
+
+        rdata = ' '.join(f'"{escape(chunk)}"' for chunk in chunks)
+        return dns.rdata.from_text('IN', 'TXT', rdata).to_text()
 
     def template(self, params):
         if '{' not in self:

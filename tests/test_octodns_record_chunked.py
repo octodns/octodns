@@ -39,6 +39,22 @@ class TestRecordChunked(TestCase):
         zone = Zone('unit.tests.', [])
         a = SpfRecord(zone, 'a', {'ttl': 42, 'value': 'some.target.'})
         self.assertEqual('some.target.', a.values[0].rdata_text)
+        self.assertEqual(a.chunked_values, a.rr_values)
+
+    def test_chunked_value_rrs(self):
+        for value in (
+            '',
+            'some text',
+            'a\\;b',
+            'a "quote" and \\ backslash',
+            '\x01control',
+            'a' * 256,
+        ):
+            rdata = TxtValue(value).to_rrs()
+            self.assertEqual(value, TxtValue.from_rrs(rdata))
+
+        record = TxtValue('a "quote"')
+        self.assertEqual('"a \\"quote\\""', record.to_rrs())
 
 
 class TestChunkedValue(TestCase):

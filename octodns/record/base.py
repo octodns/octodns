@@ -21,6 +21,74 @@ def unquote(s):
     return s
 
 
+def _legacy_value_api(value_type, method):
+    replacement = 'to_rrs' if method == 'rdata_text' else 'from_rrs'
+    deprecated(
+        f'`{value_type.__name__}.{method}` is DEPRECATED. Use '
+        f'`{value_type.__name__}.{replacement}()` instead. Will be removed in 2.0.',
+        stacklevel=3,
+    )
+
+
+def _add_rdata_apis(value_type):
+    '''Add the 1.x RDATA API compatibility layer to a built-in value type.'''
+    if getattr(value_type, '_rdata_apis_added', False):
+        return
+
+    parser = value_type.parse_rdata_text
+    renderer = value_type.rdata_text
+
+    def legacy_to_rrs(self):
+        return renderer.__get__(self, value_type)
+
+    def legacy_from_rrs(cls, rdata):
+        return parser(rdata)
+
+    @classmethod
+    def parse_rdata_text(cls, rdata):
+        _legacy_value_api(cls, 'parse_rdata_text')
+        return legacy_from_rrs(cls, rdata)
+
+    @property
+    def rdata_text(self):
+        _legacy_value_api(self.__class__, 'rdata_text')
+        return legacy_to_rrs(self)
+
+    if not hasattr(value_type, 'to_rrs'):
+        value_type.to_rrs = legacy_to_rrs
+    if not hasattr(value_type, 'from_rrs'):
+        value_type.from_rrs = classmethod(legacy_from_rrs)
+    value_type.parse_rdata_text = parse_rdata_text
+    value_type.rdata_text = rdata_text
+    value_type._legacy_parse_rdata_text = parser
+    value_type._rdata_apis_added = True
+
+
+def value_from_rrs(value_type, rdata):
+    method = getattr(value_type, 'from_rrs', None)
+    if method:
+        return method(rdata)
+    deprecated(
+        f'`{value_type.__name__}.parse_rdata_text` is DEPRECATED. '
+        'Implement `from_rrs()` instead. Will be removed in 2.0.',
+        stacklevel=3,
+    )
+    return value_type.parse_rdata_text(rdata)
+
+
+def value_to_rrs(value):
+    method = getattr(value, 'to_rrs', None)
+    if method:
+        return method()
+    value_type = value.__class__
+    deprecated(
+        f'`{value_type.__name__}.rdata_text` is DEPRECATED. '
+        'Implement `to_rrs()` instead. Will be removed in 2.0.',
+        stacklevel=3,
+    )
+    return value.rdata_text
+
+
 class NameValidator(RecordValidator):
     '''
     Validates record name and FQDN shape: rejects the legacy ``@`` alias,
@@ -196,6 +264,12 @@ class Record(EqualityTupleMixin):
         # resolution so a value subclass can override its parent's
         # VALIDATORS rather than registering both
         vt = getattr(_class, '_value_type', None)
+        # Built-in value types retain their old public APIs during 1.x while
+        # exposing the uniform RDATA conversion APIs. Third-party types are
+        # deliberately left alone so the conversion helpers can warn and use
+        # their compatibility fallback.
+        if vt and vt.__module__.startswith('octodns.'):
+            _add_rdata_apis(vt)
         for validator in getattr(vt, 'VALIDATORS', ()):
             cls.register_validator(validator, types=[_type])
 
@@ -315,7 +389,13 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def parse_rdata_texts(cls, rdatas):
-        return [cls._value_type.parse_rdata_text(r) for r in rdatas]
+        # TinyDNS and other raw-format sources use this legacy entry point.
+        parser = getattr(
+            cls._value_type,
+            '_legacy_parse_rdata_text',
+            cls._value_type.parse_rdata_text,
+        )
+        return [parser(r) for r in rdatas]
 
     def __init__(self, zone, name, data, source=None, context=None):
         self.zone = zone
@@ -487,7 +567,7 @@ class ValuesMixin(object):
         # type and TTL come from the first rr
         rr = rrs[0]
         # values come from parsing the rdata portion of all rrs
-        values = [cls._value_type.parse_rdata_text(rr.rdata) for rr in rrs]
+        values = [value_from_rrs(cls._value_type, rr.rdata) for rr in rrs]
         return {'ttl': rr.ttl, 'type': rr._type, 'values': values}
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -527,7 +607,7 @@ class ValuesMixin(object):
             self.fqdn,
             self.ttl,
             self._type,
-            [v.rdata_text for v in self.rr_values],
+            [value_to_rrs(v) for v in self.rr_values],
         )
 
     def __repr__(self):
@@ -549,7 +629,7 @@ class ValueMixin(object):
         return {
             'ttl': rr.ttl,
             'type': rr._type,
-            'value': cls._value_type.parse_rdata_text(rr.rdata),
+            'value': value_from_rrs(cls._value_type, rr.rdata),
         }
 
     def __init__(self, zone, name, data, source=None, context=None):
@@ -568,7 +648,7 @@ class ValueMixin(object):
 
     @property
     def rrs(self):
-        return self.fqdn, self.ttl, self._type, [self.value.rdata_text]
+        return self.fqdn, self.ttl, self._type, [value_to_rrs(self.value)]
 
     def __repr__(self):
         klass = self.__class__.__name__

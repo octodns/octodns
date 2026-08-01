@@ -23,13 +23,29 @@ from octodns.record import (
     ValidationError,
     ValuesMixin,
 )
-from octodns.record.base import unquote
+from octodns.record.base import unquote, value_from_rrs, value_to_rrs
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
 
 
 class TestRecord(TestCase):
     zone = Zone('unit.tests.', [])
+
+    def test_legacy_value_rr_api_fallback(self):
+        class LegacyValue(str):
+            @classmethod
+            def parse_rdata_text(cls, value):
+                return value.upper()
+
+            @property
+            def rdata_text(self):
+                return self.lower()
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.assertEqual('VALUE', value_from_rrs(LegacyValue, 'value'))
+            self.assertEqual('value', value_to_rrs(LegacyValue('VALUE')))
+        self.assertEqual(2, len(caught))
 
     def test_registration(self):
         with self.assertRaises(RecordException) as ctx:
@@ -918,6 +934,23 @@ class TestRecordValidation(TestCase):
 
             value_type = getattr(cls, '_value_type')
             self.assertTrue(value_type, f'{_type}, {cls} has _value_type')
+
+            if not value_type.__module__.startswith('octodns.'):
+                continue
+
+            attr = 'from_rrs'
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
+
+            attr = 'to_rrs'
+            method = getattr(value_type, attr)
+            self.assertTrue(method, f'{_type}, {cls} has {attr}')
+            self.assertTrue(
+                callable(method), f'{_type}, {cls} {attr} is callable'
+            )
 
             attr = 'parse_rdata_text'
             method = getattr(value_type, attr)

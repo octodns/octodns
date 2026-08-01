@@ -3,6 +3,7 @@
 #
 
 from unittest import TestCase
+from warnings import catch_warnings, simplefilter
 
 from helpers import SimpleProvider
 
@@ -82,6 +83,18 @@ class TestRecordCaa(TestCase):
         a.__repr__()
 
     def test_caa_value_rdata_text(self):
+        value = CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example'})
+        self.assertEqual('0 issue "ca.example"', value.to_rrs())
+        self.assertEqual(dict(value), CaaValue.from_rrs(value.to_rrs()))
+
+        with catch_warnings(record=True) as caught:
+            simplefilter('always')
+            self.assertEqual(value.to_rrs(), value.rdata_text)
+            self.assertEqual(
+                dict(value), CaaValue.parse_rdata_text(value.to_rrs())
+            )
+        self.assertEqual(2, len(caught))
+
         # empty string won't parse
         with self.assertRaises(RrParseError):
             CaaValue.parse_rdata_text('')

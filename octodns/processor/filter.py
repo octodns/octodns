@@ -7,6 +7,7 @@ from itertools import product
 from logging import getLogger
 from re import compile as re_compile
 
+from ..record.base import value_to_rrs
 from ..record.exception import ValidationError
 from .base import BaseProcessor
 
@@ -232,9 +233,9 @@ class _ValueBaseFilter(_FilterProcessor):
         for record in zone.records:
             values = []
             if hasattr(record, 'values'):
-                values = [value.rdata_text for value in record.values]
+                values = [value_to_rrs(value) for value in record.values]
             elif record.value is not None:
-                values = [record.value.rdata_text]
+                values = [value_to_rrs(record.value)]
             else:
                 self.log.warning(
                     'value for %s is NoneType, ignoring', record.fqdn
