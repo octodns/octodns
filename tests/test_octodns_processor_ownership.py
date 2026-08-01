@@ -8,7 +8,7 @@ from helpers import PlannableProvider
 
 from octodns.processor.ownership import OwnershipException, OwnershipProcessor
 from octodns.provider.plan import Plan
-from octodns.record import Delete, Record
+from octodns.record import Delete, Record, Update, ValueMixin
 from octodns.zone import DuplicateRecordException, Zone
 
 zone = Zone('unit.tests.', [])
@@ -26,6 +26,34 @@ for record in [
 ]:
     records[record.name] = record
     zone.add_record(record)
+
+
+class MixedCaseValue(str):
+    @classmethod
+    def parse_rdata_text(cls, value):
+        return value
+
+    @classmethod
+    def validate(cls, data, _type):
+        return []
+
+    @classmethod
+    def process(cls, value):
+        return MixedCaseValue(value)
+
+    @property
+    def rdata_text(self):
+        return self
+
+
+class MixedCase(ValueMixin, Record):
+    # Provider-specific types are not required to be upper case, e.g.
+    # octodns-route53's Route53Provider/ALIAS
+    _type = 'Provider/MiXeD'
+    _value_type = MixedCaseValue
+
+
+Record.register_type(MixedCase, 'Provider/MiXeD')
 
 
 class TestOwnershipProcessor(TestCase):
@@ -222,3 +250,57 @@ class TestOwnershipProcessor(TestCase):
         plan.existing.add_record(foreign_unmanaged)
         got = ownership.process_plan(plan, None, None)
         self.assertTrue(got)
+
+    def test_process_plan_mixed_case_type(self):
+        # Record names are lower cased, so the ownership TXT for a
+        # provider-specific type records that type in lower case. The plan
+        # filter has to account for that or changes to those records are
+        # silently dropped even though we own them.
+        ownership = OwnershipProcessor('ownership')
+
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone,
+            'mixed',
+            {'ttl': 30, 'type': 'Provider/MiXeD', 'value': 'before'},
+        )
+        updated = Record.new(
+            zone,
+            'mixed',
+            {'ttl': 30, 'type': 'Provider/MiXeD', 'value': 'after'},
+        )
+
+        marker = Record.new(
+            zone,
+            f'{ownership.txt_name}.provider/mixed.mixed',
+            {'ttl': 60, 'type': 'TXT', 'value': ownership.txt_value},
+            lenient=True,
+        )
+        # the marker name is lower cased on the way in
+        self.assertEqual(
+            f'{ownership.txt_name}.provider/mixed.mixed', marker.name
+        )
+
+        existing = Zone(zone.name, [])
+        desired = Zone(zone.name, [])
+        for zone_, value in ((existing, record), (desired, updated)):
+            zone_.add_record(value, lenient=True)
+            zone_.add_record(marker, lenient=True)
+
+        change = Update(record, updated)
+        plan = Plan(existing, desired, [change], True)
+
+        got = ownership.process_plan(plan, None, None)
+        self.assertTrue(got)
+        self.assertEqual([change], got.changes)
+
+        # an unowned record of the same type is still left alone
+        unowned = Record.new(
+            zone,
+            'unowned',
+            {'ttl': 30, 'type': 'Provider/MiXeD', 'value': 'before'},
+        )
+        existing = Zone(zone.name, [])
+        existing.add_record(unowned, lenient=True)
+        plan = Plan(existing, Zone(zone.name, []), [Delete(unowned)], True)
+        self.assertFalse(ownership.process_plan(plan, None, None))
