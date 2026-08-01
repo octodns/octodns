@@ -56,7 +56,10 @@ Quoted or mixed quoted/unquoted input follows DNS presentation semantics and
 its character-strings concatenate. Providers that already know they have raw
 TXT/SPF text should use ``TxtValue.normalize_raw_text()`` explicitly. The
 method returns normalized internal text suitable for constructing either TXT
-or SPF records.
+or SPF records. In the other direction, raw-text providers should call
+``value.to_raw_text()`` on TXT/SPF value objects. This removes octoDNS's
+internal semicolon escaping without adding RDATA presentation-format quoting
+or chunking.
 
 Provider migration follows the input representation rather than a mechanical
 method rename:
@@ -72,6 +75,10 @@ method rename:
      - ``TxtValue.normalize_raw_text(value)``
    * - TXT/SPF RDATA presentation text
      - ``TxtValue.from_rdata_text(rdata)``
+
+For provider writes, use ``value.to_rdata_text()`` when the destination
+expects RDATA presentation text and ``value.to_raw_text()`` when it expects
+raw TXT/SPF text.
 
 Generic processors and provider utilities should import
 ``value_to_rdata_text()`` and ``value_from_rdata_text()`` from

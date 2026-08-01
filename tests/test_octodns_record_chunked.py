@@ -93,6 +93,16 @@ class TestRecordChunked(TestCase):
         )
         self.assertEqual([__file__, __file__], [w.filename for w in caught])
 
+    def test_chunked_raw_text_conversion(self):
+        raw = 'v=DKIM1;k=rsa;s=email'
+        for value_type in (TxtValue, _ChunkedValue):
+            normalized = value_type.normalize_raw_text(raw)
+            self.assertEqual('v=DKIM1\\;k=rsa\\;s=email', normalized)
+            self.assertEqual(raw, value_type(normalized).to_raw_text())
+            self.assertEqual(
+                'ordinary text', value_type('ordinary text').to_raw_text()
+            )
+
     def test_chunked_from_rdata_text_unquoted_compatibility(self):
         for value_type in (TxtValue, _ChunkedValue):
             self.assertEqual(

@@ -153,6 +153,18 @@ class _ChunkedValue(str):
         except AttributeError:
             return value
 
+    def to_raw_text(self):
+        '''Convert octoDNS internal TXT/SPF text to raw provider text.
+
+        This is the inverse of :meth:`normalize_raw_text` for valid internal
+        values. It removes octoDNS's semicolon escaping without adding RDATA
+        presentation-format quoting or chunking.
+
+        :returns: unescaped TXT/SPF text suitable for a raw-text provider
+        :rtype: str
+        '''
+        return self.replace('\\;', ';')
+
     @classmethod
     def parse_rdata_text(cls, value):
         _deprecated_parse_rdata_text(
