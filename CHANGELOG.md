@@ -1,3 +1,9 @@
+## 1.21.1 - 2026-08-01
+
+Patch:
+* Fix OwnershipProcessor dropping changes to records whose type contains lower-case letters, e.g. octodns-route53's Route53Provider/ALIAS - #1455 - [#1456](https://github.com/octodns/octodns/pull/1456)
+* Fix CaaValue.rdata_text to quote the value field per RFC 8659, matching NAPTR/URI - #1447 - [#1449](https://github.com/octodns/octodns/pull/1449)
+
 ## 1.21.0 - 2026-07-08
 
 Minor:
