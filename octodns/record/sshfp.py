@@ -332,9 +332,6 @@ class SshfpValue(EqualityTupleMixin, dict):
         new.fingerprint = new.fingerprint.format(**params)
         return new
 
-    def __hash__(self):
-        return hash(self.__repr__())
-
     def _equality_tuple(self):
         return (self.algorithm, self.fingerprint_type, self.fingerprint)
 

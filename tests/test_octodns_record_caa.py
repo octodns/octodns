@@ -82,6 +82,21 @@ class TestRecordCaa(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
 
+    def test_caa_value_hash(self):
+        a = CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'})
+        same = CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example.net'})
+        different = CaaValue(
+            {'flags': 128, 'tag': 'issue', 'value': 'ca.example.net'}
+        )
+
+        self.assertEqual(hash(a), hash(same))
+        self.assertNotEqual(hash(a), hash(different))
+
+        values = {a, same, different}
+        self.assertEqual(2, len(values))
+        self.assertIn(a, values)
+        self.assertIn(different, values)
+
     def test_caa_value_rdata_text(self):
         value = CaaValue({'flags': 0, 'tag': 'issue', 'value': 'ca.example'})
         self.assertEqual('0 issue "ca.example"', value.to_rdata_text())

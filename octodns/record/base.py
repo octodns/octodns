@@ -706,9 +706,6 @@ class Record(EqualityTupleMixin):
     # equivalent if they have the same name & _type. Values are ignored. This
     # is useful when computing diffs/changes.
 
-    def __hash__(self):
-        return f'{self.name}:{self._type}'.__hash__()
-
     def _equality_tuple(self):
         return (self.name, self._type)
 

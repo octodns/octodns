@@ -886,3 +886,37 @@ class TestDsValue(TestCase):
         got = value.template({'needle': 42})
         self.assertIsNot(value, got)
         self.assertEqual('abcd42ef0123456', got.digest)
+
+    def test_hash(self):
+        a = DsValue(
+            {
+                'key_tag': 0,
+                'algorithm': 1,
+                'digest_type': 2,
+                'digest': 'abcdef0123456',
+            }
+        )
+        same = DsValue(
+            {
+                'key_tag': 0,
+                'algorithm': 1,
+                'digest_type': 2,
+                'digest': 'abcdef0123456',
+            }
+        )
+        different = DsValue(
+            {
+                'key_tag': 1,
+                'algorithm': 1,
+                'digest_type': 2,
+                'digest': 'abcdef0123456',
+            }
+        )
+
+        self.assertEqual(hash(a), hash(same))
+        self.assertNotEqual(hash(a), hash(different))
+
+        values = {a, same, different}
+        self.assertEqual(2, len(values))
+        self.assertIn(a, values)
+        self.assertIn(different, values)

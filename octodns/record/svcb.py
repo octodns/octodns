@@ -433,20 +433,20 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         # TODO: what, if any of the svcparams should be templated
         return new
 
-    def __hash__(self):
-        return hash(self.__repr__())
-
     def _equality_tuple(self):
-        params = set()
+        params = []
         for svcparamkey, svcparamvalue in self.svcparams.items():
             if svcparamvalue is not None:
                 if isinstance(svcparamvalue, list):
-                    params.add(f'{svcparamkey}={",".join(svcparamvalue)}')
+                    params.append(f'{svcparamkey}={",".join(svcparamvalue)}')
                 else:
-                    params.add(f'{svcparamkey}={svcparamvalue}')
+                    params.append(f'{svcparamkey}={svcparamvalue}')
             else:
-                params.add(f'{svcparamkey}')
-        return (self.svcpriority, self.targetname, params)
+                params.append(f'{svcparamkey}')
+        # sorted so that ordering/equality don't depend on svcparams
+        # insertion order, and so that comparisons form a total order (a set
+        # here would compare as a subset, not lexicographically)
+        return (self.svcpriority, self.targetname, tuple(sorted(params)))
 
     def __repr__(self):
         return f"'{self.to_rdata_text()}'"
