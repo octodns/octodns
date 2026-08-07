@@ -216,6 +216,23 @@ class NameRejectlistFilter(_NameBaseFilter, RejectsMixin):
         super().__init__(name, rejectlist, **kwargs)
 
 
+def _match_text(value):
+    '''Render one value as the text these filters match patterns against.
+
+    TXT/SPF values match their bare internal text, the way ``rdata_text`` did
+    throughout 1.x, rather than quoted RDATA presentation text. Matching the
+    presentation form would silently break existing allowlist/rejectlist
+    patterns. ``to_raw_text`` only exists on chunked (TXT/SPF) values, so it
+    identifies them without reaching for a private class.
+
+    Note this deliberately uses ``str(value)`` and not ``to_raw_text()``, which
+    would additionally unescape ``\\;`` and so still not match 1.x.
+    '''
+    if hasattr(value, 'to_raw_text'):
+        return str(value)
+    return value_to_rdata_text(value)
+
+
 class _ValueBaseFilter(_FilterProcessor):
     def __init__(self, name, _list, **kwargs):
         super().__init__(name, **kwargs)
@@ -233,9 +250,9 @@ class _ValueBaseFilter(_FilterProcessor):
         for record in zone.records:
             values = []
             if hasattr(record, 'values'):
-                values = [value_to_rdata_text(value) for value in record.values]
+                values = [_match_text(value) for value in record.values]
             elif record.value is not None:
-                values = [value_to_rdata_text(record.value)]
+                values = [_match_text(record.value)]
             else:
                 self.log.warning(
                     'value for %s is NoneType, ignoring', record.fqdn

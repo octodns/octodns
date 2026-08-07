@@ -428,11 +428,8 @@ class Record(EqualityTupleMixin):
 
     @classmethod
     def _record_from_rrset(cls, zone, rrset, lenient=False, source=None):
-        if not rrset.rdatas:
-            raise RecordException(
-                f'Invalid Rrset {rrset.name} {rrset._type}: at least one '
-                'RDATA value is required'
-            )
+        # NOTE: Rrset rejects an empty rdatas at construction, so there's no
+        # need to re-check it here.
         try:
             record_class = cls._CLASSES[rrset._type]
         except KeyError:
@@ -466,9 +463,9 @@ class Record(EqualityTupleMixin):
         :param object source: source assigned to the returned record
         :returns: exactly one octoDNS record
         :rtype: Record
-        :raises octodns.record.exception.RecordException: if the RRset is
-            invalid, a single-value record contains multiple RDATA values, or
-            the type is not registered
+        :raises octodns.record.exception.RecordException: if a single-value
+            record contains multiple RDATA values, or the type is not
+            registered
         :raises octodns.record.exception.ValidationError: if the converted
             internal record data fails validation and ``lenient`` is false
         '''
@@ -494,10 +491,9 @@ class Record(EqualityTupleMixin):
         :param object source: source assigned to every returned record
         :returns: zero or more octoDNS records in owner-name/type order
         :rtype: list[Record]
-        :raises octodns.record.exception.RecordException: if an RRset is
-            invalid, a single-value record contains multiple RDATA values, a
-            type is not registered, or an owner-name/type pair occurs more
-            than once
+        :raises octodns.record.exception.RecordException: if a single-value
+            record contains multiple RDATA values, a type is not registered, or
+            an owner-name/type pair occurs more than once
         :raises octodns.record.exception.ValidationError: if converted
             internal record data fails validation and ``lenient`` is false
         '''

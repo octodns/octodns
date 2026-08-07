@@ -2,6 +2,7 @@
 #
 #
 
+import warnings
 from unittest import TestCase
 
 from helpers import SimpleProvider
@@ -12,9 +13,12 @@ from octodns.record.exception import ValidationError
 from octodns.record.https import HttpsValue
 from octodns.record.rr import RdataParseError
 from octodns.record.svcb import (
+    SUPPORTED_PARAMS,
     SvcbRecord,
     SvcbValue,
     SvcbValueBestPracticeValidator,
+    _svcparamvalue_list_from_rdata_text,
+    parse_rdata_text_svcparamvalue_list,
 )
 from octodns.zone import Zone
 
@@ -106,6 +110,48 @@ class TestRecordSvcb(TestCase):
         # __repr__ doesn't blow up
         a.__repr__()
         b.__repr__()
+
+    def test_supported_params_legacy_parse_rdata_text_key(self):
+        # SUPPORTED_PARAMS is the extension point 3rd-parties use to register
+        # custom svcparams. Entries using the pre-1.22.0 `parse_rdata_text`
+        # key must keep working, otherwise their parser is silently skipped
+        # and the value comes back as a str rather than the expected list.
+        SUPPORTED_PARAMS['legacyparam'] = {
+            'key_num': 99,
+            'validate': lambda *args, **kwargs: [],
+            'parse_rdata_text': _svcparamvalue_list_from_rdata_text,
+        }
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter('always')
+                data = SvcbValue.from_rdata_text(
+                    '1 foo.example.com. legacyparam=x,y'
+                )
+            self.assertEqual(['x', 'y'], data['svcparams']['legacyparam'])
+            self.assertEqual(
+                [
+                    'The `parse_rdata_text` key in '
+                    'SUPPORTED_PARAMS["legacyparam"] is DEPRECATED. Use '
+                    '`from_rdata_text` instead. Will be removed in 2.0.'
+                ],
+                [str(warning.message) for warning in caught],
+            )
+        finally:
+            SUPPORTED_PARAMS.pop('legacyparam')
+
+        # the current key parses the same way without any deprecation notice
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            data = SvcbValue.from_rdata_text('1 foo.example.com. alpn=h2,h3')
+        self.assertEqual(['h2', 'h3'], data['svcparams']['alpn'])
+        self.assertEqual([], [str(w.message) for w in caught])
+
+    def test_parse_rdata_text_svcparamvalue_list_alias(self):
+        # identity, so the 1.x alias can't drift into a divergent copy
+        self.assertIs(
+            _svcparamvalue_list_from_rdata_text,
+            parse_rdata_text_svcparamvalue_list,
+        )
 
     def test_svcb_value_rdata_text(self):
         # empty string won't parse

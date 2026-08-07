@@ -9,7 +9,7 @@ import dns.exception
 import dns.rdata
 
 from octodns.processor.filter import ValueAllowlistFilter
-from octodns.record import RdataParseError, Record, TxtRecord
+from octodns.record import RdataParseError, Record, Rr, TxtRecord
 from octodns.record.base import _process_value_validators
 from octodns.record.chunked import _ChunkedValue, _ChunkedValuesMixin
 from octodns.record.spf import SpfRecord
@@ -116,6 +116,70 @@ class TestRecordChunked(TestCase):
                 'foo bar', value_type.from_rdata_text('foo\\032bar')
             )
             self.assertEqual('foobar', value_type.from_rdata_text('"foo" bar'))
+
+    def test_chunked_from_rdata_text_semicolon_compatibility(self):
+        # An unquoted `;` starts a master-file comment, so parsing wholly
+        # unquoted input as presentation text would silently discard the rest
+        # of the value. Treat it as legacy raw text instead, the same way
+        # unquoted input with spaces is handled.
+        for rdata, expected in (
+            # bare ; in wholly unquoted input => legacy raw text
+            ('v=DKIM1;k=rsa;p=ABCDEF', 'v=DKIM1\\;k=rsa\\;p=ABCDEF'),
+            (
+                'v=DMARC1; p=reject; rua=mailto:d@example.com',
+                'v=DMARC1\\; p=reject\\; rua=mailto:d@example.com',
+            ),
+            ('v=spf1 include:x.com ~all;', 'v=spf1 include:x.com ~all\\;'),
+            (';foo', '\\;foo'),
+            # an already-escaped ; is valid presentation text and round trips
+            ('v=DKIM1\\;k=rsa\\;p=ABCDEF', 'v=DKIM1\\;k=rsa\\;p=ABCDEF'),
+            # quoted input stays presentation format, ; is a literal there
+            ('"v=DKIM1;k=rsa;p=ABCDEF"', 'v=DKIM1\\;k=rsa\\;p=ABCDEF'),
+            ('"a;b" "c"', 'a\\;bc'),
+            # an embedded newline separates tokens without ending the value
+            ('a\nb', 'a\nb'),
+            ('foo;bar\nbaz', 'foo\\;bar\nbaz'),
+            # unchanged behavior, guards against over-correcting
+            ('v=spf1 include:x.com ~all', 'v=spf1 include:x.com ~all'),
+            ('hello', 'hello'),
+            ('"hello"', 'hello'),
+            ('"foo" bar', 'foobar'),
+            ('""', ''),
+        ):
+            for value_type in (TxtValue, _ChunkedValue):
+                with self.subTest(rdata=rdata, value_type=value_type):
+                    self.assertEqual(
+                        expected, value_type.from_rdata_text(rdata)
+                    )
+
+    def test_chunked_from_rrs_legacy_raw_parity(self):
+        # `Record.from_rrs` is deprecated, but must keep behaving the way it
+        # did throughout 1.x for the raw, unquoted TXT/SPF text that providers
+        # actually hand it. Asserting against `normalize_raw_text` pins the
+        # contract itself rather than a value a future change could quietly
+        # "update" alongside a regression.
+        #
+        # NOTE: this holds for unquoted input only. Once quotes appear the
+        # input is presentation format and its character-strings concatenate,
+        # e.g. `foo "bar"` normalizes to `foo "bar"` but parses to `foobar`.
+        zone = Zone('unit.tests.', [])
+        for _type in ('TXT', 'SPF'):
+            for raw in (
+                'v=DKIM1;k=rsa;p=ABCDEF',
+                'v=DMARC1; p=reject; rua=mailto:d@example.com',
+                'v=spf1 include:_spf.google.com ~all',
+                'foo bar',
+                'plain',
+            ):
+                with self.subTest(_type=_type, raw=raw):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')
+                        record = Record.from_rrs(
+                            zone, [Rr('v.unit.tests.', _type, 42, raw)]
+                        )[0]
+                    self.assertEqual(
+                        [_ChunkedValue.normalize_raw_text(raw)], record.values
+                    )
 
     def test_chunked_from_rdata_text_parse_errors(self):
         for value_type in (TxtValue, _ChunkedValue):
@@ -268,9 +332,11 @@ class TestRecordChunked(TestCase):
                 record.data, Record.from_rrset(zone, rrset, lenient=True).data
             )
 
+            # value filters match TXT/SPF on their bare internal text, which is
+            # what an operator writes in config, not presentation text
             zone.add_record(record)
             filtered = ValueAllowlistFilter(
-                'unicode', ('"Déjà \\; vu"',)
+                'unicode', ('Déjà \\; vu',)
             ).process_source_zone(zone.copy(), None)
             self.assertEqual([record], list(filtered.records))
 

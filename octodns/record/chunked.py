@@ -72,6 +72,31 @@ chunked_value_validator = ChunkedValueValidator(
 )
 
 
+def _scan_rdata_tokens(rdata):
+    '''Tokenize presentation text, reporting whether a comment was dropped.
+
+    An unquoted ``;`` starts a master-file comment, so the tokenizer silently
+    discards the remainder of the value. Surfacing that lets callers recognize
+    input that isn't really presentation format.
+
+    :param str rdata: presentation-format text to scan
+    :returns: the non-comment tokens and whether a comment was seen
+    :rtype: tuple
+    '''
+    tokenizer = dns.tokenizer.Tokenizer(rdata)
+    tokens = []
+    saw_comment = False
+    while True:
+        token = tokenizer.get(want_comment=True)
+        if token.ttype == dns.tokenizer.EOF:
+            break
+        elif token.ttype == dns.tokenizer.COMMENT:
+            saw_comment = True
+        elif token.ttype != dns.tokenizer.EOL:
+            tokens.append(token)
+    return tokens, saw_comment
+
+
 def _legacy_chunked_value(value, value_type, chunk_size):
     value = value.replace('"', '\\"')
     chunks = []
@@ -179,8 +204,11 @@ class _ChunkedValue(str):
         Character-string bytes are decoded as UTF-8 and semicolons are escaped
         for octoDNS's TXT/SPF internal format.
 
-        Wholly unquoted input containing multiple character-string tokens is
-        treated as legacy raw text so that spaces are not silently discarded.
+        Wholly unquoted input is treated as legacy raw text whenever it carries
+        a signal that it isn't presentation format: multiple character-string
+        tokens, so that spaces are not silently discarded, or an unquoted ``;``,
+        so that the remainder of values such as DKIM keys is not silently
+        dropped as a master-file comment.
 
         :param str rdata: one TXT-style RDATA presentation-format value
         :returns: octoDNS internal-format text
@@ -190,9 +218,9 @@ class _ChunkedValue(str):
             valid UTF-8
         '''
         try:
-            tokens = dns.tokenizer.Tokenizer(rdata).get_remaining()
-            if len(tokens) > 1 and all(
-                token.is_identifier() for token in tokens
+            tokens, saw_comment = _scan_rdata_tokens(rdata)
+            if all(token.is_identifier() for token in tokens) and (
+                len(tokens) > 1 or saw_comment
             ):
                 return cls.normalize_raw_text(rdata)
             parsed = dns.rdata.from_text('IN', 'TXT', rdata)

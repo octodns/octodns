@@ -50,10 +50,17 @@ UTF-8 decoding failures.
 
 TXT and SPF need an additional compatibility rule because their legacy
 ``parse_rdata_text()`` method accepted raw internal text. When
-``from_rdata_text()`` receives multiple wholly unquoted character-string
-tokens, it treats the original input as raw text and preserves its spaces.
+``from_rdata_text()`` receives wholly unquoted input carrying a signal that it
+is not presentation format, it treats the original input as raw text. There are
+two such signals: multiple character-string tokens, in which case its spaces are
+preserved, and an unquoted ``;``, which DNS master-file syntax would otherwise
+treat as the start of a comment and discard along with the rest of the value.
+The latter matters for values such as DKIM and DMARC records, which routinely
+carry unquoted semicolons.
+
 Quoted or mixed quoted/unquoted input follows DNS presentation semantics and
-its character-strings concatenate. Providers that already know they have raw
+its character-strings concatenate; a ``;`` inside a quoted character-string is
+an ordinary literal. Providers that already know they have raw
 TXT/SPF text should use ``TxtValue.normalize_raw_text()`` explicitly. The
 method returns normalized internal text suitable for constructing either TXT
 or SPF records. In the other direction, raw-text providers should call

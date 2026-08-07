@@ -480,17 +480,6 @@ class TestRecord(TestCase):
             str(ctx.exception),
         )
 
-        class EmptyRrset:
-            name = 'unit.tests.'
-            _type = 'A'
-            rdatas = []
-
-        with self.assertRaises(RecordException) as ctx:
-            Record.from_rrset(zone, EmptyRrset())
-        self.assertEqual(
-            'Invalid Rrset unit.tests. A: at least one RDATA value is required',
-            str(ctx.exception),
-        )
         with self.assertRaises(RecordException) as ctx:
             Record.from_rrsets(
                 zone,

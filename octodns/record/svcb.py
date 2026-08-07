@@ -7,6 +7,7 @@ from base64 import b64decode
 from binascii import Error as binascii_error
 from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
 from .base import (
@@ -150,6 +151,33 @@ def _svcparamvalue_list_from_rdata_text(svcparamvalue):
     if svcparamvalue.startswith('"'):
         svcparamvalue = svcparamvalue[1:-1]
     return svcparamvalue.split(',')
+
+
+# ``SUPPORTED_PARAMS`` is the extension point 3rd-parties use to register
+# custom svcparams, so the pre-1.22.0 name is retained as an alias throughout
+# 1.x. It will be removed in 2.0.
+parse_rdata_text_svcparamvalue_list = _svcparamvalue_list_from_rdata_text
+
+
+def _svcparam_parser(paramkey):
+    '''Look up a svcparam's RDATA parser, honoring the deprecated key name.
+
+    :param str paramkey: svcparam key being parsed
+    :returns: the registered parser, or ``None`` if the param has no parser
+    '''
+    param = SUPPORTED_PARAMS.get(paramkey, {})
+    parser = param.get('from_rdata_text', None)
+    if parser is not None:
+        return parser
+    parser = param.get('parse_rdata_text', None)
+    if parser is not None:
+        deprecated(
+            f'The `parse_rdata_text` key in SUPPORTED_PARAMS["{paramkey}"] is '
+            'DEPRECATED. Use `from_rdata_text` instead. Will be removed in '
+            '2.0.',
+            stacklevel=4,
+        )
+    return parser
 
 
 def svcparamkeysort(svcparamkey):
@@ -316,9 +344,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
             if paramkey in params.keys():
                 raise RdataParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
-                param_parser = SUPPORTED_PARAMS.get(paramkey, {}).get(
-                    'from_rdata_text', None
-                )
+                param_parser = _svcparam_parser(paramkey)
                 if param_parser is None:
                     v = paramvalue[0]
                     if v.startswith('"'):
