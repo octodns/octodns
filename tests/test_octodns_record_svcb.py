@@ -278,6 +278,55 @@ class TestRecordSvcb(TestCase):
         values.add(b)
         self.assertIn(b, values)
 
+    def test_svcb_value_equality_tuple_total_order(self):
+        # disjoint svcparams used to compare as sets (subset comparison)
+        # rather than a total order, so two unequal values could be mutually
+        # "not less than" each other
+        a = SvcbValue(
+            {
+                'svcpriority': 1,
+                'targetname': 'x.unit.tests.',
+                'svcparams': {'alpn': ['h2']},
+            }
+        )
+        b = SvcbValue(
+            {
+                'svcpriority': 1,
+                'targetname': 'x.unit.tests.',
+                'svcparams': {'port': '443'},
+            }
+        )
+
+        self.assertNotEqual(a, b)
+        # exactly one direction should hold, not neither
+        self.assertTrue(a < b or b < a)
+        self.assertFalse(a < b and b < a)
+
+        # ordering is deterministic regardless of the order values are
+        # sorted in, since it no longer depends on set iteration order
+        self.assertEqual(sorted([a, b]), sorted([b, a]))
+
+    def test_svcb_value_equality_tuple_svcparams_order_independent(self):
+        # same svcparams, inserted in different orders, should be equal and
+        # produce the same hash
+        a = SvcbValue(
+            {
+                'svcpriority': 1,
+                'targetname': 'x.unit.tests.',
+                'svcparams': {'alpn': ['h2'], 'port': '443'},
+            }
+        )
+        b = SvcbValue(
+            {
+                'svcpriority': 1,
+                'targetname': 'x.unit.tests.',
+                'svcparams': {'port': '443', 'alpn': ['h2']},
+            }
+        )
+
+        self.assertEqual(a, b)
+        self.assertEqual(hash(a), hash(b))
+
     def test_validation(self):
         # doesn't blow up
         Record.new(
