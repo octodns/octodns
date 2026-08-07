@@ -214,6 +214,16 @@ class TestRecordGeoCodes(TestCase):
         self.assertTrue(c > b)
         self.assertTrue(c >= b)
 
+        # hash
+        self.assertEqual(hash(a), hash(a))
+        self.assertNotEqual(hash(a), hash(b))
+        self.assertNotEqual(hash(a), hash(c))
+
+        geo_values = {a, b, c}
+        self.assertEqual(3, len(geo_values))
+        self.assertIn(a, geo_values)
+        self.assertIn(GeoValue('NA-US-CA', values), geo_values)
+
     def test_validation(self):
         # invalid ip address
         with self.assertRaises(ValidationError) as ctx:

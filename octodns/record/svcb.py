@@ -380,9 +380,6 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         # TODO: what, if any of the svcparams should be templated
         return new
 
-    def __hash__(self):
-        return hash(self.__repr__())
-
     def _equality_tuple(self):
         params = []
         for svcparamkey, svcparamvalue in self.svcparams.items():

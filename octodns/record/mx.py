@@ -262,9 +262,6 @@ class MxValue(EqualityTupleMixin, dict):
         new.exchange = new.exchange.format(**params)
         return new
 
-    def __hash__(self):
-        return hash((self.preference, self.exchange))
-
     def _equality_tuple(self):
         return (self.preference, self.exchange)
 
