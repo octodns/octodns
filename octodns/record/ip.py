@@ -3,6 +3,7 @@
 #
 
 
+from .base import _deprecated_parse_rdata_text, _deprecated_rdata_text
 from .validator import ValidationReason, ValueValidator
 
 
@@ -46,7 +47,13 @@ class _IpValue(str):
     VALIDATORS = [IpValueValidator('ip-value-rfc', sets={'legacy', 'strict'})]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one address RDATA presentation string into internal text.
+
+        :param str value: address RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format address text
+        :rtype: str
+        '''
         return value
 
     @classmethod
@@ -66,8 +73,22 @@ class _IpValue(str):
         v = str(cls._address_type(v))
         return super().__new__(cls, v)
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal address as one RDATA presentation string.
+
+        :returns: address RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return self
 
     def template(self, params):

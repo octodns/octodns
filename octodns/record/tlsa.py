@@ -5,8 +5,14 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -248,7 +254,14 @@ class TlsaValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rdata_text(cls, value):
+        '''Parse one TLSA RDATA presentation string into internal field data.
+
+        :param str value: TLSA RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format TLSA field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             (
                 certificate_usage,
@@ -257,7 +270,7 @@ class TlsaValue(EqualityTupleMixin, dict):
                 certificate_association_data,
             ) = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             certificate_usage = int(certificate_usage)
         except ValueError:
@@ -328,8 +341,22 @@ class TlsaValue(EqualityTupleMixin, dict):
     def certificate_association_data(self, value):
         self['certificate_association_data'] = value
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal TLSA value as one RDATA presentation string.
+
+        :returns: TLSA RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.certificate_usage} {self.selector} {self.matching_type} {self.certificate_association_data}'
 
     def template(self, params):

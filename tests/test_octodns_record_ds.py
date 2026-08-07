@@ -13,7 +13,7 @@ from octodns.record.ds import (
     DsValueRfcValidator,
 )
 from octodns.record.exception import ValidationError
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.zone import Zone
 
 
@@ -105,23 +105,23 @@ class TestRecordDs(TestCase):
             self.assertTrue(a < b)
 
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             DsValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             DsValue.parse_rdata_text('nope')
 
         # 2nd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             DsValue.parse_rdata_text('0 1')
 
         # 3rd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             DsValue.parse_rdata_text('0 1 2')
 
         # 5th word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             DsValue.parse_rdata_text('0 1 2 key blah')
 
         # things ints, will parse

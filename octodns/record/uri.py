@@ -6,8 +6,14 @@ import re
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .validator import RecordValidator, ValidationReason, ValueValidator
 
 
@@ -151,11 +157,18 @@ class UriValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rdata_text(cls, value):
+        '''Parse one URI RDATA presentation string into internal field data.
+
+        :param str value: URI RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format URI field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             priority, weight, target = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             priority = int(priority)
         except ValueError:
@@ -208,8 +221,22 @@ class UriValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal URI value as one RDATA presentation string.
+
+        :returns: URI RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.priority} {self.weight} "{self.target}"'
 
     def template(self, params):

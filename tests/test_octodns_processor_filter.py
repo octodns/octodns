@@ -246,6 +246,74 @@ class TestValueAllowListFilter(TestCase):
             sorted([r.name for r in filtered.records]),
         )
 
+    def test_txt_matches_bare_internal_text(self):
+        # TXT/SPF values match their bare internal text, the way `rdata_text`
+        # did throughout 1.x. Matching quoted RDATA presentation text instead
+        # would silently stop existing allowlist/rejectlist patterns from
+        # matching, so assert the quoted form explicitly does NOT match.
+        allows = ValueAllowlistFilter('exact', ('matches.example.com.',))
+        filtered = allows.process_source_zone(self.zone.copy(), None)
+        self.assertIn('good.values', [r.name for r in filtered.records])
+
+        quoted = ValueAllowlistFilter('exact', ('"matches.example.com."',))
+        filtered = quoted.process_source_zone(self.zone.copy(), None)
+        self.assertNotIn('good.values', [r.name for r in filtered.records])
+
+    def test_txt_match_preserves_escaped_semicolon(self):
+        # TXT/SPF match `str(value)`, the escaped internal form, rather than
+        # `to_raw_text()` which would additionally unescape `\;`
+        zone = Zone('unit.tests.', [])
+        record = Record.new(
+            zone, 'dkim', {'ttl': 42, 'type': 'TXT', 'value': 'v=DKIM1\\;k=rsa'}
+        )
+        zone.add_record(record)
+
+        allows = ValueAllowlistFilter('escaped', ('v=DKIM1\\;k=rsa',))
+        filtered = allows.process_source_zone(zone.copy(), None)
+        self.assertEqual([record], list(filtered.records))
+
+        unescaped = ValueAllowlistFilter('unescaped', ('v=DKIM1;k=rsa',))
+        filtered = unescaped.process_source_zone(zone.copy(), None)
+        self.assertEqual([], list(filtered.records))
+
+    def test_non_txt_values_match_presentation_text(self):
+        # everything other than TXT/SPF keeps matching RDATA presentation
+        # text, so the TXT/SPF carve out didn't over-correct
+        zone = Zone('unit.tests.', [])
+        caa = Record.new(
+            zone,
+            'caa',
+            {
+                'ttl': 42,
+                'type': 'CAA',
+                'value': {
+                    'flags': 0,
+                    'tag': 'issue',
+                    'value': 'ca.example.com',
+                },
+            },
+        )
+        zone.add_record(caa)
+        mx = Record.new(
+            zone,
+            'mx',
+            {
+                'ttl': 42,
+                'type': 'MX',
+                'value': {'preference': 10, 'exchange': 'mx.example.com.'},
+            },
+        )
+        zone.add_record(mx)
+
+        for record, pattern in (
+            (caa, '0 issue "ca.example.com"'),
+            (mx, '10 mx.example.com.'),
+        ):
+            with self.subTest(pattern=pattern):
+                allows = ValueAllowlistFilter('presentation', (pattern,))
+                filtered = allows.process_source_zone(zone.copy(), None)
+                self.assertEqual([record], list(filtered.records))
+
     def test_regex(self):
         allows = ValueAllowlistFilter('exact', ('/^start\\..+\\.end\\.$/',))
 

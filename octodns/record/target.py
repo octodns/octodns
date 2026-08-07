@@ -7,6 +7,7 @@ import ipaddress
 from fqdn import FQDN
 
 from ..idna import idna_encode
+from .base import _deprecated_parse_rdata_text, _deprecated_rdata_text
 from .validator import ValidationReason, ValueValidator
 
 
@@ -163,7 +164,13 @@ class _TargetValue(str):
     ]
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rdata_text(cls, value):
+        '''Parse target RDATA presentation text into octoDNS internal text.
+
+        :param str value: target in DNS master-file presentation format
+        :returns: octoDNS internal-format target text
+        :rtype: str
+        '''
         return value
 
     @classmethod
@@ -180,8 +187,22 @@ class _TargetValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal target as one RDATA presentation string.
+
+        :returns: target in DNS master-file presentation format
+        :rtype: str
+        '''
         return self
 
     def template(self, params):
@@ -202,7 +223,13 @@ class _TargetsValue(str):
     ]
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse target RDATA presentation text into octoDNS internal text.
+
+        :param str value: target in DNS master-file presentation format
+        :returns: octoDNS internal-format target text
+        :rtype: str
+        '''
         return value
 
     @classmethod
@@ -217,8 +244,22 @@ class _TargetsValue(str):
         v = idna_encode(v)
         return super().__new__(cls, v)
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal target as one RDATA presentation string.
+
+        :returns: target in DNS master-file presentation format
+        :rtype: str
+        '''
         return self
 
     def template(self, params):

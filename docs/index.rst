@@ -337,9 +337,9 @@ Processors
    * - `NameRejectlistFilter`_
      - Filter that IGNORES records that match specified naming patterns, all others will be managed
    * - `ValueAllowlistFilter`_
-     - Filter that ONLY manages records that match specified value patterns based on `rdata_text`, all others will be ignored
+     - Filter that ONLY manages records whose values match specified value patterns, all others will be ignored
    * - `ValueRejectlistFilter`_
-     - Filter that IGNORES records that match specified value patterns based on `rdata_text`, all others will be managed
+     - Filter that IGNORES records whose values match specified value patterns, all others will be managed
    * - `OwnershipProcessor`_
      - Processor that implements ownership in octoDNS so that it can manage only the records in a zone in sources and will ignore all others.
    * - `SpfDnsLookupProcessor`_

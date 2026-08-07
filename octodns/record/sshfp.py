@@ -5,8 +5,14 @@
 import re
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -233,11 +239,18 @@ class SshfpValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(self, value):
+    def from_rdata_text(cls, value):
+        '''Parse one SSHFP RDATA presentation string into internal field data.
+
+        :param str value: SSHFP RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format SSHFP field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             algorithm, fingerprint_type, fingerprint = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             algorithm = int(algorithm)
         except ValueError:
@@ -294,8 +307,22 @@ class SshfpValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal SSHFP value as one RDATA presentation string.
+
+        :returns: SSHFP RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.algorithm} {self.fingerprint_type} {self.fingerprint}'
 
     def template(self, params):

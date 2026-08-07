@@ -8,7 +8,7 @@ from helpers import SimpleProvider
 
 from octodns.record.base import Record
 from octodns.record.exception import ValidationError
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.record.sshfp import (
     SshfpRecord,
     SshfpValue,
@@ -91,15 +91,15 @@ class TestRecordSshfp(TestCase):
 
     def test_sshfp_value_rdata_text(self):
         # empty string won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SshfpValue.parse_rdata_text('')
 
         # single word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SshfpValue.parse_rdata_text('nope')
 
         # 3rd word won't parse
-        with self.assertRaises(RrParseError):
+        with self.assertRaises(RdataParseError):
             SshfpValue.parse_rdata_text('0 1 00479b27 another')
 
         # algorithm and fingerprint_type not ints

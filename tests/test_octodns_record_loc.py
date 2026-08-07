@@ -9,7 +9,7 @@ from helpers import SimpleProvider
 from octodns.record import Record
 from octodns.record.exception import ValidationError
 from octodns.record.loc import LocRecord, LocValue
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.zone import Zone
 
 
@@ -116,7 +116,7 @@ class TestRecordLoc(TestCase):
         # only the exact correct number of words is allowed
         for i in tuple(range(0, 12)) + (13,):
             s = ''.join(['word'] * i)
-            with self.assertRaises(RrParseError):
+            with self.assertRaises(RdataParseError):
                 LocValue.parse_rdata_text(s)
 
         # type conversions are best effort

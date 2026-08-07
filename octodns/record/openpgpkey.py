@@ -2,7 +2,12 @@
 #
 #
 
-from .base import Record, ValuesMixin
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+)
 from .validator import ValidationReason, ValueValidator
 
 
@@ -36,7 +41,13 @@ class OpenpgpkeyValue(str):
         return {'type': 'string'}
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse OPENPGPKEY RDATA presentation text into internal text.
+
+        :param str value: OPENPGPKEY RDATA in master-file presentation format
+        :returns: whitespace-normalized octoDNS internal-format text
+        :rtype: str
+        '''
         # Strip whitespace that may appear in zone files (base64 data may be
         # split across lines)
         return value.replace(' ', '')
@@ -45,8 +56,22 @@ class OpenpgpkeyValue(str):
     def process(cls, values):
         return [cls(v) for v in values]
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal OPENPGPKEY value as RDATA presentation text.
+
+        :returns: OPENPGPKEY RDATA in master-file presentation format
+        :rtype: str
+        '''
         return self
 
     def template(self, params):

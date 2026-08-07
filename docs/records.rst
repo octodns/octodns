@@ -16,6 +16,251 @@ Adding new record types to octoDNS is relatively straightforward, but will
 require careful evaluation of each provider to determine whether or not it will
 be supported and the addition of code in each to handle and test the new type.
 
+Internal and RDATA formats
+--------------------------
+
+octoDNS uses two distinct text representations at its configuration/provider
+boundary:
+
+* **octoDNS internal format** is the data accepted from configuration and
+  exposed by record and value objects. Text in this format is represented by
+  Python Unicode strings and may use octoDNS-specific normalization. For
+  example, TXT and SPF values internally escape semicolons.
+* **RDATA presentation format** is the master-file-style text for the RDATA
+  portion of one DNS resource record. Its quoting, escaping, field layout, and
+  chunking follow the RFC for that record type.
+
+RDATA presentation text is not a complete master-file record: it omits the
+owner name, TTL, class, and record type. It is also not the binary octets used
+by DNS wire format. For example, ``192.0.2.1`` is the RDATA presentation text
+within the complete master-file record
+``www.example.com. 300 IN A 192.0.2.1``.
+
+Value conversion
+................
+
+Each RDATA value type provides ``to_rdata_text()`` and
+``from_rdata_text()``. ``value.to_rdata_text()`` converts an octoDNS value
+object to one Python ``str`` containing one RDATA value in presentation
+format. ``ValueType.from_rdata_text(rdata)`` accepts one such ``str`` and
+returns octoDNS internal data suitable for constructing that value type.
+Invalid presentation text raises
+:py:class:`octodns.record.rr.RdataParseError`, including TXT/SPF syntax and
+UTF-8 decoding failures.
+
+TXT and SPF need an additional compatibility rule because their legacy
+``parse_rdata_text()`` method accepted raw internal text. When
+``from_rdata_text()`` receives wholly unquoted input carrying a signal that it
+is not presentation format, it treats the original input as raw text. There are
+two such signals: multiple character-string tokens, in which case its spaces are
+preserved, and an unquoted ``;``. Quoted or mixed quoted/unquoted input follows
+DNS presentation semantics and its character-strings concatenate. See
+`Semicolons in TXT and SPF values`_ for the details of the ``;`` rules.
+
+Providers that already know they have raw TXT/SPF text should use
+``TxtValue.normalize_raw_text()`` explicitly. The
+method returns normalized internal text suitable for constructing either TXT
+or SPF records. In the other direction, raw-text providers should call
+``value.to_raw_text()`` on TXT/SPF value objects. This removes octoDNS's
+internal semicolon escaping without adding RDATA presentation-format quoting
+or chunking.
+
+Provider migration follows the input representation rather than a mechanical
+method rename:
+
+.. list-table:: Value parsing migration
+   :header-rows: 1
+
+   * - Existing input
+     - Replacement
+   * - Non-TXT/SPF ``ValueType.parse_rdata_text(rdata)``
+     - ``ValueType.from_rdata_text(rdata)``
+   * - Raw or unescaped TXT/SPF provider text
+     - ``TxtValue.normalize_raw_text(value)``
+   * - TXT/SPF RDATA presentation text
+     - ``TxtValue.from_rdata_text(rdata)``
+
+For provider writes, use ``value.to_rdata_text()`` when the destination
+expects RDATA presentation text and ``value.to_raw_text()`` when it expects
+raw TXT/SPF text.
+
+Generic processors and provider utilities should import
+``value_to_rdata_text()`` and ``value_from_rdata_text()`` from
+``octodns.record``. These public helpers select new or legacy value methods by
+their defining position in the value type's MRO, allowing callers to support
+third-party value types during the 1.x migration without implementing that
+dispatch themselves.
+
+New-style TXT/SPF values always render with the value-level conversion's
+255-octet chunk limit. The record-level ``CHUNK_SIZE``, ``chunked_value()``,
+``chunked_values``, and ``rr_values`` hooks are retained only for the
+deprecated ``record.rrs`` path through octoDNS 1.x and will be removed in 2.0.
+They do not customize ``to_rrset()`` for value types implementing the new
+conversion API. The compatibility dispatcher may still consult ``rr_values``
+when a third-party value type implements only the legacy ``rdata_text`` API.
+
+Semicolons in TXT and SPF values
+++++++++++++++++++++++++++++++++
+
+A ``;`` means three different things depending on which representation it
+appears in, which makes it the most error-prone character in TXT and SPF
+handling. DKIM, DMARC, and similar values carry semicolons routinely, so it is
+worth being precise:
+
+* In **octoDNS internal format** a semicolon is written escaped, as ``\;``. A
+  bare ``;`` in configuration is a validation error, and a double-escaped
+  ``\\;`` is too.
+* In **RDATA presentation format inside a quoted character-string** a semicolon
+  is an ordinary literal and needs no escaping.
+* In **RDATA presentation format outside quotes** a semicolon begins a
+  master-file comment. Everything from it to the end of the line is not part of
+  the value.
+
+That last rule is why unquoted input needs the compatibility handling. Parsing
+``v=DKIM1;k=rsa;p=MIGf…`` strictly as presentation text yields ``v=DKIM1`` and
+silently discards the key, so ``from_rdata_text()`` instead recognizes the
+unquoted semicolon as a signal that the input is raw text and preserves it
+whole.
+
+Rendering is unambiguous in the other direction: ``to_rdata_text()`` always
+emits quoted character-strings, so a semicolon in a value is always written as
+a literal inside quotes and never needs escaping on output.
+
+.. list-table:: ``from_rdata_text()`` semicolon handling
+   :header-rows: 1
+
+   * - Input
+     - Read as
+     - Internal result
+   * - ``v=DKIM1;k=rsa``
+     - raw text, unquoted ``;``
+     - ``v=DKIM1\;k=rsa``
+   * - ``"v=DKIM1;k=rsa"``
+     - presentation, ``;`` is a literal
+     - ``v=DKIM1\;k=rsa``
+   * - ``v=DKIM1\;k=rsa``
+     - presentation, ``\;`` is an escape
+     - ``v=DKIM1\;k=rsa``
+   * - ``"a;b" "c"``
+     - presentation, strings concatenate
+     - ``a\;bc``
+   * - ``;foo``
+     - raw text, wholly a comment otherwise
+     - ``\;foo``
+
+All five forms converge on the same escaped internal representation, so a
+provider that is inconsistent about quoting still round trips correctly. The
+one case that does **not** round trip is a genuine presentation value whose
+intent was a trailing comment; octoDNS has no way to distinguish that from raw
+text and keeps the text.
+
+Providers that know their text is raw should not rely on this inference at all.
+Call ``TxtValue.normalize_raw_text()`` on the way in and ``value.to_raw_text()``
+on the way out, which apply the escaping rules directly with no parsing and no
+ambiguity.
+
+Record conversion
+.................
+
+:py:meth:`octodns.record.base.Record.to_rrset` converts one octoDNS record to
+one grouped :py:class:`octodns.record.rr.Rrset`. An ``Rrset`` has named
+``name``, ``_type``, ``ttl``, and ``rdatas`` attributes. The owner name, type,
+and TTL apply to every element of ``rdatas``, and each element must be a
+Python ``str`` containing one RDATA value in presentation format. DNS class is
+not stored; octoDNS assumes the Internet (``IN``) class. Construction rejects
+a string or non-iterable ``rdatas`` container, an empty collection, and
+non-string elements with
+:py:class:`octodns.record.exception.RecordException`. ``Rrset`` objects
+support equality and ordering across their name, type, TTL, and ordered RDATA
+values.
+
+:py:meth:`octodns.record.base.Record.from_rrset` performs the singular inverse
+and returns one :py:class:`octodns.record.base.Record`.
+:py:meth:`octodns.record.base.Record.from_rrsets` accepts an iterable of
+grouped ``Rrset`` objects and returns multiple records. The bulk result is
+ordered deterministically by owner name and type. An empty iterable returns an
+empty list. Otherwise, bulk input may contain at most one ``Rrset`` for each
+owner-name/type pair; duplicates raise
+:py:class:`octodns.record.exception.RecordException`. An ``Rrset`` with no
+RDATA values is also rejected with ``RecordException``. Single-value record
+types, such as CNAME, require exactly one RDATA value. Unregistered record
+types likewise raise ``RecordException`` rather than leaking ``KeyError``.
+
+Both inverse methods pass ``lenient`` through record construction and attach
+``source`` to every record they create. The deprecated compatibility entry
+points propagate these arguments in the same way.
+
+A provider reading RDATA presentation text can construct records as follows::
+
+  from octodns.record import Record, Rrset
+
+  rrset = Rrset(
+      'www.example.com.',
+      'A',
+      300,
+      ['192.0.2.1', '192.0.2.2'],
+  )
+  record = Record.from_rrset(
+      zone,
+      rrset,
+      lenient=lenient,
+      source=provider,
+  )
+
+A provider writing RDATA presentation text can consume the matching grouped
+carrier::
+
+  rrset = record.to_rrset()
+  provider.write(
+      name=rrset.name,
+      record_type=rrset._type,
+      ttl=rrset.ttl,
+      rdatas=rrset.rdatas,
+  )
+
+Lenient Unicode TXT and SPF values
+++++++++++++++++++++++++++++++++++
+
+Valid TXT and SPF values use ASCII bytes and are split into chunks of at most
+255 octets. When a non-ASCII internal value is deliberately accepted with
+``lenient=True``, octoDNS preserves its historical character-based chunking
+and quoting instead. This compatibility presentation text can be consumed by
+``from_rdata_text()``, which decodes its character-string bytes as UTF-8 so
+the Unicode internal value round-trips when every emitted character-string's
+UTF-8 encoding fits within the DNS 255-octet limit. Longer values can retain a
+historical character chunk whose UTF-8 encoding exceeds that limit; conforming
+RDATA parsers reject such output. Arbitrary non-UTF-8 character-string bytes
+are not supported because octoDNS's internal value contract is Unicode text.
+
+Migrating from ``rrs``
+......................
+
+The deprecated ``record.rrs`` property remains available throughout octoDNS
+1.x, but its plain tuple deliberately has a different positional order from
+the named ``Rrset`` carrier::
+
+  # Legacy tuple: (name, ttl, type, rdatas)
+  name, ttl, record_type, rdatas = record.rrs
+
+  # New carrier: Rrset(name, _type, ttl, rdatas)
+  rrset = record.to_rrset()
+  name = rrset.name
+  record_type = rrset._type
+  ttl = rrset.ttl
+  rdatas = rrset.rdatas
+
+Use named attributes on :py:class:`octodns.record.rr.Rrset`; do not apply the
+legacy tuple's positional access pattern to it. The singular
+:py:class:`octodns.record.rr.Rr` carrier and
+:py:meth:`octodns.record.base.Record.from_rrs` are likewise compatibility APIs
+scheduled for removal in octoDNS 2.0. Unlike the new RRset APIs,
+``Record.from_rrs()`` retains its legacy behavior of using the first RDATA
+value for a single-value record. The old
+:py:class:`octodns.record.rr.RrParseError` name remains as an
+identity-preserving compatibility alias for
+:py:class:`octodns.record.rr.RdataParseError` throughout 1.x and will also be
+removed in 2.0.
+
 Advanced Record Support
 -----------------------
 

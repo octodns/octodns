@@ -14,7 +14,7 @@ from octodns.record.naptr import (
     NaptrValueBestPracticeValidator,
     NaptrValueRfcValidator,
 )
-from octodns.record.rr import RrParseError
+from octodns.record.rr import RdataParseError
 from octodns.zone import Zone
 
 
@@ -322,7 +322,7 @@ class TestRecordNaptr(TestCase):
             'one two three four five',
             'one two three four five six seven',
         ):
-            with self.assertRaises(RrParseError):
+            with self.assertRaises(RdataParseError):
                 NaptrValue.parse_rdata_text(v)
 
         # we don't care if the types of things are correct when parsing rr text

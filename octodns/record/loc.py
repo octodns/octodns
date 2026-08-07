@@ -3,8 +3,14 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -209,7 +215,14 @@ class LocValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one LOC RDATA presentation string into internal field data.
+
+        :param str value: LOC RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format LOC field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             value = value.replace('m', '')
             (
@@ -227,7 +240,7 @@ class LocValue(EqualityTupleMixin, dict):
                 precision_vert,
             ) = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             lat_degrees = int(lat_degrees)
         except ValueError:
@@ -407,8 +420,22 @@ class LocValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal LOC value as one RDATA presentation string.
+
+        :returns: LOC RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.lat_degrees} {self.lat_minutes} {self.lat_seconds} {self.lat_direction} {self.long_degrees} {self.long_minutes} {self.long_seconds} {self.long_direction} {self.altitude}m {self.size}m {self.precision_horz}m {self.precision_vert}m'
 
     def template(self, params):

@@ -7,11 +7,18 @@ from base64 import b64decode
 from binascii import Error as binascii_error
 from ipaddress import AddressValueError, IPv4Address, IPv6Address
 
+from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
 from .chunked import _ChunkedValue, chunked_value_validator
-from .rr import RrParseError
+from .rr import RdataParseError
 from .target import _check_target_format, _check_target_trailing_dot
 from .validator import ValidationReason, ValueValidator
 
@@ -140,10 +147,37 @@ def validate_svckey_number(paramkey, validator_id=None):
     return []
 
 
-def parse_rdata_text_svcparamvalue_list(svcparamvalue):
+def _svcparamvalue_list_from_rdata_text(svcparamvalue):
     if svcparamvalue.startswith('"'):
         svcparamvalue = svcparamvalue[1:-1]
     return svcparamvalue.split(',')
+
+
+# ``SUPPORTED_PARAMS`` is the extension point 3rd-parties use to register
+# custom svcparams, so the pre-1.22.0 name is retained as an alias throughout
+# 1.x. It will be removed in 2.0.
+parse_rdata_text_svcparamvalue_list = _svcparamvalue_list_from_rdata_text
+
+
+def _svcparam_parser(paramkey):
+    '''Look up a svcparam's RDATA parser, honoring the deprecated key name.
+
+    :param str paramkey: svcparam key being parsed
+    :returns: the registered parser, or ``None`` if the param has no parser
+    '''
+    param = SUPPORTED_PARAMS.get(paramkey, {})
+    parser = param.get('from_rdata_text', None)
+    if parser is not None:
+        return parser
+    parser = param.get('parse_rdata_text', None)
+    if parser is not None:
+        deprecated(
+            f'The `parse_rdata_text` key in SUPPORTED_PARAMS["{paramkey}"] is '
+            'DEPRECATED. Use `from_rdata_text` instead. Will be removed in '
+            '2.0.',
+            stacklevel=4,
+        )
+    return parser
 
 
 def svcparamkeysort(svcparamkey):
@@ -158,23 +192,23 @@ SUPPORTED_PARAMS = {
     'alpn': {
         'key_num': 1,
         'validate': validate_svcparam_alpn,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'port': {'key_num': 3, 'validate': validate_svcparam_port},
     'ipv4hint': {
         'key_num': 4,
         'validate': validate_svcparam_ipv4hint,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'ipv6hint': {
         'key_num': 6,
         'validate': validate_svcparam_ipv6hint,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'mandatory': {
         'key_num': 0,
         'validate': validate_svcparam_mandatory,
-        'parse_rdata_text': parse_rdata_text_svcparamvalue_list,
+        'from_rdata_text': _svcparamvalue_list_from_rdata_text,
     },
     'ech': {'key_num': 5, 'validate': validate_svcparam_ech},
 }
@@ -287,11 +321,18 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse SVCB/HTTPS RDATA presentation text into internal field data.
+
+        :param str value: RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format SVCB/HTTPS field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             svcpriority, targetname, *svcparams = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             svcpriority = int(svcpriority)
         except ValueError:
@@ -301,18 +342,16 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         for svcparam in svcparams:
             paramkey, *paramvalue = svcparam.split('=')
             if paramkey in params.keys():
-                raise RrParseError(f'{paramkey} is specified twice')
+                raise RdataParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
-                parse_rdata_text = SUPPORTED_PARAMS.get(paramkey, {}).get(
-                    'parse_rdata_text', None
-                )
-                if parse_rdata_text is None:
+                param_parser = _svcparam_parser(paramkey)
+                if param_parser is None:
                     v = paramvalue[0]
                     if v.startswith('"'):
                         v = v[1:-1]
                     params[paramkey] = v
                 else:
-                    params[paramkey] = parse_rdata_text(paramvalue[0])
+                    params[paramkey] = param_parser(paramvalue[0])
             else:
                 params[paramkey] = None
         return {
@@ -358,8 +397,22 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
     def svcparams(self, value):
         self['svcparams'] = value
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal SVCB/HTTPS value as RDATA presentation text.
+
+        :returns: RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         params = ''
         sorted_svcparamkeys = sorted(self.svcparams, key=svcparamkeysort)
         for svcparamkey in sorted_svcparamkeys:
@@ -396,7 +449,7 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         return (self.svcpriority, self.targetname, tuple(sorted(params)))
 
     def __repr__(self):
-        return f"'{self.rdata_text}'"
+        return f"'{self.to_rdata_text()}'"
 
 
 class SvcbValueBestPracticeValidator(ValueValidator):

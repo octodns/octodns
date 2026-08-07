@@ -3,8 +3,14 @@
 #
 
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .target import _check_target_trailing_dot
 from .validator import ValidationReason, ValueValidator
 
@@ -208,13 +214,20 @@ class NaptrValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one NAPTR RDATA presentation string into internal field data.
+
+        :param str value: NAPTR RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format NAPTR field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             order, preference, flags, service, regexp, replacement = (
                 value.split(' ')
             )
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             order = int(order)
             preference = int(preference)
@@ -301,8 +314,22 @@ class NaptrValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal NAPTR value as one RDATA presentation string.
+
+        :returns: NAPTR RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         # RFC 3403 requires flags, service, and regexp to be quoted character-strings
         flags = self.flags or ''
         service = self.service or ''

@@ -14,6 +14,70 @@ from octodns.zone import Zone
 class TestTinyDnsFileSource(TestCase):
     source = TinyDnsFileSource('test', './tests/zones/tinydns')
 
+    def test_colon_presentation_rdata(self):
+        zone = Zone('example.com.', [])
+        records = list(
+            self.source._records_for_colon(
+                zone,
+                '_srv._tcp.example.com.',
+                [
+                    [
+                        '_srv._tcp.example.com.',
+                        'SRV',
+                        '1 2 443 target.example.com.',
+                        '30',
+                    ]
+                ],
+            )
+        )
+        self.assertEqual(
+            [
+                (
+                    'SRV',
+                    '_srv._tcp.example.com.',
+                    30,
+                    [
+                        {
+                            'priority': 1,
+                            'weight': 2,
+                            'port': 443,
+                            'target': 'target.example.com.',
+                        }
+                    ],
+                )
+            ],
+            records,
+        )
+
+    def test_colon_txt_raw_value(self):
+        for _type in ('SPF', 'TXT'):
+            zone = Zone('example.com.', [])
+            records = list(
+                self.source._records_for_colon(
+                    zone,
+                    f'{_type.lower()}.example.com.',
+                    [
+                        [
+                            f'{_type.lower()}.example.com.',
+                            _type,
+                            'value; with semicolon',
+                            '30',
+                        ]
+                    ],
+                )
+            )
+            self.assertEqual(
+                [
+                    (
+                        _type,
+                        f'{_type.lower()}.example.com.',
+                        30,
+                        ['value\\; with semicolon'],
+                    )
+                ],
+                records,
+            )
+
     def test_populate_normal(self):
         got = Zone('example.com.', [])
         self.source.populate(got)

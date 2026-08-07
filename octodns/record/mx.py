@@ -4,8 +4,14 @@
 
 from ..equality import EqualityTupleMixin
 from ..idna import idna_encode
-from .base import Record, ValuesMixin, unquote
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+    unquote,
+)
+from .rr import RdataParseError
 from .target import (
     _check_target_format,
     _check_target_not_ip,
@@ -200,11 +206,18 @@ class MxValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one MX RDATA presentation string into internal field data.
+
+        :param str value: MX RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format MX field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             preference, exchange = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             preference = int(preference)
         except ValueError:
@@ -251,8 +264,22 @@ class MxValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal MX value as one RDATA presentation string.
+
+        :returns: MX RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return f'{self.preference} {self.exchange}'
 
     def template(self, params):

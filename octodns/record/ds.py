@@ -7,8 +7,13 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..equality import EqualityTupleMixin
-from .base import Record, ValuesMixin
-from .rr import RrParseError
+from .base import (
+    Record,
+    ValuesMixin,
+    _deprecated_parse_rdata_text,
+    _deprecated_rdata_text,
+)
+from .rr import RdataParseError
 from .validator import ValidationReason, ValueValidator
 
 
@@ -317,11 +322,18 @@ class DsValue(EqualityTupleMixin, dict):
         }
 
     @classmethod
-    def parse_rdata_text(cls, value):
+    def from_rdata_text(cls, value):
+        '''Parse one DS RDATA presentation string into internal field data.
+
+        :param str value: DS RDATA in DNS master-file presentation format
+        :returns: octoDNS internal-format DS field mapping
+        :rtype: dict
+        :raises octodns.record.rr.RdataParseError: if ``value`` is invalid
+        '''
         try:
             key_tag, algorithm, digest_type, digest = value.split(' ')
         except ValueError:
-            raise RrParseError()
+            raise RdataParseError()
         try:
             key_tag = int(key_tag)
         except ValueError:
@@ -400,8 +412,22 @@ class DsValue(EqualityTupleMixin, dict):
     def data(self):
         return self
 
+    @classmethod
+    def parse_rdata_text(cls, value):
+        _deprecated_parse_rdata_text(cls)
+        return cls.from_rdata_text(value)
+
     @property
     def rdata_text(self):
+        _deprecated_rdata_text(self)
+        return self.to_rdata_text()
+
+    def to_rdata_text(self):
+        '''Render this internal DS value as one RDATA presentation string.
+
+        :returns: DS RDATA in DNS master-file presentation format
+        :rtype: str
+        '''
         return (
             f'{self.key_tag} {self.algorithm} {self.digest_type} {self.digest}'
         )
