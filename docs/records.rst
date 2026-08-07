@@ -53,15 +53,12 @@ TXT and SPF need an additional compatibility rule because their legacy
 ``from_rdata_text()`` receives wholly unquoted input carrying a signal that it
 is not presentation format, it treats the original input as raw text. There are
 two such signals: multiple character-string tokens, in which case its spaces are
-preserved, and an unquoted ``;``, which DNS master-file syntax would otherwise
-treat as the start of a comment and discard along with the rest of the value.
-The latter matters for values such as DKIM and DMARC records, which routinely
-carry unquoted semicolons.
+preserved, and an unquoted ``;``. Quoted or mixed quoted/unquoted input follows
+DNS presentation semantics and its character-strings concatenate. See
+`Semicolons in TXT and SPF values`_ for the details of the ``;`` rules.
 
-Quoted or mixed quoted/unquoted input follows DNS presentation semantics and
-its character-strings concatenate; a ``;`` inside a quoted character-string is
-an ordinary literal. Providers that already know they have raw
-TXT/SPF text should use ``TxtValue.normalize_raw_text()`` explicitly. The
+Providers that already know they have raw TXT/SPF text should use
+``TxtValue.normalize_raw_text()`` explicitly. The
 method returns normalized internal text suitable for constructing either TXT
 or SPF records. In the other direction, raw-text providers should call
 ``value.to_raw_text()`` on TXT/SPF value objects. This removes octoDNS's
@@ -101,6 +98,66 @@ deprecated ``record.rrs`` path through octoDNS 1.x and will be removed in 2.0.
 They do not customize ``to_rrset()`` for value types implementing the new
 conversion API. The compatibility dispatcher may still consult ``rr_values``
 when a third-party value type implements only the legacy ``rdata_text`` API.
+
+Semicolons in TXT and SPF values
+++++++++++++++++++++++++++++++++
+
+A ``;`` means three different things depending on which representation it
+appears in, which makes it the most error-prone character in TXT and SPF
+handling. DKIM, DMARC, and similar values carry semicolons routinely, so it is
+worth being precise:
+
+* In **octoDNS internal format** a semicolon is written escaped, as ``\;``. A
+  bare ``;`` in configuration is a validation error, and a double-escaped
+  ``\\;`` is too.
+* In **RDATA presentation format inside a quoted character-string** a semicolon
+  is an ordinary literal and needs no escaping.
+* In **RDATA presentation format outside quotes** a semicolon begins a
+  master-file comment. Everything from it to the end of the line is not part of
+  the value.
+
+That last rule is why unquoted input needs the compatibility handling. Parsing
+``v=DKIM1;k=rsa;p=MIGf…`` strictly as presentation text yields ``v=DKIM1`` and
+silently discards the key, so ``from_rdata_text()`` instead recognizes the
+unquoted semicolon as a signal that the input is raw text and preserves it
+whole.
+
+Rendering is unambiguous in the other direction: ``to_rdata_text()`` always
+emits quoted character-strings, so a semicolon in a value is always written as
+a literal inside quotes and never needs escaping on output.
+
+.. list-table:: ``from_rdata_text()`` semicolon handling
+   :header-rows: 1
+
+   * - Input
+     - Read as
+     - Internal result
+   * - ``v=DKIM1;k=rsa``
+     - raw text, unquoted ``;``
+     - ``v=DKIM1\;k=rsa``
+   * - ``"v=DKIM1;k=rsa"``
+     - presentation, ``;`` is a literal
+     - ``v=DKIM1\;k=rsa``
+   * - ``v=DKIM1\;k=rsa``
+     - presentation, ``\;`` is an escape
+     - ``v=DKIM1\;k=rsa``
+   * - ``"a;b" "c"``
+     - presentation, strings concatenate
+     - ``a\;bc``
+   * - ``;foo``
+     - raw text, wholly a comment otherwise
+     - ``\;foo``
+
+All five forms converge on the same escaped internal representation, so a
+provider that is inconsistent about quoting still round trips correctly. The
+one case that does **not** round trip is a genuine presentation value whose
+intent was a trailing comment; octoDNS has no way to distinguish that from raw
+text and keeps the text.
+
+Providers that know their text is raw should not rely on this inference at all.
+Call ``TxtValue.normalize_raw_text()`` on the way in and ``value.to_raw_text()``
+on the way out, which apply the escaping rules directly with no parsing and no
+ambiguity.
 
 Record conversion
 .................
