@@ -207,11 +207,6 @@ class UrlfwdValue(EqualityTupleMixin, dict):
     def _equality_tuple(self):
         return (self.path, self.target, self.code, self.masking, self.query)
 
-    def __hash__(self):
-        return hash(
-            (self.path, self.target, self.code, self.masking, self.query)
-        )
-
     def __repr__(self):
         return f'"{self.path}" "{self.target}" {self.code} {self.masking} {self.query}'
 

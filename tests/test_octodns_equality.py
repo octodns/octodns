@@ -53,9 +53,31 @@ class TestEqualityTupleMixin(TestCase):
         self.assertTrue(doesnt >= one)
         self.assertTrue(one >= same)
 
+        # hash
+        self.assertEqual(hash(one), hash(one))
+        self.assertEqual(hash(one), hash(same))
+        # only a & b are considered, c is ignored, same as equality
+        self.assertEqual(hash(one), hash(matches))
+        self.assertNotEqual(hash(one), hash(doesnt))
+
+        values = {one, same, matches, doesnt}
+        # one, same, & matches all hash/compare equal so only 2 unique
+        # members end up in the set
+        self.assertEqual(2, len(values))
+        self.assertIn(one, values)
+        self.assertIn(doesnt, values)
+
     def test_not_implemented(self):
         class MissingMethod(EqualityTupleMixin):
             pass
 
         with self.assertRaises(NotImplementedError):
             MissingMethod() == MissingMethod()
+
+    def test_hash_requires_hashable_equality_tuple(self):
+        class Unhashable(EqualityTupleMixin):
+            def _equality_tuple(self):
+                return (1, [2, 3])
+
+        with self.assertRaises(TypeError):
+            hash(Unhashable())

@@ -375,9 +375,6 @@ class SrvValue(EqualityTupleMixin, dict):
         new.target = new.target.format(**params)
         return new
 
-    def __hash__(self):
-        return hash(self.__repr__())
-
     def _equality_tuple(self):
         return (self.priority, self.weight, self.port, self.target)
 

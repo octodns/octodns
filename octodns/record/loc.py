@@ -414,24 +414,6 @@ class LocValue(EqualityTupleMixin, dict):
     def template(self, params):
         return self
 
-    def __hash__(self):
-        return hash(
-            (
-                self.lat_degrees,
-                self.lat_minutes,
-                self.lat_seconds,
-                self.lat_direction,
-                self.long_degrees,
-                self.long_minutes,
-                self.long_seconds,
-                self.long_direction,
-                self.altitude,
-                self.size,
-                self.precision_horz,
-                self.precision_vert,
-            )
-        )
-
     def _equality_tuple(self):
         return (
             self.lat_degrees,

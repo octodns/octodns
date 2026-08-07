@@ -145,7 +145,7 @@ class GeoValue(EqualityTupleMixin):
             self.continent_code,
             self.country_code,
             self.subdivision_code,
-            self.values,
+            tuple(self.values),
         )
 
     def __repr__(self):

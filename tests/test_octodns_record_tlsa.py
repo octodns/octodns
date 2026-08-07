@@ -896,3 +896,37 @@ class TestTlsaValue(TestCase):
         self.assertEqual(
             'abab42ababababababab', got.certificate_association_data
         )
+
+    def test_hash(self):
+        a = TlsaValue(
+            {
+                'certificate_usage': 1,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABABABABABABABABAB',
+            }
+        )
+        same = TlsaValue(
+            {
+                'certificate_usage': 1,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABABABABABABABABAB',
+            }
+        )
+        different = TlsaValue(
+            {
+                'certificate_usage': 2,
+                'selector': 1,
+                'matching_type': 1,
+                'certificate_association_data': 'ABABABABABABABABAB',
+            }
+        )
+
+        self.assertEqual(hash(a), hash(same))
+        self.assertNotEqual(hash(a), hash(different))
+
+        values = {a, same, different}
+        self.assertEqual(2, len(values))
+        self.assertIn(a, values)
+        self.assertIn(different, values)

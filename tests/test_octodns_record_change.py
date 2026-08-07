@@ -90,3 +90,18 @@ class TestChanges(TestCase):
             ],
             sorted(changes),
         )
+
+    def test_hash(self):
+        a = Create(self.record_a_1)
+        same = Create(self.record_a_1)
+        different = Create(self.record_aaaa_1)
+
+        self.assertEqual(hash(a), hash(same))
+        self.assertNotEqual(hash(a), hash(different))
+        # a Create and Delete of the same record differ by CLASS_ORDERING
+        self.assertNotEqual(hash(a), hash(Delete(self.record_a_1)))
+
+        changes = {a, same, different}
+        self.assertEqual(2, len(changes))
+        self.assertIn(a, changes)
+        self.assertIn(different, changes)
