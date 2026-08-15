@@ -1,17 +1,39 @@
+## 1.22.0 - 2026-08-15
+
+Minor:
+
+* Add `to_rdata_text()`/`from_rdata_text()` value conversion APIs and
+`Record.to_rrset()`/`Record.from_rrset()`/`Record.from_rrsets()` record
+conversion APIs with the grouped `Rrset` carrier. (See PR for details) -
+[#1452](https://github.com/octodns/octodns/pull/1452)
+* Preserve and deprecate `rdata_text`, `parse_rdata_text()`, `record.rrs`, `Record.from_rrs()`, and
+`Rr` APIs for removal in 2.0 - [#1452](https://github.com/octodns/octodns/pull/1452)
+* Rename `RrParseError` to `RdataParseError` while retaining the old name as a
+1.x compatibility alias. -
+[#1452](https://github.com/octodns/octodns/pull/1452)
+* Add EqualityTupleMixin.__hash__ default and consolidate the hand-rolled __hash__ implementations it made redundant
+
+Patch:
+
+* Fix SVCB/HTTPS value ordering: sort svcparams as a tuple instead of comparing as sets - [#1459](https://github.com/octodns/octodns/pull/1459)
+
 ## 1.21.1 - 2026-08-01
 
 Patch:
+
 * Fix OwnershipProcessor dropping changes to records whose type contains lower-case letters, e.g. octodns-route53's Route53Provider/ALIAS - #1455 - [#1456](https://github.com/octodns/octodns/pull/1456)
 * Fix CaaValue.rdata_text to quote the value field per RFC 8659, matching NAPTR/URI - #1447 - [#1449](https://github.com/octodns/octodns/pull/1449)
 
 ## 1.21.0 - 2026-07-08
 
 Minor:
+
 * Add per-zone validators.record.disable_validators and validators.zone.disable_validators to selectively disable built-in validators for individual zones, additive to the global manager.validators config - [#1441](https://github.com/octodns/octodns/pull/1441)
 * Convert record/value validator reasons to `ValidationReason` objects, unifying with zone-level validators and surfacing `via: <validator-id>` attribution in record/value `ValidationError` messages - [#1443](https://github.com/octodns/octodns/pull/1443)
 * Add required validator_id parameter to ValidatorReason - [#1439](https://github.com/octodns/octodns/pull/1439)
 
 Patch:
+
 * Fix MailZoneValidator's single-MX provider exemption to match known providers even when the MX exchange is missing its trailing dot (e.g. when the mx-value-best-practice validator is disabled for a zone) - [#1442](https://github.com/octodns/octodns/pull/1442)
 * Fix lenient parameter leak across zones in validate_configs - [#1440](https://github.com/octodns/octodns/pull/1440)
 * Collapse remaining multi-line string concatenations to avoid f-string interpolation bugs - [#1438](https://github.com/octodns/octodns/pull/1438)
@@ -20,6 +42,7 @@ Patch:
 ## 1.20.0 - 2026-06-21
 
 Minor:
+
 * Allow a config validator to override a built-in validator by reusing its id, making it easy to tweak built-in validator parameters (e.g. forcing the mail zone validator into no-mail mode) - [#1434](https://github.com/octodns/octodns/pull/1434)
 * OwnershipProcessor: refuse to take over records whose existing ownership marker has a foreign value; add allow_takeover (default false) to restore prior behavior. - [#1432](https://github.com/octodns/octodns/pull/1432)
 * MailZoneValidator: add min_mx parameter (default 2) and single_mx_regexes for exempting known single-MX providers (SendGrid, Amazon SES, Postmark) from the redundancy check - [#1430](https://github.com/octodns/octodns/pull/1430)
@@ -27,10 +50,12 @@ Minor:
 ## 1.19.0 - 2026-06-07
 
 Minor:
+
 * Deprecate default of YamlProvider escaped_semicolons=True - [#1419](https://github.com/octodns/octodns/pull/1419)
 * Support tilde (~) expansion in !include directives - [#1420](https://github.com/octodns/octodns/pull/1420)
 
 Patch:
+
 * Fix MailZoneValidator auto-detection: DMARC p=reject is a best-practice enforcement policy, not a no-mail signal — zones with real MX records and p=reject DMARC were incorrectly flagged. Auto-detection now uses MX as the primary signal (Null MX → no-mail, real MX → mail) with SPF as fallback; DMARC policy is never used for mode detection. Closes #1422. - [#1425](https://github.com/octodns/octodns/pull/1425)
 * Fix #1427: restore sub-zone record check in Zone.add_record so leniently-added ownership records are not rejected at validate time - [#1428](https://github.com/octodns/octodns/pull/1428)
 
@@ -55,6 +80,7 @@ Patch:
 
 * Fix RFC-based validators to run only in strict set and sync documentation - [#1414](https://github.com/octodns/octodns/pull/1414)
 * Handle null values in TXT/SPF records gracefully, raising ValidationError instead of TypeError/AttributeError - [#1402](https://github.com/octodns/octodns/pull/1402)
+
 ## 1.17.0 - 2026-05-06 - Now with more validation
 
 Minor:
