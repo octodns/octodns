@@ -30,6 +30,7 @@ from octodns.manager import (
     ManagerException,
     _AggregateTarget,
 )
+from octodns.merge import CaaMerger, TxtMerger
 from octodns.processor.base import BaseProcessor
 from octodns.provider.yaml import YamlProvider
 from octodns.record import Create, Delete, Record, Update
@@ -1606,6 +1607,93 @@ class TestManager(TestCase):
         # We planned a delete again, but this time removed it from the plan, so
         # no plans
         self.assertFalse(plans)
+
+    def test_config_mergers(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('simple.yaml'))
+
+            # nothing configured -> empty
+            self.assertEqual({}, manager._config_mergers({}))
+            self.assertEqual({}, manager.mergers)
+
+            # a configured merger instance is created from class + kwargs
+            result = manager._config_mergers(
+                {
+                    'my-caa': ContextDict(
+                        {'class': 'octodns.merge.CaaMerger'}, context='test'
+                    )
+                }
+            )
+            self.assertIn('my-caa', result)
+            self.assertIsInstance(result['my-caa'], CaaMerger)
+
+            # missing class -> ManagerException
+            with self.assertRaises(ManagerException) as ctx:
+                manager._config_mergers(
+                    {'no-class': ContextDict({}, context='test')}
+                )
+            self.assertIn('missing class', str(ctx.exception))
+
+            # class that fails to instantiate -> TypeError -> ManagerException
+            with self.assertRaises(ManagerException) as ctx:
+                manager._config_mergers(
+                    {
+                        'bad': ContextDict(
+                            {'class': 'octodns.zone.Zone'}, context='test'
+                        )
+                    }
+                )
+            self.assertIn('Incorrect merger config', str(ctx.exception))
+
+            # instantiable class that isn't a BaseMerger -> ManagerException
+            with self.assertRaises(ManagerException) as ctx:
+                manager._config_mergers(
+                    {
+                        'bad': ContextDict(
+                            {'class': 'octodns.context.ContextDict'},
+                            context='test',
+                        )
+                    }
+                )
+            self.assertIn('must subclass BaseMerger', str(ctx.exception))
+
+    def test_mergers(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            manager = Manager(get_config_filename('mergers.yaml'))
+
+            # global list holds the default merger ids (built-in caa)
+            self.assertIn('caa', manager.global_mergers)
+            self.assertNotIn('txt', manager.global_mergers)
+
+            # zone-level list overrides the global list, built-in txt
+            zone = manager.get_zone('unit.tests.')
+            self.assertEqual([TxtMerger().id], [m.id for m in zone.mergers])
+
+            # configured (non-built-in) merger resolves by name
+            zone = manager.get_zone('configured.tests.')
+            self.assertEqual([CaaMerger().id], [m.id for m in zone.mergers])
+            self.assertIsInstance(zone.mergers[0], CaaMerger)
+
+            # zone with no per-zone mergers -> falls back to global default
+            zone = manager.get_zone('default.tests.')
+            self.assertEqual(['caa'], [m.id for m in zone.mergers])
+
+            # unknown merger id -> ManagerException
+            with self.assertRaises(ManagerException) as ctx:
+                manager.get_zone('bad.tests.')
+            self.assertIn('Unknown merger', str(ctx.exception))
+
+    def test_mergers_missing_class(self):
+        with TemporaryDirectory() as tmpdir:
+            environ['YAML_TMP_DIR'] = tmpdir.dirname
+            environ['YAML_TMP_DIR2'] = tmpdir.dirname
+            with self.assertRaises(ManagerException) as ctx:
+                Manager(get_config_filename('mergers-missing-class.yaml'))
+            self.assertIn('missing class', str(ctx.exception))
 
     def test_try_version(self):
         manager = Manager(get_config_filename('simple.yaml'))

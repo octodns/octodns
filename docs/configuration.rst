@@ -582,6 +582,84 @@ That validator is then only active when ``manager.enabled`` includes ``'rfc'``.
 As long as the module is imported before Manager initialises, the validator
 will be in the available registry and activated appropriately.
 
+Mergers
+-------
+
+A *merger* combines two records that share the same name and type into a
+single record. Unlike processors, which run for every record, a merger is
+opt-in and only ever *adds* values to a merge — it can never remove or replace
+them, so the merged values are always a superset of the inputs. That is safe
+for CAA, where unioning within a ``tag`` only adds policy entries. TXT is
+different: ``txt`` keeps every distinct text value, so merging two sources that
+each carry a ``v=spf1 ...`` TXT value produces one RRset with multiple SPF
+policies, which is invalid. Only enable ``txt`` where combining TXT values is
+known to be safe, and prefer scoping it per-zone rather than globally.
+
+Two levels of configuration decide which mergers run:
+
+* ``manager.mergers`` is a global default list of merger ids applied to every
+  zone that doesn't specify its own ``mergers``.
+* ``zone.mergers`` overrides the global default for a single zone.
+
+Both take a list of ids. Two built-in mergers ship with octoDNS:
+
+* ``caa`` merges CAA records by unioning values within each ``tag``.
+* ``txt`` merges TXT records by keeping every distinct text value.
+
+For example::
+
+  manager:
+    mergers:
+      - caa
+      - txt
+
+  providers:
+    in:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/config
+    dump:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/yaml
+
+  zones:
+    unit.tests.:
+      # overrides the global default, only merges TXT records here
+      mergers:
+        - txt
+      sources:
+        - in
+      targets:
+        - dump
+
+Reusable mergers with extra configuration can be defined in the top-level
+``mergers`` map and referenced by id from a zone::
+
+  mergers:
+    my-caa:
+      class: octodns.merge.CaaMerger
+
+  providers:
+    in:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/config
+    dump:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/yaml
+
+  zones:
+    unit.tests.:
+      mergers:
+        - my-caa
+      sources:
+        - in
+      targets:
+        - dump
+
+When two records with the same name and type merge but carry different TTLs,
+octoDNS keeps the existing record's TTL and logs a warning — the combined
+values are order-independent, but the TTL of whichever record was added first
+wins.
+
 ``strict_supports``
 -------------------
 
