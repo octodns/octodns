@@ -582,6 +582,65 @@ That validator is then only active when ``manager.enabled`` includes ``'rfc'``.
 As long as the module is imported before Manager initialises, the validator
 will be in the available registry and activated appropriately.
 
+Mergers
+-------
+
+A *merger* combines two records that share the same name and type into a
+single record. Unlike processors, which run for every record, a merger is
+opt-in and only ever *adds* values to a merge — it can never remove or replace
+them, so a merge is always a safe superset.
+
+Two levels of configuration decide which mergers run:
+
+* ``manager.mergers`` is a global default list of merger ids applied to every
+  zone that doesn't specify its own ``mergers``.
+* ``zone.mergers`` overrides the global default for a single zone.
+
+Both take a list of ids. Two built-in mergers ship with octoDNS:
+
+* ``caa`` merges CAA records by unioning values within each ``tag``.
+* ``txt`` merges TXT records by keeping every distinct text value.
+
+For example::
+
+  manager:
+    mergers:
+      - caa
+      - txt
+
+  zones:
+    unit.tests.:
+      sources:
+        config:
+      targets:
+        yaml:
+          directory: tests/yaml
+      # overrides the global default, only merges TXT records here
+      mergers:
+        - txt
+
+Reusable mergers with extra configuration can be defined in the top-level
+``mergers`` map and referenced by id from a zone::
+
+  mergers:
+    my-caa:
+      class: octodns.merge.CaaMerger
+
+  zones:
+    unit.tests.:
+      sources:
+        config:
+      targets:
+        yaml:
+          directory: tests/yaml
+      mergers:
+        - my-caa
+
+When two records with the same name and type merge but carry different TTLs,
+octoDNS keeps the existing record's TTL and logs a warning — the combined
+values are order-independent, but the TTL of whichever record was added first
+wins.
+
 ``strict_supports``
 -------------------
 

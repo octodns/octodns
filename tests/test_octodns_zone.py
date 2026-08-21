@@ -8,6 +8,7 @@ from helpers import SimpleProvider
 
 from octodns.context import ContextDict
 from octodns.idna import idna_encode
+from octodns.merge import CaaMerger, TxtMerger
 from octodns.record import (
     AaaaRecord,
     ARecord,
@@ -983,6 +984,98 @@ class TestZone(TestCase):
         # finally remove the root NS, no more
         zone.remove_record(root_ns)
         self.assertFalse(zone.root_ns)
+
+
+class TestZoneMergers(TestCase):
+    def _caa(self, zone, name, values):
+        return Record.new(
+            zone, name, {'ttl': 300, 'type': 'CAA', 'values': values}
+        )
+
+    def _txt(self, zone, name, values):
+        return Record.new(
+            zone, name, {'ttl': 300, 'type': 'TXT', 'values': values}
+        )
+
+    def test_no_mergers_raises(self):
+        # default (no mergers) behaves exactly as before: duplicates raise
+        zone = Zone('unit.tests.', [])
+        zone.add_record(
+            self._caa(
+                zone, 'caa', [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}]
+            )
+        )
+        with self.assertRaises(DuplicateRecordException):
+            zone.add_record(
+                self._caa(
+                    zone,
+                    'caa',
+                    [{'flags': 0, 'tag': 'issue', 'value': 'b.com'}],
+                )
+            )
+
+    def test_caa_merge(self):
+        zone = Zone('unit.tests.', [], mergers=[CaaMerger()])
+        zone.add_record(
+            self._caa(
+                zone,
+                'caa',
+                [{'flags': 0, 'tag': 'issue', 'value': 'letsencrypt.org'}],
+            )
+        )
+        # a disjoint tag still merges into the same record
+        zone.add_record(
+            self._caa(
+                zone, 'caa', [{'flags': 0, 'tag': 'issuewild', 'value': ''}]
+            )
+        )
+
+        caa = next(
+            r for r in zone.records if r._type == 'CAA' and r.name == 'caa'
+        )
+        self.assertEqual(
+            sorted((v.tag, v.value) for v in caa.values),
+            [('issue', 'letsencrypt.org'), ('issuewild', '')],
+        )
+
+    def test_caa_subset_raises(self):
+        # incoming fully present in existing -> nothing to merge -> raise
+        zone = Zone('unit.tests.', [], mergers=[CaaMerger()])
+        zone.add_record(
+            self._caa(
+                zone, 'caa', [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}]
+            )
+        )
+        with self.assertRaises(DuplicateRecordException):
+            zone.add_record(
+                self._caa(
+                    zone,
+                    'caa',
+                    [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}],
+                )
+            )
+
+    def test_txt_merge(self):
+        zone = Zone('unit.tests.', [], mergers=[TxtMerger()])
+        zone.add_record(self._txt(zone, 'txt', ['foo']))
+        zone.add_record(self._txt(zone, 'txt', ['bar']))
+
+        txt = next(
+            r for r in zone.records if r._type == 'TXT' and r.name == 'txt'
+        )
+        self.assertEqual(['bar', 'foo'], sorted(str(v) for v in txt.values))
+
+    def test_merger_ignores_other_type(self):
+        # a CAA merger must not merge TXT records -> duplicate raises
+        zone = Zone('unit.tests.', [], mergers=[CaaMerger()])
+        zone.add_record(self._txt(zone, 'txt', ['foo']))
+        with self.assertRaises(DuplicateRecordException):
+            zone.add_record(self._txt(zone, 'txt', ['bar']))
+
+    def test_copy_preserves_mergers(self):
+        zone = Zone('unit.tests.', [], mergers=[CaaMerger(), TxtMerger()])
+        copy = zone.copy()
+        self.assertEqual(['caa', 'txt'], sorted(m.id for m in copy.mergers))
 
 
 class TestZoneValidatorsConfig(TestCase):

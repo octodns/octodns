@@ -1,0 +1,54 @@
+manager:
+  max_workers: 2
+  mergers:
+    - caa
+
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+    supports_root_ns: False
+    strict_supports: False
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+    supports_root_ns: False
+    strict_supports: False
+
+mergers:
+  # configured merger, mirrors the processor "test" pattern
+  my-caa:
+    class: octodns.merge.CaaMerger
+
+zones:
+  unit.tests.:
+    # zone-level list overrides the global list
+    mergers:
+    - txt
+    sources:
+    - in
+    targets:
+    - dump
+
+  configured.tests.:
+    mergers:
+    - my-caa
+    sources:
+    - in
+    targets:
+    - dump
+
+  # no per-zone `mergers` key -> falls back to the global default [caa]
+  default.tests.:
+    sources:
+    - in
+    targets:
+    - dump
+
+  bad.tests.:
+    mergers:
+    - does-not-exist
+    sources:
+    - in
+    targets:
+    - dump

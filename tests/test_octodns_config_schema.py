@@ -52,7 +52,11 @@ class TestConfigSchema(TestCase):
     def test_all_optional_top_level_keys_valid(self):
         self._valid(
             self._base(
-                manager={}, processors={}, validators={}, secret_handlers={}
+                manager={},
+                processors={},
+                validators={},
+                secret_handlers={},
+                mergers={},
             )
         )
 
@@ -70,6 +74,7 @@ class TestConfigSchema(TestCase):
                     'enable_checksum': True,
                     'auto_arpa': True,
                     'processors': ['p1'],
+                    'mergers': ['caa', 'txt'],
                     'post_processors': ['p2'],
                     'validators': {
                         'enabled': ['legacy'],
@@ -91,6 +96,13 @@ class TestConfigSchema(TestCase):
                 }
             )
         )
+
+    def test_manager_mergers_valid(self):
+        self._valid(self._base(manager={'mergers': ['caa', 'txt']}))
+
+    def test_manager_mergers_bad_type_rejected(self):
+        # mergers must be a list of ids, not a bare string
+        self._invalid(self._base(manager={'mergers': 'caa'}))
 
     def test_auto_arpa_as_boolean(self):
         self._valid(self._base(manager={'auto_arpa': True}))
@@ -610,6 +622,37 @@ class TestConfigSchema(TestCase):
             )
         )
 
+    # ── mergers: ──────────────────────────────────────────────────────────────
+
+    def test_top_level_mergers_missing_class_fails(self):
+        self._invalid(self._base(mergers={'m': {}}))
+
+    def test_top_level_mergers_builtin_valid(self):
+        self._valid(
+            self._base(
+                mergers={
+                    'my-caa': {'class': 'octodns.merge.CaaMerger'},
+                    'my-txt': {'class': 'octodns.merge.TxtMerger'},
+                }
+            )
+        )
+
+    def test_top_level_mergers_unknown_class_allowed(self):
+        self._valid(
+            self._base(
+                mergers={
+                    'custom': {
+                        'class': 'my.custom.Merger',
+                        'arbitrary': 'kwarg',
+                    }
+                }
+            )
+        )
+
+    def test_top_level_mergers_bad_type_rejected(self):
+        # the configured-merger map must be a mapping of id -> class dict
+        self._invalid(self._base(mergers=['caa', 'txt']))
+
     # ── zones: ───────────────────────────────────────────────────────────────
 
     def test_regular_zone_valid(self):
@@ -648,6 +691,7 @@ class TestConfigSchema(TestCase):
                         'sources': ['config'],
                         'targets': ['route53'],
                         'processors': ['p1'],
+                        'mergers': ['caa', 'txt'],
                         'lenient': True,
                         'glob': '*.example.*',
                         'validators': {
@@ -664,6 +708,34 @@ class TestConfigSchema(TestCase):
                         'targets': ['route53'],
                         'regex': r'^.*\.arpa\.$',
                     },
+                },
+            }
+        )
+
+    def test_zone_mergers_valid(self):
+        self._valid(
+            {
+                'providers': {},
+                'zones': {
+                    'example.com.': {
+                        'sources': ['config'],
+                        'targets': ['route53'],
+                        'mergers': ['txt'],
+                    }
+                },
+            }
+        )
+
+    def test_zone_mergers_bad_type_rejected(self):
+        self._invalid(
+            {
+                'providers': {},
+                'zones': {
+                    'example.com.': {
+                        'sources': ['config'],
+                        'targets': ['route53'],
+                        'mergers': 'txt',
+                    }
                 },
             }
         )
