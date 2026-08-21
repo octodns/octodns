@@ -588,7 +588,12 @@ Mergers
 A *merger* combines two records that share the same name and type into a
 single record. Unlike processors, which run for every record, a merger is
 opt-in and only ever *adds* values to a merge — it can never remove or replace
-them, so a merge is always a safe superset.
+them, so the merged values are always a superset of the inputs. That is safe
+for CAA, where unioning within a ``tag`` only adds policy entries. TXT is
+different: ``txt`` keeps every distinct text value, so merging two sources that
+each carry a ``v=spf1 ...`` TXT value produces one RRset with multiple SPF
+policies, which is invalid. Only enable ``txt`` where combining TXT values is
+known to be safe, and prefer scoping it per-zone rather than globally.
 
 Two levels of configuration decide which mergers run:
 
@@ -608,16 +613,23 @@ For example::
       - caa
       - txt
 
+  providers:
+    in:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/config
+    dump:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/yaml
+
   zones:
     unit.tests.:
-      sources:
-        config:
-      targets:
-        yaml:
-          directory: tests/yaml
       # overrides the global default, only merges TXT records here
       mergers:
         - txt
+      sources:
+        - in
+      targets:
+        - dump
 
 Reusable mergers with extra configuration can be defined in the top-level
 ``mergers`` map and referenced by id from a zone::
@@ -626,15 +638,22 @@ Reusable mergers with extra configuration can be defined in the top-level
     my-caa:
       class: octodns.merge.CaaMerger
 
+  providers:
+    in:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/config
+    dump:
+      class: octodns.provider.yaml.YamlProvider
+      directory: tests/yaml
+
   zones:
     unit.tests.:
-      sources:
-        config:
-      targets:
-        yaml:
-          directory: tests/yaml
       mergers:
         - my-caa
+      sources:
+        - in
+      targets:
+        - dump
 
 When two records with the same name and type merge but carry different TTLs,
 octoDNS keeps the existing record's TTL and logs a warning — the combined
