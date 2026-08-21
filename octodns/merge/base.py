@@ -65,25 +65,6 @@ class MergerRegistry:
             id: merger.__class__.__name__ for id, merger in self.mergers.items()
         }
 
-    def merge(self, mergers, existing, record):
-        '''
-        Fold the given list of mergers over ``existing``/``record``.
-
-        Each merger sees the accumulated ``existing`` record as its first
-        argument and the *original* incoming ``record`` as its second, so a
-        merger only ever adds to a merge and can never unwind work done by
-        an earlier merger in the list. Returns the merged record, or
-        ``None`` if no merger produced a merge.
-        '''
-        merged = existing
-        produced = False
-        for merger in mergers:
-            result = merger.merge(merged, record)
-            if result is not None:
-                merged = result
-                produced = True
-        return merged if produced else None
-
 
 # module-level singleton, mirroring the pattern used for VALIDATORS
 REGISTRY = MergerRegistry()

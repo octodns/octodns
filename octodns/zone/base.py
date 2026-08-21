@@ -8,7 +8,6 @@ from logging import getLogger
 
 from ..deprecation import deprecated
 from ..idna import idna_decode, idna_encode
-from ..merge import REGISTRY as merger_registry
 from ..record import Create, Delete
 from .exception import ValidationError, ZoneException
 from .validator import ZoneValidatorRegistry
@@ -553,9 +552,14 @@ class Zone(object):
         if record in node:
             # We already have a record at this node of this type
             existing = [c for c in node if c == record][0]
-            merged = None
-            if self.mergers:
-                merged = merger_registry.merge(self.mergers, existing, record)
+            merged = existing
+            produced = False
+            for merger in self.mergers:
+                result = merger.merge(merged, record)
+                if result is not None:
+                    merged = result
+                    produced = True
+            merged = merged if produced else None
             if merged is None:
                 raise DuplicateRecordException(
                     f'Duplicate record {record.fqdn}, type {record._type}',

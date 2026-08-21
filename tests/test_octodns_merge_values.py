@@ -9,7 +9,7 @@ from octodns.merge import CaaMerger, MergerRegistry, TxtMerger
 from octodns.merge.base import REGISTRY, BaseMerger
 from octodns.record import Record
 from octodns.record.exception import RecordException
-from octodns.zone import Zone
+from octodns.zone import DuplicateRecordException, Zone
 
 
 class TestMergeValues(TestCase):
@@ -256,50 +256,35 @@ class TestMergerRegistry(TestCase):
         self.assertEqual(2, len(self.registry))
         self.assertEqual({'caa', 'txt'}, set(self.registry))
 
+    def _caa(self, zone, value):
+        return Record.new(
+            zone,
+            'caa',
+            {
+                'ttl': 300,
+                'type': 'CAA',
+                'values': [{'flags': 0, 'tag': 'issue', 'value': value}],
+            },
+        )
+
     def test_merge_fold_produces(self):
-        self.registry.register(CaaMerger())
-        zone = Zone('unit.tests.', [])
-        existing = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [
-                    {'flags': 0, 'tag': 'issue', 'value': 'letsencrypt.org'}
-                ],
-            },
-        )
-        incoming = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [
-                    {'flags': 0, 'tag': 'issue', 'value': 'digicert.com'}
-                ],
-            },
-        )
-        merged = self.registry.merge([CaaMerger()], existing, incoming)
-        self.assertIsNotNone(merged)
+        # folding the configured mergers over the incoming record produces a
+        # merge, so adding the second record combines rather than duplicating
+        zone = Zone('unit.tests.', [], mergers=[CaaMerger()])
+        existing = self._caa(zone, 'letsencrypt.org')
+        incoming = self._caa(zone, 'digicert.com')
+        zone.add_record(existing)
+        zone.add_record(incoming)
+        caa = [r for r in zone.records if r.name == 'caa'][0]
         self.assertEqual(
-            sorted((v.tag, v.value) for v in merged.values),
+            sorted((v.tag, v.value) for v in caa.values),
             [('issue', 'digicert.com'), ('issue', 'letsencrypt.org')],
         )
 
     def test_merge_fold_no_produce(self):
-        # no merger produces a merge -> None
-        zone = Zone('unit.tests.', [])
-        existing = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}],
-            },
-        )
+        # no merger produces a merge -> the incoming record is a duplicate
+        zone = Zone('unit.tests.', [], mergers=[TxtMerger()])
+        existing = self._caa(zone, 'a.com')
         incoming = Record.new(
             zone,
             'caa',
@@ -310,64 +295,30 @@ class TestMergerRegistry(TestCase):
             },
         )
         # TxtMerger doesn't handle CAA, so nothing merges
-        self.assertIsNone(
-            self.registry.merge([TxtMerger()], existing, incoming)
-        )
+        zone.add_record(existing)
+        with self.assertRaises(DuplicateRecordException):
+            zone.add_record(incoming)
 
     def test_merge_fold_empty(self):
-        zone = Zone('unit.tests.', [])
-        existing = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}],
-            },
-        )
-        incoming = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [{'flags': 0, 'tag': 'issue', 'value': 'b.com'}],
-            },
-        )
-        self.assertIsNone(self.registry.merge([], existing, incoming))
+        # no mergers configured -> a same-name/type record is a duplicate
+        zone = Zone('unit.tests.', [], mergers=[])
+        existing = self._caa(zone, 'a.com')
+        incoming = self._caa(zone, 'b.com')
+        zone.add_record(existing)
+        with self.assertRaises(DuplicateRecordException):
+            zone.add_record(incoming)
 
     def test_merge_fold_accumulates(self):
         # each merger sees the accumulated record; TXT merger passes CAA
         # through unchanged while CAA merges
-        zone = Zone('unit.tests.', [])
-        existing = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [
-                    {'flags': 0, 'tag': 'issue', 'value': 'letsencrypt.org'}
-                ],
-            },
-        )
-        incoming = Record.new(
-            zone,
-            'caa',
-            {
-                'ttl': 300,
-                'type': 'CAA',
-                'values': [
-                    {'flags': 0, 'tag': 'issue', 'value': 'digicert.com'}
-                ],
-            },
-        )
-        merged = self.registry.merge(
-            [TxtMerger(), CaaMerger()], existing, incoming
-        )
-        self.assertIsNotNone(merged)
+        zone = Zone('unit.tests.', [], mergers=[TxtMerger(), CaaMerger()])
+        existing = self._caa(zone, 'letsencrypt.org')
+        incoming = self._caa(zone, 'digicert.com')
+        zone.add_record(existing)
+        zone.add_record(incoming)
+        caa = [r for r in zone.records if r.name == 'caa'][0]
         self.assertEqual(
-            sorted((v.tag, v.value) for v in merged.values),
+            sorted((v.tag, v.value) for v in caa.values),
             [('issue', 'digicert.com'), ('issue', 'letsencrypt.org')],
         )
 
