@@ -5,6 +5,7 @@
 
 from logging import getLogger
 
+from ..record import Record
 from ..record.exception import RecordException
 
 
@@ -113,10 +114,18 @@ class BaseMerger:
         ``values`` (a list of value objects).
 
         The merged record keeps ``existing``'s ``octodns`` metadata (so any
-        per-zone opt-in flags survive) and ``existing``'s TTL (so a merge is
-        not silently sensitive to record load order). When the incoming record
-        carries a different TTL a warning is logged. The source is taken from
-        the incoming ``record`` (the record being added).
+        per-zone opt-in flags survive), any other top-level data ``existing``
+        carries (e.g. ``dynamic``/``geo``, for a merger that combines those
+        record types), and ``existing``'s TTL (so a merge is not silently
+        sensitive to record load order). When the incoming record carries a
+        different TTL a warning is logged. The source is taken from the
+        incoming ``record`` (the record being added).
+
+        Built via :meth:`~octodns.record.base.Record.new` so the merged
+        record — the one that is actually planned and applied — is
+        record-validated like any other. A merger is free to add, drop, or
+        rewrite values, so the merged whole can newly pass or newly fail
+        validation independent of whether either input record did.
         '''
         if record.ttl != existing.ttl:
             self.log.warning(
@@ -128,9 +137,11 @@ class BaseMerger:
                 existing.ttl,
                 record.ttl,
             )
-        data = {'ttl': existing.ttl, 'type': existing._type, 'values': values}
-        if existing.octodns:
-            data['octodns'] = existing.octodns
-        return existing.__class__(
+        data = dict(existing.data)
+        data.pop('value', None)
+        data['type'] = existing._type
+        data['ttl'] = existing.ttl
+        data['values'] = values
+        return Record.new(
             existing.zone, existing.name, data, source=record.source
         )

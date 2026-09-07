@@ -5,10 +5,13 @@
 
 from unittest import TestCase
 
+from helpers import validators_snapshot
+
 from octodns.merge import CaaMerger, MergerRegistry, TxtMerger
 from octodns.merge.base import REGISTRY, BaseMerger
 from octodns.record import Record
-from octodns.record.exception import RecordException
+from octodns.record.exception import RecordException, ValidationError
+from octodns.record.validator import ValidationReason, ValueValidator
 from octodns.zone import DuplicateRecordException, Zone
 
 
@@ -184,6 +187,87 @@ class TestMergeValues(TestCase):
 
     def test_base_merge_returns_none(self):
         self.assertIsNone(BaseMerger().merge(None, None))
+
+    def test_merged_record_is_validated(self):
+        # _merged_record builds the merged record via Record.new (not
+        # existing.__class__(...) directly), so a record validator sees the
+        # *merged* whole and can reject it even when neither input record
+        # fails on its own. A cross-value "at most one value" validator
+        # isolates exactly that: existing and incoming each carry a single
+        # value and pass; the union the merger produces carries two and
+        # must not silently ship.
+        class _AtMostOneValidator(ValueValidator):
+            def validate(self, value_cls, data, _type):
+                if len(data) > 1:
+                    return [
+                        ValidationReason(
+                            'too many values', validator_id=self.id
+                        )
+                    ]
+                return []
+
+        with validators_snapshot():
+            validator = _AtMostOneValidator('test-at-most-one')
+            Record.register_validator(validator, types=['CAA'])
+            Record.enable_validators(['legacy'])
+            Record.enable_validator('test-at-most-one', types=['CAA'])
+
+            existing = self._caa(
+                'caa', [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}]
+            )
+            incoming = self._caa(
+                'caa', [{'flags': 0, 'tag': 'issuewild', 'value': ''}]
+            )
+            with self.assertRaises(ValidationError) as ctx:
+                CaaMerger().merge(existing, incoming)
+            self.assertIn('too many values', str(ctx.exception))
+
+    def test_merged_record_preserves_other_keys(self):
+        # a merger isn't limited to CAA/TXT; make sure _merged_record
+        # doesn't silently drop non-value record data (e.g. `dynamic`) for
+        # a merger that combines some other record type
+        class _AUnionMerger(BaseMerger):
+            id = 'a-union'
+            _type = 'A'
+
+            def merge(self, existing, record):
+                if record._type != self._type:
+                    return None
+                values = sorted(set(existing.values) | set(record.values))
+                if values == existing.values:
+                    return None
+                return self._merged_record(existing, record, values)
+
+        zone = Zone('unit.tests.', [])
+        existing = Record.new(
+            zone,
+            'a',
+            {
+                'dynamic': {
+                    'pools': {'one': {'values': [{'value': '3.3.3.3'}]}},
+                    'rules': [{'pool': 'one'}],
+                },
+                'ttl': 60,
+                'type': 'A',
+                'values': ['1.1.1.1', '2.2.2.2'],
+            },
+        )
+        incoming = Record.new(
+            zone,
+            'a',
+            {'ttl': 60, 'type': 'A', 'values': ['1.1.1.1', '4.4.4.4']},
+        )
+        merged = _AUnionMerger().merge(existing, incoming)
+
+        self.assertIsNotNone(merged)
+        self.assertEqual(
+            ['1.1.1.1', '2.2.2.2', '4.4.4.4'],
+            sorted(str(v) for v in merged.values),
+        )
+        # the dynamic block survived the merge rather than being dropped
+        self.assertEqual(
+            existing.dynamic.pools.keys(), merged.dynamic.pools.keys()
+        )
 
 
 class TestMergerRegistry(TestCase):

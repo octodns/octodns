@@ -4,7 +4,11 @@
 
 from unittest import TestCase
 
-from helpers import SimpleProvider
+from helpers import (
+    SimpleProvider,
+    validators_snapshot,
+    zone_validators_snapshot,
+)
 
 from octodns.context import ContextDict
 from octodns.idna import idna_encode
@@ -1076,6 +1080,73 @@ class TestZoneMergers(TestCase):
         zone = Zone('unit.tests.', [], mergers=[CaaMerger(), TxtMerger()])
         copy = zone.copy()
         self.assertEqual(['caa', 'txt'], sorted(m.id for m in copy.mergers))
+
+    def test_caa_merge_with_best_practice_validators(self):
+        # reproduces https://github.com/octodns/octodns/pull/1464 as
+        # reported: a shared "forbid-all" CAA snippet (issue+issuewild)
+        # plus a per-zone CAA record (issue only), merged, with
+        # `strict`+`best-practice` record and zone validators enabled.
+        #
+        # Before the fix, the "issue only" record failed record-level
+        # validation via CaaValueBestPracticeValidator before it ever
+        # reached the merger, even though the merged RRset (once combined
+        # with the "forbid-all" record) does have an explicit issuewild.
+        with validators_snapshot(), zone_validators_snapshot():
+            Record.enable_validators(['strict', 'best-practice'])
+            Zone.enable_zone_validators(['strict', 'best-practice'])
+
+            zone = Zone('example.net.', [], mergers=[CaaMerger()])
+
+            # shared snippet: issue + issuewild, both prohibited
+            forbid_all = self._caa(
+                zone,
+                '',
+                [
+                    {'flags': 0, 'tag': 'issue', 'value': ';'},
+                    {'flags': 0, 'tag': 'issuewild', 'value': ';'},
+                ],
+            )
+            # per-zone record: issue only. Standalone this would have
+            # failed CaaValueBestPracticeValidator at Record.new time.
+            per_zone = self._caa(
+                zone, '', [{'flags': 0, 'tag': 'issue', 'value': 'ca2.com'}]
+            )
+
+            zone.add_record(forbid_all)
+            zone.add_record(per_zone)
+
+            # the merged whole is checked by CaaZoneValidator instead, and
+            # passes since issuewild is present
+            zone.validate()
+
+            caa = next(r for r in zone.records if r._type == 'CAA')
+            self.assertEqual(
+                sorted((v.tag, v.value) for v in caa.values),
+                [('issue', ';'), ('issue', 'ca2.com'), ('issuewild', ';')],
+            )
+
+    def test_caa_merge_still_fails_without_issuewild(self):
+        # same as above, but no source ever supplies issuewild -> the zone
+        # validator (not the record validator) is what now catches it
+        with validators_snapshot(), zone_validators_snapshot():
+            Record.enable_validators(['strict', 'best-practice'])
+            Zone.enable_zone_validators(['strict', 'best-practice'])
+
+            zone = Zone('example.net.', [], mergers=[CaaMerger()])
+            zone.add_record(
+                self._caa(
+                    zone, '', [{'flags': 0, 'tag': 'issue', 'value': 'a.com'}]
+                )
+            )
+            zone.add_record(
+                self._caa(
+                    zone, '', [{'flags': 0, 'tag': 'issue', 'value': 'b.com'}]
+                )
+            )
+
+            with self.assertRaises(ValidationError) as ctx:
+                zone.validate()
+            self.assertIn('caa-best-practices', str(ctx.exception))
 
 
 class TestZoneValidatorsConfig(TestCase):
