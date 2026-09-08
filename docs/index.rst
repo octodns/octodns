@@ -53,6 +53,9 @@ their own repositories and released as independent modules.
    * - /etc/hosts
      - `octodns_etchosts`_
      -
+   * - `AdGuard Home`_
+     - `davinkevin/octodns-adguard`_
+     -
    * - `Akamai Edge DNS`_
      - `octodns_edgedns`_
      -
@@ -187,6 +190,8 @@ their own repositories and released as independent modules.
      -
 
 .. _octodns_etchosts: https://github.com/octodns/octodns-etchosts/
+.. _AdGuard Home: https://adguard.com/adguard-home.html
+.. _davinkevin/octodns-adguard: https://gitlab.com/davinkevin.fr/projects/octodns-adguard
 .. _Akamai Edge DNS: https://www.akamai.com/products/edge-dns
 .. _octodns_edgedns: https://github.com/octodns/octodns-edgedns/
 .. _Amazon Route 53: https://aws.amazon.com/route53/
