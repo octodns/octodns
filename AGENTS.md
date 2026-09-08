@@ -82,7 +82,10 @@ The first commit on a branch must contain a changelog entry. Note that you shoul
   - `patch`: This is a bug fix.
   - `minor`: Adds new functionality/changes in a fully backwards-compatible way.
   - `major`: Substantial new functionality and/or breaking changes.
-  - `none`: This change does not need to be mentioned in the changelog.
+  - `none`: This change does not need to be mentioned in the changelog. Use this
+    for anything that doesn't affect user-facing behavior — internal tooling,
+    CI-only work, tests, and contributor/agent-facing documentation (e.g.
+    `AGENTS.md`, `CONTRIBUTING.md`) all qualify.
 - **`-a, --add`**: Run `git add` automatically on the newly created changelog entry.
 - **`-c, --commit`**: Run `git commit` to stage and commit the entry (and other staged changes) using the same description.
 - **`--continue`**: Continue a previously failed commit attempt.
@@ -93,13 +96,35 @@ The first commit on a branch must contain a changelog entry. Note that you shoul
 ./script/changelog create --type patch --add --commit "Fix DNS record parser bug"
 ```
 
+##### Changelog Entry Guidelines
+
+- **One entry per PR.** Almost every PR should add exactly one changelet, created
+  with the first commit, summarizing what the PR as a whole adds or changes.
+- **Keep it short.** A single sentence, two at most, describing the change from a
+  user's perspective — not the implementation details or a commit-by-commit
+  history. Review [CHANGELOG.md](CHANGELOG.md) for examples of the expected
+  length, content, and style.
+- Use `--type none` (see above) for changes that don't affect user-facing
+  behavior, rather than skipping the changelog entry step entirely — a `none`
+  entry still gets created and committed so the workflow stays consistent.
+
 #### 4. Subsequent Commits
 
-For any subsequent commits on the same branch, use `git commit` normally:
+For any subsequent commits on the same branch, use `git commit` normally — do not
+run `./script/changelog create` again:
 
 ```bash
 git commit --message "Commit message"
 ```
+
+- If a later commit materially changes the scope of the PR so the existing
+  changelog entry is no longer accurate, edit the entry's file directly under
+  `.changelog/` (update its description and, if needed, its `type:`) and include
+  that edit in the commit that changes the behavior.
+- A second entry is rare — only add one for a genuinely separate fix or change
+  made during the PR that would stand on its own in `CHANGELOG.md`. Never add a
+  second entry to update, correct, or adjust the first (unmerged) entry; fix the
+  original entry instead.
 
 #### 5. Push and Set Upstream
 
