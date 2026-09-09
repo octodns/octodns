@@ -118,7 +118,24 @@ class CaaValueBestPracticeValidator(ValueValidator):
     ``issuewild`` makes the wildcard-issuance policy implicit rather
     than explicit.
 
-    Enabled as part of the ``best-practice`` validator set::
+    .. note::
+       No longer part of the ``best-practice`` set. This check is about the
+       assembled CAA RRset, but value validators run per-source-record,
+       before same-name/type records from separate sources have had a
+       chance to be combined by a configured merger (see
+       :mod:`octodns.merge`) — a record contributing only ``issue`` would
+       fail here even when another source supplies ``issuewild`` for the
+       same name. :class:`~octodns.zone.caa.CaaZoneValidator`
+       (``caa-best-practices``) performs the identical check once the zone
+       is fully assembled and mergers have run, and remains part of
+       ``best-practice``. This validator stays registered (with an empty
+       ``sets``) so it can still be named explicitly in
+       ``manager.validators.record.validators`` and so a pre-existing
+       ``disable_validators``/``disabled_record_validators`` entry naming
+       ``caa-value-best-practice`` keeps working; it is just never
+       auto-enabled by a named set any more.
+
+    Previously enabled as part of the ``best-practice`` validator set::
 
       manager:
         enabled:
@@ -143,9 +160,9 @@ class CaaValue(EqualityTupleMixin, dict):
     VALIDATORS = [
         CaaValueValidator('caa-value', sets={'legacy'}),
         CaaValueRfcValidator('caa-value-rfc', sets={'strict'}),
-        CaaValueBestPracticeValidator(
-            'caa-value-best-practice', sets={'best-practice'}
-        ),
+        # empty `sets` means never auto-enabled by a named set (`None` would
+        # mean the opposite — always on); see the validator's docstring.
+        CaaValueBestPracticeValidator('caa-value-best-practice', sets=set()),
     ]
 
     @classmethod

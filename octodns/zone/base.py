@@ -143,6 +143,7 @@ class Zone(object):
         ignore_subzone_adds=False,
         context=None,
         validators=None,
+        mergers=None,
     ):
         '''
         Initialize a DNS zone.
@@ -188,6 +189,17 @@ class Zone(object):
                     starting with ``_``) cannot be disabled and raise
                     ``ZoneException`` if listed.
         :type validators: dict or None
+        :param mergers: Optional list of merger instances (subclasses of
+                    ``octodns.merge.base.BaseMerger``) that combine records
+                    sharing a name and type instead of raising
+                    ``DuplicateRecordException``. The list is folded left:
+                    each merger sees the accumulated record as its first arg
+                    and the incoming record as its second; the first merger
+                    that produces a merged record feeds the next. When no
+                    merger produces a merge the normal duplicate error is
+                    raised. Passing an empty list or ``None`` disables merging
+                    (the default behavior).
+        :type mergers: list or None
 
         :raises InvalidNameError: If the zone name is invalid (missing trailing
                                   dot, contains double dots, or has whitespace).
@@ -242,6 +254,10 @@ class Zone(object):
         self.disabled_record_validators, self.disabled_zone_validators = (
             self._parse_validators_config(self.validators_config)
         )
+
+        # Optional mergers combined left-to-right in add_record when a
+        # duplicate is detected. Forwarded unchanged by copy().
+        self.mergers = mergers or []
 
         # Copy-on-write semantics support, when `not None` this property will
         # point to a location with records for this `Zone`. Once `hydrated`
@@ -536,11 +552,26 @@ class Zone(object):
         if record in node:
             # We already have a record at this node of this type
             existing = [c for c in node if c == record][0]
-            raise DuplicateRecordException(
-                f'Duplicate record {record.fqdn}, type {record._type}',
-                existing,
-                record,
-            )
+            merged = existing
+            produced = False
+            for merger in self.mergers:
+                result = merger.merge(merged, record)
+                if result is not None:
+                    merged = result
+                    produced = True
+            merged = merged if produced else None
+            if merged is None:
+                raise DuplicateRecordException(
+                    f'Duplicate record {record.fqdn}, type {record._type}',
+                    existing,
+                    record,
+                )
+            # a merger combined the two records; the merged record is equal to
+            # `existing` under set semantics (same name & type), so discard the
+            # old one before adding the merged result, then fall through to the
+            # root-NS handling and node.add below
+            node.discard(existing)
+            record = merged
 
         if record._type == 'NS' and record.name == '':
             self._root_ns = record
@@ -808,6 +839,7 @@ class Zone(object):
             ignore_subzone_adds=self.ignore_subzone_adds,
             context=self.context,
             validators=self.validators_config,
+            mergers=self.mergers,
         )
         copy._origin = self
         return copy

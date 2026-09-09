@@ -17,6 +17,8 @@ from sys import stdout
 from . import __version__
 from .deprecation import deprecated
 from .idna import IdnaDict, idna_decode, idna_encode
+from .merge import REGISTRY as merger_registry
+from .merge.base import BaseMerger
 from .processor.arpa import AutoArpa
 from .processor.meta import MetaProcessor
 from .provider.base import BaseProvider
@@ -156,6 +158,14 @@ class Manager(object):
         validators_config = self.config.get('validators') or {}
         self._config_validators(validators_config)
         self._configure_validators(manager_config)
+
+        # global mergers act as the default for zones that don't specify a
+        # per-zone `mergers` list; per-zone config overrides the default
+        self.global_mergers = manager_config.get('mergers') or []
+        self.log.info('__init__: global_mergers=%s', self.global_mergers)
+
+        mergers_config = self.config.get('mergers') or {}
+        self.mergers = self._config_mergers(mergers_config)
 
         if self.auto_arpa:
             self.log.info(
@@ -330,6 +340,37 @@ class Manager(object):
                     f'Incorrect processor config for {processor_name}, {processor_config.context}'
                 )
         return processors
+
+    def _config_mergers(self, mergers_config):
+        mergers = {}
+        for merger_name, merger_config in mergers_config.items():
+            try:
+                _class = merger_config.pop('class')
+            except KeyError:
+                self.log.exception('Invalid merger class')
+                raise ManagerException(
+                    f'Merger {merger_name} is missing class, {merger_config.context}'
+                )
+            _class, module, version = self._get_named_class(
+                'merger', _class, merger_config.context
+            )
+            kwargs = self._build_kwargs(merger_config)
+            try:
+                instance = _class(**kwargs)
+            except TypeError:
+                self.log.exception('Invalid merger config')
+                raise ManagerException(
+                    f'Incorrect merger config for {merger_name}, {merger_config.context}'
+                )
+            if not isinstance(instance, BaseMerger):
+                raise ManagerException(
+                    f'Merger {merger_name} class {_class} must subclass BaseMerger'
+                )
+            mergers[merger_name] = instance
+            self.log.info(
+                '__init__: merger=%s (%s %s)', merger_name, module, version
+            )
+        return mergers
 
     def _config_validators(self, validators_config):
         # Parses the top-level `validators:` config section, instantiates each
@@ -1380,6 +1421,22 @@ class Manager(object):
             # Zone itself, which raises ZoneException for invalid entries
             # (e.g. attempting to disable a bridge validator).
             validators = zone.get('validators')
+            # Effective merger ids: the per-zone `mergers` list overrides the
+            # manager-wide global default. Each id is a built-in (like `caa`/
+            # `txt`) or a manager-configured merger. Resolve each id to an
+            # instance, preferring manager-configured mergers over the
+            # built-in ones registered in the module-level registry.
+            merger_ids = zone.get('mergers', self.global_mergers)
+            mergers = []
+            for merger_id in merger_ids:
+                merger = self.mergers.get(merger_id)
+                if merger is None:
+                    merger = merger_registry.mergers.get(merger_id)
+                if merger is None:
+                    raise ManagerException(
+                        f'Unknown merger "{merger_id}" for zone {zone_name}'
+                    )
+                mergers.append(merger)
 
             return Zone(
                 idna_encode(zone_name),
@@ -1389,6 +1446,7 @@ class Manager(object):
                 ignore_subzone_adds=ignore_subzone_adds,
                 context=context,
                 validators=validators,
+                mergers=mergers,
             )
 
         raise ManagerException(f'Unknown zone name {idna_decode(zone_name)}')

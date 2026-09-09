@@ -6,7 +6,8 @@
 Build a JSON Schema describing the octoDNS main configuration file.
 
 The schema covers all top-level sections of config.yaml: manager, providers,
-processors, validators, secret_handlers, and zones. Built-in core classes get
+mergers, processors, validators, secret_handlers, and zones. Built-in core
+classes get
 tight property schemas; unknown (third-party) classes are allowed through
 with any kwargs as long as `class` is present.
 
@@ -215,6 +216,13 @@ _PROCESSOR_BRANCHES = [
     _class_branch('octodns.processor.trailing_dots.EnsureTrailingDots', {}),
 ]
 
+# ── Mergers ───────────────────────────────────────────────────────────────────
+
+_MERGER_BRANCHES = [
+    _class_branch('octodns.merge.CaaMerger', {}),
+    _class_branch('octodns.merge.TxtMerger', {}),
+]
+
 # ── Secret handlers ───────────────────────────────────────────────────────────
 
 _SECRET_HANDLER_BRANCHES = [
@@ -279,6 +287,7 @@ def _manager_def():
             'enable_checksum': {'type': 'boolean'},
             'auto_arpa': {'oneOf': [{'type': 'boolean'}, _AUTO_ARPA_KWARGS]},
             'processors': _STRING_ARRAY,
+            'mergers': _STRING_ARRAY,
             'post_processors': _STRING_ARRAY,
             'validators': {
                 'type': 'object',
@@ -355,6 +364,7 @@ def _zone_def():
                     'sources': _STRING_ARRAY,
                     'targets': _STRING_ARRAY,
                     'processors': _STRING_ARRAY,
+                    'mergers': _STRING_ARRAY,
                     'lenient': {'type': 'boolean'},
                     'glob': {'type': 'string'},
                     'regex': {'type': 'string'},
@@ -371,13 +381,14 @@ def build_config_schema():
     return {
         '$schema': 'https://json-schema.org/draft/2020-12/schema',
         'title': 'octoDNS config file',
-        'description': 'Schema for an octoDNS main configuration YAML file: providers, processors, validators, secret_handlers, and zones.',
+        'description': 'Schema for an octoDNS main configuration YAML file: providers, mergers, processors, validators, secret_handlers, and zones.',
         'type': 'object',
         'required': ['providers', 'zones'],
         'additionalProperties': False,
         'properties': {
             'manager': {'$ref': '#/$defs/manager'},
             'providers': {'$ref': '#/$defs/pluggable_map_provider'},
+            'mergers': {'$ref': '#/$defs/pluggable_map_merger'},
             'processors': {'$ref': '#/$defs/pluggable_map_processor'},
             'validators': {'$ref': '#/$defs/pluggable_map_validator'},
             'secret_handlers': {'$ref': '#/$defs/pluggable_map_secret_handler'},
@@ -403,6 +414,11 @@ def build_config_schema():
                     '$ref': '#/$defs/pluggable_secret_handler'
                 },
             },
+            'pluggable_map_merger': {
+                'type': 'object',
+                'additionalProperties': {'$ref': '#/$defs/pluggable_merger'},
+            },
+            'pluggable_merger': _pluggable_entry(_MERGER_BRANCHES),
             'pluggable_provider': _pluggable_entry(_PROVIDER_BRANCHES),
             'pluggable_processor': _pluggable_entry(
                 _PROCESSOR_BRANCHES,

@@ -1,0 +1,19 @@
+providers:
+  in:
+    class: octodns.provider.yaml.YamlProvider
+    directory: tests/config
+  dump:
+    class: octodns.provider.yaml.YamlProvider
+    directory: env/YAML_TMP_DIR
+
+mergers:
+  no-class: {}
+
+zones:
+  unit.tests.:
+    mergers:
+    - no-class
+    sources:
+    - in
+    targets:
+    - dump
