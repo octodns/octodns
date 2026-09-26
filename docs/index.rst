@@ -137,6 +137,9 @@ their own repositories and released as independent modules.
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
+   * - `Linode`_
+     - `octodns_linode`_
+     -
    * - `MikroTik`_
      - `octodns_mikrotik`_
      -
@@ -156,7 +159,7 @@ their own repositories and released as independent modules.
      - `octodns_ovh`_
      -
    * - `Pi-hole`_
-     - `jvoss/octodns-pihole`_
+     - `roosnic1/octodns-pihole`_
      -
    * - `PowerDNS`_
      - `octodns_powerdns`_
@@ -181,6 +184,9 @@ their own repositories and released as independent modules.
      -
    * - `UniFi Network`_
      - `netshad0w/octodns-unifi`_
+     -
+   * - `Vultr`_
+     - `octodns_vultr`_
      -
    * - `YamlProvider`_
      - built-in
@@ -246,6 +252,8 @@ their own repositories and released as independent modules.
 .. _octodns_inwx: https://github.com/fjaeckel/octodns-inwx
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
+.. _Linode: https://www.linode.com/products/dns-manager/
+.. _octodns_linode: https://github.com/octodns/octodns-linode/
 .. _MikroTik: https://mikrotik.com/
 .. _octodns_mikrotik: https://github.com/M0NsTeRRR/octodns-mikrotik
 .. _Mythic Beasts DNS: https://www.mythic-beasts.com/support/hosting/dns
@@ -259,7 +267,7 @@ their own repositories and released as independent modules.
 .. _OVHcloud DNS: https://www.ovhcloud.com/en/domains/dns-subdomain/
 .. _octodns_ovh: https://github.com/octodns/octodns-ovh/
 .. _Pi-hole: https://pi-hole.net/
-.. _jvoss/octodns-pihole: https://github.com/jvoss/octodns-pihole
+.. _roosnic1/octodns-pihole: https://github.com/roosnic1/octodns-pihole
 .. _PowerDNS: https://www.powerdns.com/
 .. _octodns_powerdns: https://github.com/octodns/octodns-powerdns/
 .. _Rackspace: https://www.rackspace.com/library/what-is-dns
@@ -276,6 +284,8 @@ their own repositories and released as independent modules.
 .. _octodns_ultra: https://github.com/octodns/octodns-ultra/
 .. _UniFi Network: https://ui.com/
 .. _netshad0w/octodns-unifi: https://github.com/netshad0w/octodns-unifi
+.. _Vultr: https://www.vultr.com/products/dns/
+.. _octodns_vultr: https://github.com/octodns/octodns-vultr/
 .. _YamlProvider: /octodns/provider/yaml.py
 .. _kompetenzbolzen/octodns-custom-provider: https://github.com/kompetenzbolzen/octodns-custom-provider
 
