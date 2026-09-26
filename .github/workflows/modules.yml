@@ -44,6 +44,7 @@ jobs:
           - octodns/octodns-gcore
           - octodns/octodns-googlecloud
           - octodns/octodns-hetzner
+          - octodns/octodns-linode
           - octodns/octodns-mythicbeasts
           - octodns/octodns-ns1
           - octodns/octodns-ovh
@@ -54,6 +55,7 @@ jobs:
           - octodns/octodns-spf
           - octodns/octodns-transip
           - octodns/octodns-ultra
+          - octodns/octodns-vultr
     steps:
       - uses: actions/checkout@v4
       - name: Setup python
