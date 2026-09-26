@@ -159,7 +159,7 @@ their own repositories and released as independent modules.
      - `octodns_ovh`_
      -
    * - `Pi-hole`_
-     - `jvoss/octodns-pihole`_
+     - `roosnic1/octodns-pihole`_
      -
    * - `PowerDNS`_
      - `octodns_powerdns`_
@@ -267,7 +267,7 @@ their own repositories and released as independent modules.
 .. _OVHcloud DNS: https://www.ovhcloud.com/en/domains/dns-subdomain/
 .. _octodns_ovh: https://github.com/octodns/octodns-ovh/
 .. _Pi-hole: https://pi-hole.net/
-.. _jvoss/octodns-pihole: https://github.com/jvoss/octodns-pihole
+.. _roosnic1/octodns-pihole: https://github.com/roosnic1/octodns-pihole
 .. _PowerDNS: https://www.powerdns.com/
 .. _octodns_powerdns: https://github.com/octodns/octodns-powerdns/
 .. _Rackspace: https://www.rackspace.com/library/what-is-dns
