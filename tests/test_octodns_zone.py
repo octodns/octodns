@@ -597,15 +597,25 @@ class TestZone(TestCase):
         zone_ignored.add_record(ignored)
 
         provider = SimpleProvider()
+        msg = 'DEBUG:Zone:changes:  skipping record=www.unit.tests. A - ignored'
 
-        self.assertFalse(zone_normal.changes(zone_ignored, provider))
+        # desired is ignored
+        with self.assertLogs('Zone', level='DEBUG') as ctx:
+            self.assertFalse(zone_normal.changes(zone_ignored, provider))
+        self.assertIn(msg, ctx.output)
         self.assertTrue(zone_normal.changes(zone_missing, provider))
 
-        self.assertFalse(zone_ignored.changes(zone_normal, provider))
+        # existing is ignored
+        with self.assertLogs('Zone', level='DEBUG') as ctx:
+            self.assertFalse(zone_ignored.changes(zone_normal, provider))
+        self.assertIn(msg, ctx.output)
         self.assertFalse(zone_ignored.changes(zone_missing, provider))
 
         self.assertTrue(zone_missing.changes(zone_normal, provider))
-        self.assertFalse(zone_missing.changes(zone_ignored, provider))
+        # addition is ignored
+        with self.assertLogs('Zone', level='DEBUG') as ctx:
+            self.assertFalse(zone_missing.changes(zone_ignored, provider))
+        self.assertIn(msg, ctx.output)
 
     def test_cname_coexisting(self):
         zone = Zone('unit.tests.', [])
