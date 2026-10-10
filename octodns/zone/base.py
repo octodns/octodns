@@ -646,6 +646,11 @@ class Zone(object):
         # Find diffs & removes
         for record in self.records:
             if record.ignored:
+                self.log.debug(
+                    'changes:  skipping record=%s %s - ignored',
+                    record.fqdn,
+                    record._type,
+                )
                 continue
             elif len(record.included) > 0 and target.id not in record.included:
                 self.log.debug(
@@ -666,6 +671,11 @@ class Zone(object):
             try:
                 desired_record = desired_records[record]
                 if desired_record.ignored:
+                    self.log.debug(
+                        'changes:  skipping record=%s %s - ignored',
+                        record.fqdn,
+                        record._type,
+                    )
                     continue
                 elif (
                     len(desired_record.included) > 0
@@ -714,6 +724,11 @@ class Zone(object):
         # well
         for record in desired.records - self.records:
             if record.ignored:
+                self.log.debug(
+                    'changes:  skipping record=%s %s - ignored',
+                    record.fqdn,
+                    record._type,
+                )
                 continue
             elif len(record.included) > 0 and target.id not in record.included:
                 self.log.debug(
