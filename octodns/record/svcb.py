@@ -125,6 +125,7 @@ def validate_svcparam_ech(svcparamvalue, validator_id=None):
                 'ech SvcParam is invalid Base64', validator_id=validator_id
             )
         ]
+    return []
 
 
 def validate_svckey_number(paramkey, validator_id=None):
