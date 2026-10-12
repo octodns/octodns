@@ -770,6 +770,35 @@ class TestRecordSvcb(TestCase):
             ctx.exception.reasons,
         )
 
+    def test_validation_ech(self):
+        # a valid Base64 ech passes validation
+        ech = 'dG90YWxseUZha2VFQ0hPcHRpb24='
+        for rtype in ('SVCB', 'HTTPS'):
+            Record.new(
+                self.zone,
+                'foo',
+                {
+                    'type': rtype,
+                    'ttl': 600,
+                    'value': {
+                        'svcpriority': 1,
+                        'targetname': 'foo.bar.com.',
+                        'svcparams': {'ech': ech},
+                    },
+                },
+            )
+
+        # every svcparam validator returns a list of reasons for a valid value
+        for key, value in {
+            'alpn': ['h2'],
+            'port': '443',
+            'ipv4hint': ['1.2.3.4'],
+            'ipv6hint': ['::1'],
+            'mandatory': ['alpn'],
+            'ech': ech,
+        }.items():
+            self.assertEqual([], SUPPORTED_PARAMS[key]['validate'](value))
+
 
 class TestSvcbBestPractice(TestCase):
 
