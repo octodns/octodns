@@ -241,6 +241,40 @@ class TestRecordUri(TestCase):
             },
         )
 
+        # permit a bare service label, e.g. Kerberos KDC discovery
+        # (_kerberos.REALM, MIT krb5 / FreeIPA)
+        for name in ('_kerberos', '_kpasswd', '_kerberos-adm'):
+            Record.new(
+                self.zone,
+                name,
+                {
+                    'type': 'URI',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 0,
+                        'weight': 100,
+                        'target': 'krb5srv:m:udp:kdc1.unit.tests.',
+                    },
+                },
+            )
+
+        # bare wildcard is still invalid
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '*',
+                {
+                    'type': 'URI',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 1,
+                        'weight': 2,
+                        'target': 'http://foo.bar.baz.',
+                    },
+                },
+            )
+        self.assertEqual(['invalid name for URI record'], ctx.exception.reasons)
+
         # invalid name
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
@@ -498,14 +532,28 @@ class TestRecordUri(TestCase):
                 [], validate(UriRecord, name, f'{name}.unit.tests.', {}), name
             )
 
-        # single-label name
+        # single service label, e.g. Kerberos KDC discovery
+        for name in ('_kerberos', '_kpasswd', '_kerberos-adm', '_ftp'):
+            self.assertEqual(
+                [], validate(UriRecord, name, f'{name}.unit.tests.', {}), name
+            )
+        # single-label name must still be a valid service label
         self.assertEqual(
-            ['URI name must have at least two labels (_service._proto)'],
-            validate(UriRecord, '_ftp', '_ftp.unit.tests.', {}),
+            ['invalid URI service label "_1krb"'],
+            validate(UriRecord, '_1krb', '_1krb.unit.tests.', {}),
+        )
+        self.assertEqual(
+            ['invalid URI service label "kerberos"'],
+            validate(UriRecord, 'kerberos', 'kerberos.unit.tests.', {}),
+        )
+        # bare wildcard needs a proto label
+        self.assertEqual(
+            ['URI wildcard name must have a _proto label'],
+            validate(UriRecord, '*', '*.unit.tests.', {}),
         )
         # empty name
         self.assertEqual(
-            ['URI name must have at least two labels (_service._proto)'],
+            ['URI name must start with a _service label'],
             validate(UriRecord, '', 'unit.tests.', {}),
         )
 

@@ -19,12 +19,13 @@ from .validator import RecordValidator, ValidationReason, ValueValidator
 
 class UriNameValidator(RecordValidator):
     '''
-    Validates that a URI record's name matches the
-    ``_service._protocol`` pattern required by RFC 7553, or is a
-    wildcard.
+    Validates that a URI record's name starts with an underscore-prefixed
+    service label per RFC 7553, either alone (``_kerberos``, as used by
+    Kerberos KDC discovery) or followed by more labels (``_ftp._tcp``), or
+    is a wildcard with at least one further label.
     '''
 
-    _name_re = re.compile(r'^(\*|_[^\.]+)\.[^\.]+')
+    _name_re = re.compile(r'^(\*\.[^\.]+|_[^\.]+(\.|$))')
 
     def validate(self, record_cls, name, fqdn, data, disabled=None):
         if not self._name_re.match(name):
@@ -258,11 +259,12 @@ class UriNameRfcValidator(RecordValidator):
     Strict URI name validator per RFC 7553 §3 and RFC 6335 §5.1.
 
     Requires the first two labels of the record name to be
-    ``_service._proto`` (``*._proto`` is still accepted for wildcards).
-    Both label bodies (after the leading ``_``) must conform to the
-    RFC 6335 §5.1 service name syntax: 1-15 characters, starting with a
-    letter, ending with a letter or digit, containing only letters,
-    digits, and hyphens, and with no consecutive hyphens.
+    ``_service._proto`` (``*._proto`` is still accepted for wildcards), or
+    the name to be a single ``_service`` label, as Kerberos KDC discovery
+    publishes (``_kerberos``). Label bodies (after the leading ``_``) must
+    conform to the RFC 6335 §5.1 service name syntax: 1-15 characters,
+    starting with a letter, ending with a letter or digit, containing only
+    letters, digits, and hyphens, and with no consecutive hyphens.
 
     Enabled as part of the ``strict`` validator set::
 
@@ -287,10 +289,29 @@ class UriNameRfcValidator(RecordValidator):
 
     def validate(self, record_cls, name, fqdn, data, disabled=None):
         labels = name.split('.') if name else []
-        if len(labels) < 2:
+        if not labels:
             return [
                 ValidationReason(
-                    'URI name must have at least two labels (_service._proto)',
+                    'URI name must start with a _service label',
+                    validator_id=self.id,
+                )
+            ]
+        if len(labels) == 1:
+            service = labels[0]
+            if service == '*':
+                return [
+                    ValidationReason(
+                        'URI wildcard name must have a _proto label',
+                        validator_id=self.id,
+                    )
+                ]
+            if service.startswith('_') and self._is_valid_service_name(
+                service[1:]
+            ):
+                return []
+            return [
+                ValidationReason(
+                    f'invalid URI service label "{service}"',
                     validator_id=self.id,
                 )
             ]
