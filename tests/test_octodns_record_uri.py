@@ -241,6 +241,40 @@ class TestRecordUri(TestCase):
             },
         )
 
+        # permit a bare service label, e.g. Kerberos KDC discovery
+        # (_kerberos.REALM, MIT krb5 / FreeIPA)
+        for name in ('_kerberos', '_kpasswd', '_kerberos-adm'):
+            Record.new(
+                self.zone,
+                name,
+                {
+                    'type': 'URI',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 0,
+                        'weight': 100,
+                        'target': 'krb5srv:m:udp:kdc1.unit.tests.',
+                    },
+                },
+            )
+
+        # bare wildcard is still invalid
+        with self.assertRaises(ValidationError) as ctx:
+            Record.new(
+                self.zone,
+                '*',
+                {
+                    'type': 'URI',
+                    'ttl': 600,
+                    'value': {
+                        'priority': 1,
+                        'weight': 2,
+                        'target': 'http://foo.bar.baz.',
+                    },
+                },
+            )
+        self.assertEqual(['invalid name for URI record'], ctx.exception.reasons)
+
         # invalid name
         with self.assertRaises(ValidationError) as ctx:
             Record.new(
@@ -485,70 +519,78 @@ class TestRecordUri(TestCase):
     def test_name_rfc_validator(self):
         validate = UriNameRfcValidator('uri-name-rfc').validate
 
+        def check(name):
+            return validate(UriRecord, name, f'{name}.unit.tests.', {})
+
         for name in (
+            # RFC 6335 service + protocol
             '_ftp._tcp',
             '_http._tcp',
             '_xmpp-client._tcp',
             '_a._tcp',
-            '_ftp._tcp.region1',
-            '*._tcp',
             '_a1._tcp',
+            # RFC 6335 allows a leading digit
+            '_9pfs._tcp',
+            '_3com-amp3',
+            # Enumservice type with no subtype, e.g. Kerberos KDC discovery
+            '_kerberos',
+            '_kpasswd',
+            '_kerberos-adm',
+            # Enumservice type and subtypes, reversed, one label each
+            '_c._b._a',
+            # Enumservice labels may be up to 32 characters
+            '_' + 'a' * 32,
+            '_sixteen-chars-xx',
+            # Enumservice allows `--`, RFC 6335 doesn't, either is enough
+            '_f--p._tcp',
+            # service labels below the zone apex, at host `corp`/`region1`
+            '_kerberos.corp',
+            '_ftp._tcp.region1',
+            '_ftp.tcp',
+            # wildcard first label
+            '*._tcp',
+            '*._kerberos.corp',
+            # case-insensitive
+            '_FTP._TCP',
         ):
+            self.assertEqual([], check(name), name)
+
+        # no leading _ label
+        for name in ('', 'kerberos', 'ftp._tcp', 'ftp.tcp', '*', '*.corp'):
             self.assertEqual(
-                [], validate(UriRecord, name, f'{name}.unit.tests.', {}), name
+                ['URI name must start with a _service label'], check(name), name
             )
 
-        # single-label name
-        self.assertEqual(
-            ['URI name must have at least two labels (_service._proto)'],
-            validate(UriRecord, '_ftp', '_ftp.unit.tests.', {}),
-        )
-        # empty name
-        self.assertEqual(
-            ['URI name must have at least two labels (_service._proto)'],
-            validate(UriRecord, '', 'unit.tests.', {}),
-        )
+        for label in (
+            # empty after the underscore
+            '_',
+            # too long
+            '_' + 'a' * 33,
+            # leading or trailing hyphen
+            '_-ftp',
+            '_ftp-',
+            # non US-ASCII
+            '_kérberos',
+            '_krb٣',
+            # other characters
+            '_ftp_x',
+            '_ftp*',
+            # E2U is reserved (RFC 6117 §11.8)
+            '_e2u',
+            '_E2U',
+            '_e2u-sip',
+        ):
+            self.assertEqual(
+                [f'invalid URI service label "{label}"'], check(label), label
+            )
 
-        # service label missing underscore
-        self.assertEqual(
-            ['invalid URI service label "ftp"'],
-            validate(UriRecord, 'ftp._tcp', 'ftp._tcp.unit.tests.', {}),
-        )
-        # service label too long (>15 chars after underscore)
-        long_svc = '_' + ('a' * 16)
-        self.assertEqual(
-            [f'invalid URI service label "{long_svc}"'],
-            validate(
-                UriRecord, f'{long_svc}._tcp', f'{long_svc}._tcp.u.t.', {}
-            ),
-        )
-        # service label starts with digit
-        self.assertEqual(
-            ['invalid URI service label "_1ftp"'],
-            validate(UriRecord, '_1ftp._tcp', '_1ftp._tcp.unit.tests.', {}),
-        )
-        # service label ends with hyphen
-        self.assertEqual(
-            ['invalid URI service label "_ftp-"'],
-            validate(UriRecord, '_ftp-._tcp', '_ftp-._tcp.unit.tests.', {}),
-        )
-        # service label contains consecutive hyphens
-        self.assertEqual(
-            ['invalid URI service label "_f--p"'],
-            validate(UriRecord, '_f--p._tcp', '_f--p._tcp.unit.tests.', {}),
-        )
-        # proto label missing underscore
-        self.assertEqual(
-            ['invalid URI proto label "tcp"'],
-            validate(UriRecord, '_ftp.tcp', '_ftp.tcp.unit.tests.', {}),
-        )
-        # both labels invalid
+        # every label in the leading run is checked, in order
         self.assertEqual(
             [
-                'invalid URI service label "ftp"',
-                'invalid URI proto label "tcp"',
+                'invalid URI service label "_b-"',
+                'invalid URI service label "_e2u"',
             ],
-            validate(UriRecord, 'ftp.tcp', 'ftp.tcp.unit.tests.', {}),
+            check('_c._b-._e2u.host'),
         )
 
     def test_rfc_name_validator_opt_in(self):
@@ -559,7 +601,7 @@ class TestRecordUri(TestCase):
             with self.assertRaises(ValidationError) as ctx:
                 Record.new(
                     zone,
-                    '_1ftp._tcp',
+                    '_ftp-._tcp',
                     {
                         'type': 'URI',
                         'ttl': 600,
@@ -571,7 +613,7 @@ class TestRecordUri(TestCase):
                     },
                 )
             self.assertEqual(
-                ['invalid URI service label "_1ftp"'], ctx.exception.reasons
+                ['invalid URI service label "_ftp-"'], ctx.exception.reasons
             )
 
             Record.new(
