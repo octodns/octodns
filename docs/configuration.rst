@@ -288,8 +288,8 @@ Validators active in ``strict`` only (stricter replacements):
 | ``srv-value-rfc``          | SRV rdata strict per RFC 2782 (range, null target);   |
 |                            | replaces ``srv-value``                                |
 +----------------------------+-------------------------------------------------------+
-| ``uri-name-rfc``           | URI name strict per RFC 7553 + RFC 6335 §5.1;         |
-|                            | replaces ``uri-name``                                 |
+| ``uri-name-rfc``           | URI name strict per RFC 7553 §4.1 (RFC 6335 and       |
+|                            | RFC 6117 labels); replaces ``uri-name``               |
 +----------------------------+-------------------------------------------------------+
 | ``mx-value-rfc``           | MX preference in [0, 65535]; null MX rules per        |
 |                            | RFC 7505; replaces ``mx-value``                       |
