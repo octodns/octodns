@@ -591,6 +591,11 @@ class TestSrvValue(TestCase):
             '_sip._tcp.region1',
             '*._tcp',
             '_a1._tcp',
+            # RFC 6335 §5.1 allows a leading digit, e.g. IANA's 9pfs, 3com-amp3
+            '_1sip._tcp',
+            '_9pfs._tcp',
+            '_3com-amp3._tcp',
+            '_sip._1tcp',
         ):
             self.assertEqual(
                 [], validate(SrvRecord, name, f'{name}.unit.tests.', {}), name
@@ -620,11 +625,23 @@ class TestSrvValue(TestCase):
                 SrvRecord, f'{long_svc}._tcp', f'{long_svc}._tcp.u.t.', {}
             ),
         )
-        # service label starts with digit
+        # service label must contain at least one letter
         self.assertEqual(
-            ['invalid SRV service label "_1sip"'],
-            validate(SrvRecord, '_1sip._tcp', '_1sip._tcp.u.t.', {}),
+            ['invalid SRV service label "_123"'],
+            validate(SrvRecord, '_123._tcp', '_123._tcp.u.t.', {}),
         )
+        # service label starts with hyphen
+        self.assertEqual(
+            ['invalid SRV service label "_-sip"'],
+            validate(SrvRecord, '_-sip._tcp', '_-sip._tcp.u.t.', {}),
+        )
+        # service label with non US-ASCII letter or digit
+        for label in ('_s\u00efp', '_sip\u0663'):
+            self.assertEqual(
+                [f'invalid SRV service label "{label}"'],
+                validate(SrvRecord, f'{label}._tcp', f'{label}._tcp.u.t.', {}),
+                label,
+            )
         # service label ends with hyphen
         self.assertEqual(
             ['invalid SRV service label "_sip-"'],
@@ -653,8 +670,8 @@ class TestSrvValue(TestCase):
         )
         # proto label invalid body
         self.assertEqual(
-            ['invalid SRV proto label "_1tcp"'],
-            validate(SrvRecord, '_sip._1tcp', '_sip._1tcp.u.t.', {}),
+            ['invalid SRV proto label "_tcp-"'],
+            validate(SrvRecord, '_sip._tcp-', '_sip._tcp-.u.t.', {}),
         )
 
         # both service and proto wrong -> two reasons
@@ -764,7 +781,7 @@ class TestSrvValue(TestCase):
             with self.assertRaises(ValidationError) as ctx:
                 Record.new(
                     zone,
-                    '_1sip._tcp',
+                    '_si--p._tcp',
                     {
                         'type': 'SRV',
                         'ttl': 600,
@@ -779,7 +796,7 @@ class TestSrvValue(TestCase):
             self.assertEqual(
                 [
                     'port "70000" out of range 0-65535',
-                    'invalid SRV service label "_1sip"',
+                    'invalid SRV service label "_si--p"',
                 ],
                 ctx.exception.reasons,
             )
