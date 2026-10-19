@@ -352,6 +352,11 @@ Validators active in ``best-practice`` only:
 +---------------------------------------+-----------------------------------------------+
 | id                                    | description                                   |
 +=======================================+===============================================+
+| ``name-wildcard-best-practice``       | ``"*"`` only as the entire leftmost label;    |
+|                                       | elsewhere it is a literal character, not a    |
+|                                       | wildcard (disable for literal use, e.g.       |
+|                                       | DNS-SD instance names)                        |
++---------------------------------------+-----------------------------------------------+
 | ``target-value-best-practice``        | CNAME/ALIAS/DNAME target must end with        |
 |                                       | ``"."`` (absolute name prevents resolver      |
 |                                       | search-domain append)                         |
