@@ -134,6 +134,9 @@ their own repositories and released as independent modules.
    * - `INWX`_
      - `octodns_inwx`_
      -
+   * - `Katapult`_
+     - `octodns_katapult`_
+     -
    * - `Lexicon`_
      - `dns-lexicon/dns-lexicon`_
      -
@@ -250,6 +253,8 @@ their own repositories and released as independent modules.
 .. _octodns_infomaniak: https://github.com/M0NsTeRRR/octodns-infomaniak
 .. _INWX: https://www.inwx.com
 .. _octodns_inwx: https://github.com/fjaeckel/octodns-inwx
+.. _Katapult: https://katapult.io/
+.. _octodns_katapult: https://github.com/DonQuinleone/octodns-katapult
 .. _Lexicon: https://dns-lexicon.github.io/dns-lexicon/#
 .. _dns-lexicon/dns-lexicon: https://github.com/dns-lexicon/dns-lexicon
 .. _Linode: https://www.linode.com/products/dns-manager/
