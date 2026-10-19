@@ -156,6 +156,35 @@ class NameValidator(RecordValidator):
         return reasons
 
 
+class NameWildcardBestPracticeValidator(RecordValidator):
+    '''
+    Flags a ``*`` anywhere in a record name other than as the entire leftmost
+    label. Only an exact leftmost ``*`` label is a wildcard (RFC 1034 §4.3.3,
+    RFC 4592); elsewhere it is a literal character. That is legal on the wire
+    (RFC 2181 §11), but is almost always a typo and is rejected by some
+    providers. Disable it if you intentionally use a literal ``*``, e.g. in a
+    DNS-SD service instance label (RFC 6763 §4.1.1).
+
+    Enabled as part of the ``best-practice`` validator set::
+
+      manager:
+        enabled:
+          - best-practice
+    '''
+
+    def validate(self, record_cls, name, fqdn, data, disabled=None):
+        if name == '*' or '*' not in name.removeprefix('*.'):
+            return []
+        return [
+            ValidationReason(
+                f'invalid name, "*" in "{idna_decode(fqdn)}" is treated '
+                'literally and is not a wildcard, only a leftmost "*" label '
+                'is a wildcard',
+                validator_id=self.id,
+            )
+        ]
+
+
 class TtlValidator(RecordValidator):
     '''
     Validates that the record has a ttl and that it is a non-negative
@@ -836,6 +865,11 @@ class ValueMixin(object):
 
 
 Record.register_validator(NameValidator('name-rfc', sets={'legacy', 'strict'}))
+Record.register_validator(
+    NameWildcardBestPracticeValidator(
+        'name-wildcard-best-practice', sets={'best-practice'}
+    )
+)
 Record.register_validator(TtlValidator('ttl-rfc', sets={'legacy', 'strict'}))
 Record.register_validator(
     HealthcheckValidator('healthcheck', sets={'legacy', 'strict'})

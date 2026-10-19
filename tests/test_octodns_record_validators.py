@@ -12,11 +12,13 @@ from octodns.record import (
     MxRecord,
     Record,
     RecordException,
+    ValidationError,
 )
 from octodns.record.alias import AliasRootValidator
 from octodns.record.base import (
     HealthcheckValidator,
     NameValidator,
+    NameWildcardBestPracticeValidator,
     TtlValidator,
 )
 from octodns.record.cname import CnameRootValidator
@@ -30,6 +32,7 @@ from octodns.record.validator import (
     ValidatorRegistry,
     ValueValidator,
 )
+from octodns.zone import Zone
 
 
 class TestValidatorBase(TestCase):
@@ -113,6 +116,63 @@ class TestBuiltinValidators(TestCase):
                 ARecord, 'foo..bar', 'foo..bar.unit.tests.', {}
             ),
         )
+
+    def test_name_wildcard_best_practice_validator(self):
+        validate = NameWildcardBestPracticeValidator(
+            'name-wildcard-best-practice'
+        ).validate
+        for name in ('', 'www', 'a.b', '*', '*.sub', '*.a.b'):
+            self.assertEqual(
+                [],
+                validate(ARecord, name, f'{name}.unit.tests.'.lstrip('.'), {}),
+                name,
+            )
+        for name in (
+            '*abc',
+            '*abc.sub',
+            'a*.sub',
+            'hello.*.test',
+            'sub.*',
+            '*.*',
+            '**',
+            '*.a*',
+        ):
+            reasons = validate(ARecord, name, f'{name}.unit.tests.', {})
+            self.assertEqual(
+                [
+                    f'invalid name, "*" in "{name}.unit.tests." is treated '
+                    'literally and is not a wildcard, only a leftmost "*" '
+                    'label is a wildcard'
+                ],
+                reasons,
+                name,
+            )
+            self.assertEqual(
+                'name-wildcard-best-practice', reasons[0].validator_id
+            )
+
+        # opt-in via Record.enable_validator
+        zone = Zone('unit.tests.', [])
+        data = {'type': 'A', 'ttl': 600, 'value': '1.2.3.4'}
+        Record.enable_validators(['legacy'])
+        # not part of legacy, a literal "*" is allowed
+        Record.new(zone, '*abc', data)
+        Record.enable_validator('name-wildcard-best-practice')
+        try:
+            with self.assertRaises(ValidationError) as ctx:
+                Record.new(zone, '*abc', data)
+            self.assertEqual(
+                [
+                    'invalid name, "*" in "*abc.unit.tests." is treated '
+                    'literally and is not a wildcard, only a leftmost "*" '
+                    'label is a wildcard'
+                ],
+                ctx.exception.reasons,
+            )
+            # a real wildcard passes
+            Record.new(zone, '*.sub', data)
+        finally:
+            Record.disable_validator('name-wildcard-best-practice')
 
     def test_ttl_validator(self):
         self.assertEqual(
