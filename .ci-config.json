@@ -1,9 +1,10 @@
 {
-  "python_version_current": "3.14",
+  "python_version_current": "3.15",
   "python_versions_active": [
     "3.11",
     "3.12",
     "3.13",
-    "3.14"
+    "3.14",
+    "3.15"
   ]
 }
