@@ -28,9 +28,10 @@ from octodns.record import (
     Update,
     ValidationError,
     ValuesMixin,
+    value_from_rdata_text,
+    value_to_rdata_text,
 )
 from octodns.record import base as record_base
-from octodns.record import value_from_rdata_text, value_to_rdata_text
 from octodns.record.base import unquote
 from octodns.yaml import ContextDict
 from octodns.zone import Zone
