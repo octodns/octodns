@@ -465,6 +465,7 @@ Related Projects and Resources
   - GitHub Blog: `Enabling DNS split authority with octoDNS`_
   - Tutorial: `How To Deploy and Manage Your DNS using octoDNS on Ubuntu 18.04`_
   - Cloudflare Blog: `Improving the Resiliency of Our Infrastructure DNS Zone`_
+  - Tutorial: `Check SPF changes in a pull request`_ (octoDNS, DNSControl and Terraform recipes)
 
 .. _octoDNS-Sync: https://github.com/marketplace/actions/octodns-sync
 .. _NixOS-DNS: https://github.com/Janik-Haag/nixos-dns/
@@ -477,6 +478,7 @@ Related Projects and Resources
 .. _Enabling DNS split authority with octoDNS: https://github.blog/2017-04-27-enabling-split-authority-dns-with-octodns/
 .. _How To Deploy and Manage Your DNS using octoDNS on Ubuntu 18.04: https://www.digitalocean.com/community/tutorials/how-to-deploy-and-manage-your-dns-using-octodns-on-ubuntu-18-04
 .. _Improving the Resiliency of Our Infrastructure DNS Zone: https://blog.cloudflare.com/improving-the-resiliency-of-our-infrastructure-dns-zone/
+.. _Check SPF changes in a pull request: https://domaincanary.com/guides/spf-check-pull-request
 
 If you know of any other resources, please do let us know!
 
