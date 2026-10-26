@@ -16,10 +16,11 @@ from helpers import (
     PlannableProvider,
     SimpleProvider,
     TemporaryDirectory,
+    validators_snapshot,
+    zone_validators_snapshot,
 )
 from helpers import TestRecordValidator as _TestRecordValidator
 from helpers import TestZoneValidator as _TestZoneValidator
-from helpers import validators_snapshot, zone_validators_snapshot
 
 from octodns import __version__
 from octodns.context import ContextDict
