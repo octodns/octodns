@@ -341,18 +341,14 @@ class _SvcbValueBase(EqualityTupleMixin, dict):
         targetname = unquote(targetname)
         params = dict()
         for svcparam in svcparams:
-            paramkey, *paramvalue = svcparam.split('=')
+            paramkey, *paramvalue = svcparam.split('=', maxsplit=1)
             if paramkey in params.keys():
                 raise RdataParseError(f'{paramkey} is specified twice')
             if len(paramvalue) != 0:
                 param_parser = _svcparam_parser(paramkey)
                 if param_parser is None:
-                    v = paramvalue[0]
-                    if v.startswith('"'):
-                        v = v[1:-1]
-                    params[paramkey] = v
-                else:
-                    params[paramkey] = param_parser(paramvalue[0])
+                    param_parser = unquote
+                params[paramkey] = param_parser(paramvalue[0])
             else:
                 params[paramkey] = None
         return {

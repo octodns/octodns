@@ -236,6 +236,31 @@ class TestRecordSvcb(TestCase):
         )
         self.assertEqual(rdata.replace('"', ''), record.values[0].rdata_text)
 
+    def test_svcb_value_rdata_text_ech_and_quoted_params(self):
+        ech = 'dG90YWxseUZha2VFQ0hPcHRpb24='
+
+        # base64 `ech` values can end with a padding `=`, this must be preserved
+        self.assertEqual(
+            {'svcpriority': 1, 'targetname': '.', 'svcparams': {'ech': ech}},
+            SvcbValue.from_rdata_text(f'1 . ech={ech}'),
+        )
+
+        # base64 is wrapped in quotes
+        self.assertEqual(
+            {'svcpriority': 1, 'targetname': '.', 'svcparams': {'ech': ech}},
+            SvcbValue.from_rdata_text(f'1 . ech="{ech}"'),
+        )
+
+        # full round-trip test
+        value = SvcbValue(
+            {
+                'svcpriority': 1,
+                'targetname': 'svcb.unit.tests.',
+                'svcparams': {'ech': ech},
+            }
+        )
+        self.assertEqual(f'1 svcb.unit.tests. ech={ech}', value.to_rdata_text())
+
     def test_svcb_value(self):
         a = SvcbValue(
             {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': dict()}
