@@ -149,9 +149,7 @@ def validate_svckey_number(paramkey, validator_id=None):
 
 
 def _svcparamvalue_list_from_rdata_text(svcparamvalue):
-    if svcparamvalue.startswith('"'):
-        svcparamvalue = svcparamvalue[1:-1]
-    return svcparamvalue.split(',')
+    return unquote(svcparamvalue).split(',')
 
 
 # ``SUPPORTED_PARAMS`` is the extension point 3rd-parties use to register
