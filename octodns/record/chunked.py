@@ -16,7 +16,6 @@ from .base import (
     _deprecated_parse_rdata_text,
     _deprecated_rdata_text,
     _value_to_rdata_text_uses_legacy,
-    unquote,
     value_to_rdata_text,
 )
 from .rr import RdataParseError
@@ -237,7 +236,9 @@ class _ChunkedValue(str):
     def process(cls, values):
         ret = []
         for v in values:
-            ret.append(cls(unquote(v).replace('" "', '')))
+            if v and v[0] == '"':
+                v = v[1:-1]
+            ret.append(cls(v.replace('" "', '')))
         return ret
 
     @property
