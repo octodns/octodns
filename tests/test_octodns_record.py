@@ -1190,6 +1190,14 @@ class TestRecord(TestCase):
         # edge cases
         self.assertEqual(None, unquote(None))
         self.assertEqual('', unquote(''))
+        self.assertEqual('"', unquote('"'))
+        self.assertEqual("'", unquote("'"))
+        self.assertEqual('x', unquote('x'))
+        # edge cases with broken quoting
+        self.assertEqual(f'"{s}', unquote(f'"{s}'))
+        self.assertEqual(f"'{s}", unquote(f"'{s}"))
+        self.assertEqual(f"{s}'", unquote(f"{s}'"))
+        self.assertEqual(f'"{s}\'', unquote(f'"{s}\''))
 
     def test_otodns_backcompat(self):
         octo = {'answer': 42}
