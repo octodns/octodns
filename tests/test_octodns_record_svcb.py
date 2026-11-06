@@ -261,6 +261,23 @@ class TestRecordSvcb(TestCase):
         )
         self.assertEqual(f'1 svcb.unit.tests. ech={ech}', value.to_rdata_text())
 
+    def test_svcb_value_rdata_text_equals_in_value(self):
+        # only the first `=` separates the key from the value, any others are
+        # part of the value
+        for rdata, expected in (
+            ('1 . key65000=a=b', 'a=b'),
+            ('1 . key65000="a=b"', 'a=b'),
+            ('1 . key65000=a==b=', 'a==b='),
+        ):
+            self.assertEqual(
+                {
+                    'svcpriority': 1,
+                    'targetname': '.',
+                    'svcparams': {'key65000': expected},
+                },
+                SvcbValue.from_rdata_text(rdata),
+            )
+
     def test_svcb_value(self):
         a = SvcbValue(
             {'svcpriority': 0, 'targetname': 'foo.', 'svcparams': dict()}
