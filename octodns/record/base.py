@@ -18,7 +18,12 @@ from .validator import RecordValidator, ValidationReason, ValidatorRegistry
 
 
 def unquote(s):
-    if s and s[0] in ('"', "'"):
+    if (
+        isinstance(s, str)
+        and len(s) >= 2
+        and s[0] == s[-1]
+        and s[0] in ('"', "'")
+    ):
         return s[1:-1]
     return s
 

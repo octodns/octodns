@@ -47,6 +47,23 @@ class TestRecordChunked(TestCase):
         self.assertEqual('some.target.', a.values[0].rdata_text)
         self.assertEqual(a.chunked_values, a.rr_values)
 
+    def test_chunked_value_process(self):
+        for value, expected in (
+            ('', ''),
+            ('hello', 'hello'),
+            # wrapping double quotes are removed
+            ('"hello"', 'hello'),
+            ('"hello" "world"', 'helloworld'),
+            # quotes that don't wrap the whole value are kept
+            ('"', '"'),
+            ('"hello', '"hello'),
+            ('hello"', 'hello"'),
+            ('"quoted" rest', '"quoted" rest'),
+            # single quotes aren't TXT string delimiters
+            ("'hello'", "'hello'"),
+        ):
+            self.assertEqual([expected], _ChunkedValue.process([value]))
+
     def test_chunked_value_rrs(self):
         for value in (
             '',

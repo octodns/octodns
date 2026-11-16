@@ -236,7 +236,8 @@ class _ChunkedValue(str):
     def process(cls, values):
         ret = []
         for v in values:
-            if v and v[0] == '"':
+            # only strip quotes that wrap the whole value
+            if len(v) >= 2 and v[0] == '"' and v[-1] == '"':
                 v = v[1:-1]
             ret.append(cls(v.replace('" "', '')))
         return ret
