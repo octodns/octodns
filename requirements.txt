@@ -2,6 +2,7 @@
 x-python-version-not-supported; python_version!='3.11' and python_version!='3.12' and python_version!='3.13' and python_version!='3.14' and python_version!='3.15'
 alabaster==1.0.0
 anyio==4.16.0
+anysqlite==0.0.5
 attrs==26.1.0
 babel==2.18.0
 backports-tarfile==1.2.0; python_version=='3.11'
@@ -12,7 +13,8 @@ cffi==2.1.1
 changelet==0.6.1
 charset-normalizer==3.5.2
 click==8.5.1
-coverage==7.17.3
+comrak==0.0.16
+coverage==7.17.2
 cryptography==50.0.2
 dnspython==2.9.2
 docutils==0.22.4
@@ -26,7 +28,7 @@ idna==3.20
 imagesize==2.0.1
 importlib-metadata==10.2.0; python_version=='3.11'
 iniconfig==2.3.1
-isort==10.0.0b3
+isort==9.0.2
 jaraco-classes==3.4.0
 jaraco-context==6.1.2
 jaraco-functools==4.6.0
@@ -76,7 +78,7 @@ rich==15.0.0
 roman-numerals==4.1.0
 rpds-py==2026.9.1
 secretstorage==3.5.0
-semver==3.1.2
+semver==3.1.1
 setuptools==84.2.1
 snowballstemmer==3.1.1
 sphinx==9.0.4; python_version=='3.11'
@@ -89,7 +91,7 @@ sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==2.0.0
-sphinxcontrib-mermaid==3.0.0a1
+sphinxcontrib-mermaid==2.1.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 truststore==0.10.5
