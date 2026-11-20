@@ -23,5 +23,5 @@ echo "## validate tests can run against installed code #########################
 # (see: https://pip.pypa.io/en/stable/user_guide/#installing-from-wheels)
 wheel_file=$(ls dist/*$VERSION*.whl)
 pip install "${wheel_file}[test]"
-pytest --disable-network
+pytest --disable-socket
 echo "## complete ####################################################################"

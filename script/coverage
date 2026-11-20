@@ -19,7 +19,7 @@ if [ "$PRAGMA_COUNT" -ne "$PRAGMA_ALLOWED" ]; then
 fi
 
 pytest \
-  --disable-network \
+  --disable-socket \
   --cov-reset \
   --cov=$SOURCE_DIR \
   --cov-fail-under=100 \

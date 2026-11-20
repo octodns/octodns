@@ -35,7 +35,7 @@ echo "## install module dev requirements #######################################
 # that local octodns.
 if [ -e setup.py ] || grep -q '^\[project\]' pyproject.toml 2>/dev/null; then
   pip_module=1
-  pip install -e .[dev] pytest-network
+  pip install -e .[dev] pytest-socket
 elif [ -f pyproject.toml ]; then
   # install poetry
   pip install poetry
@@ -52,7 +52,7 @@ pip freeze
 echo "## run module tests ############################################################"
 export PYTHONPATH=.:$PYTHONPATH
 if [ -n "$pip_module" ]; then
-  pytest --disable-network
+  pytest --disable-socket
 elif [ -f poetry.toml ]; then
   poetry run pytest
 fi
