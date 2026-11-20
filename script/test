@@ -5,4 +5,4 @@ SCRIPT_PATH="$( dirname -- "$( readlink -f -- "${0}"; )"; )"
 # Activate OctoDNS Python venv
 source "${SCRIPT_PATH}/common.sh"
 
-pytest --disable-network "$@"
+pytest --disable-socket "$@"

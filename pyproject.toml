@@ -56,13 +56,13 @@ test = [
     "jsonschema>=4.0.0",
     "pytest>=6.2.5",
     "pytest-cov>=3.0.0",
-    "pytest-network>=0.0.1",
+    "pytest-socket>=0.8.1",
 ]
 dev = [
     "jsonschema>=4.0.0",
     "pytest>=6.2.5",
     "pytest-cov>=3.0.0",
-    "pytest-network>=0.0.1",
+    "pytest-socket>=0.8.1",
     # we need to manually/explicitely bump major versions as they're
     # likely to result in formatting changes that should happen in their
     # own PR. This will basically happen yearly
