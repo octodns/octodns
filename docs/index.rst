@@ -149,6 +149,9 @@ their own repositories and released as independent modules.
    * - `Mythic Beasts DNS`_
      - `octodns_mythicbeasts`_
      -
+   * - `NameOcean`_
+     - `octodns_nameocean`_
+     -
    * - `NetBox-DNS Plugin`_
      - `olofvndrhr/octodns-netbox-dns`_
      -
@@ -263,6 +266,8 @@ their own repositories and released as independent modules.
 .. _octodns_mikrotik: https://github.com/M0NsTeRRR/octodns-mikrotik
 .. _Mythic Beasts DNS: https://www.mythic-beasts.com/support/hosting/dns
 .. _octodns_mythicbeasts: https://github.com/octodns/octodns-mythicbeasts/
+.. _NameOcean: https://nameocean.net/dns/
+.. _octodns_nameocean: https://github.com/NameOcean/octodns-nameocean
 .. _NetBox-DNS Plugin: https://github.com/peteeckel/netbox-plugin-dns
 .. _olofvndrhr/octodns-netbox-dns: https://github.com/olofvndrhr/octodns-netbox-dns
 .. _NS1: https://ns1.com/products/managed-dns
